@@ -65,6 +65,32 @@ control = ent + 1).
 
 ES modules + an import map require HTTP — do **not** open `experiments.html` via `file://`.
 
+## Defense console on a static host (no Node reachable)
+
+`security_defender.html` detects whether it is being served from a **static host**
+(`https:` GitHub Pages, any non-localhost LAN origin, or `file://`) and degrades to
+an honest, self-contained **in-browser E91 fabric** — it no longer fakes a phantom
+mesh. When it cannot reach the node supervisor or the `2000x`/`2200x` ent peers:
+
+- **Readouts stay truthful** — `0/0`-style claims are gone; the fabric row shows
+  `fabric idle — press ⟠ Entangle` until you act, and the mesh-url input is cleared
+  with a "no node hosts reachable" hint instead of seeded localhost URLs.
+- **The fabric buttons genuinely compute** — ⟠ Entangle, ⇆ Rotate, ⚑ Eve,
+  ⚥ Deploy, the supervisor Start/Stop/Watchdog row, and Bench run the same E91
+  math (Bell-CHSH S, noise-free aligned-bit sifting → SHA-256 shared secret) entirely
+  in-page via `secsim-e91.mjs`. No server, no data collection, TOS-safe on Pages.
+  Every button does exactly what it does in the live dev build — nothing is
+  fabricated until you press it.
+- **Mobile gets a start menu** — on screens ≤ 760px the top-bar pills/links collapse
+  into a ☰ **⬡ START** drawer holding every button and live readout (pills clone in,
+  buttons drive the real handlers). The deck also gets a ▾ collapse toggle
+  (persisted; default collapsed on mobile).
+- **Opt out/force** for testing: `?static=1` forces the in-browser fabric,
+  `?static=0` forces the live-backend path.
+
+The full live path (supervisor + adb device mesh) is unchanged when `security_defender.html`
+served locally next to `serve.js` — see "Entanglement fabric across devices" above.
+
 ## Quick start — headless self-check (needs only Node)
 
 ```bash

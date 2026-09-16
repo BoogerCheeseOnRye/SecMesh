@@ -40,6 +40,35 @@
   .pill.amber{ color:var(--amber); border-color:rgba(255,190,60,.5); }
   #topbar a{ color:var(--amber); font-size:11px; text-decoration:none; border:1px solid transparent; padding:3px 6px; border-radius:3px; }
   #topbar a:hover{ border-color:var(--amber); }
+  #menuBtn{ display:none; }
+
+  /* ── start menu (mobile stasher · every button/readout in one drawer) ── */
+  #startMenu{ position:fixed; inset:0; z-index:50; overflow-y:auto;
+    background:linear-gradient(160deg, rgba(6,9,20,.98), rgba(4,6,13,.99)); padding:14px; }
+  #startMenu .smHead{ display:flex; align-items:center; gap:8px; margin-bottom:10px; }
+  #startMenu .smHead b{ color:var(--cyan); letter-spacing:1px; font-size:13px; }
+  #startMenu .smHead button{ margin-left:auto; background:none; border:1px solid var(--line); color:var(--amber); font:inherit; font-size:12px; padding:4px 10px; border-radius:5px; cursor:pointer; }
+  #startMenu .smHead button:hover{ border-color:var(--amber); }
+  #startMenu .smSec{ margin:14px 0 6px; font-size:9px; letter-spacing:1.6px; color:var(--amber); text-transform:uppercase; }
+  #startMenu .smGrid{ display:grid; grid-template-columns:repeat(2,1fr); gap:7px; }
+  #startMenu .smPills{ display:flex; flex-wrap:wrap; gap:6px; }
+  #startMenu .smPills .pill{ margin:0; }
+  #startMenu button.sm{ border:1px solid var(--line); background:linear-gradient(180deg,#0d1427,#080d1b); color:var(--txt);
+    text-align:left; font:inherit; font-size:11px; padding:9px 10px; border-radius:6px; cursor:pointer; }
+  #startMenu button.sm:hover{ border-color:var(--cyan); }
+  #startMenu button.sm .dv{ display:block; color:var(--dim); font-size:8.5px; margin-top:2px; }
+  #startMenu a.sm{ border:1px solid var(--line); color:var(--amber); text-decoration:none; text-align:center;
+    font-size:11px; padding:8px; border-radius:6px; }
+
+  /* ── deck header + collapse ── */
+  #deck .deckHead{ display:flex; align-items:center; gap:8px; margin-bottom:6px; }
+  #deck .deckHead .dhTitle{ font-size:9px; letter-spacing:1.6px; color:var(--cyan); text-transform:uppercase; }
+  #deck .deckHead .dhState{ font-size:8px; color:var(--dim); font-family:ui-monospace,monospace; flex:1; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  #deck .deckHead #deckMin{ background:none; border:1px solid var(--line); color:var(--cyan); font:inherit; font-size:11px; line-height:1; padding:4px 8px; border-radius:5px; cursor:pointer; }
+  #deck .deckHead #deckMin:hover{ border-color:var(--cyan); }
+  #deck.deckMin .deckHead #deckMin{ color:var(--amber); border-color:var(--amber); }
+  #deck.deckMin #deckBody{ display:none; }
+  #deck.deckMin{ max-height:none; padding:6px 8px; }
 
   /* ── side status / situation panels ── */
   #side{ position:fixed; top:54px; right:10px; z-index:18; width:min(264px, 84vw);
@@ -498,6 +527,15 @@
     #side{ top:auto; bottom:176px; left:8px; right:auto; width:min(264px,84vw); }
     #testPanel{ left:8px; right:auto; top:54px; }
     #feed{ left:8px; bottom:150px; }
+    /* mobile: pills + topbar links collapse into the ☰ start menu */
+    #menuBtn{ display:inline-flex; align-items:center; justify-content:center; background:none; border:1px solid var(--line);
+      color:var(--cyan); font:inherit; font-size:14px; line-height:1; width:32px; height:32px; border-radius:6px; cursor:pointer; }
+    #menuBtn:hover{ border-color:var(--cyan); }
+    #topbar .pill, #topbar .spacer, #topbar a:not(#menuBtn){ display:none; }
+    #topbar{ flex-wrap:nowrap; padding:6px 8px; }
+    #topbar .brand .sub{ display:none; }
+    #startMenu{ font-size:12px; }
+    #deck{ max-height:42vh; }
   }
 </style>
 </head>
@@ -521,6 +559,22 @@
   <a href="#" id="lnkTheme" title="ui theme · colors, glow, type, background animation">◈ theme</a>
   <a href="physics_simulator.html">◂ research tool</a>
   <a href="preview.html">◂ hub</a>
+  <button id="menuBtn" title="start menu · every button &amp; readout" aria-label="start menu">☰</button>
+</div>
+
+<div id="startMenu" hidden>
+  <div class="smHead"><b>⬡ START</b><button id="smClose" title="close">✕</button></div>
+  <div class="smPills" id="smPills"></div>
+  <div class="smSec" data-s="READOUTS">readouts</div>
+  <div class="smGrid" id="smInfo"></div>
+  <div class="smSec" data-s="ACTIONS">defend</div>
+  <div class="smGrid" id="smDeck"></div>
+  <div class="smSec" data-s="FABRIC">entanglement fabric</div>
+  <div class="smGrid" id="smFab"></div>
+  <div class="smSec" data-s="SUPERVISOR">supervisor</div>
+  <div class="smGrid" id="smSup"></div>
+  <div class="smSec" data-s="GO">go</div>
+  <div class="smGrid" id="smNav"></div>
 </div>
 
 <div id="side">
@@ -549,7 +603,12 @@
 <div id="feed"></div>
 
 <div id="deck">
-  <h5>Operations</h5>
+  <div class="deckHead">
+    <span class="dhTitle">⬡ OPERATIONS</span>
+    <span class="dhState" id="deckHead">at rest</span>
+    <button id="deckMin" title="collapse / expand the streamdeck array" aria-label="collapse deck">▾</button>
+  </div>
+  <div id="deckBody"><h5>Operations</h5>
   <div class="dg row4">
     <button class="pad" id="opArm"><span class="ic">⟳</span><span class="lb">Auto-Defense</span><span class="dv" id="dvArm">OFF</span></button>
     <button class="pad" id="opGuardUp"><span class="ic">✚</span><span class="lb">Guards</span><span class="dv" id="dvGuards">6</span></button>
@@ -605,6 +664,7 @@
 
   <div class="note">Test buttons live in the <b>test suite</b> (◸ upper right) — they orchestrate the real system-level test suite
     (guardian · tester · baseline). The console never fabricates attackers: red vectors only appear when a verified agent reports them.</div>
+  </div>
 </div>
 
 <div id="quarPanel" class="toolbox">
@@ -716,6 +776,7 @@
 import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { CFG, Sim } from './secsim-core.mjs';
+import { simulateMesh as simMesh } from './secsim-e91.mjs';
 
 // ── renderer / scene ────────────────────────────────────────────────────
 const canvas = document.createElement('canvas');
@@ -969,9 +1030,30 @@ let agentUrl = 'http://127.0.0.1:7172/status';
 let agentOk = false;
 let agentUptime = '';
 let probeSeq = 0;
-let qkUrls = ['http://127.0.0.1:20003/e91', 'http://127.0.0.1:20006/e91', 'http://127.0.0.1:20009/e91', 'http://127.0.0.1:20012/e91', 'http://127.0.0.1:20015/e91'];
+// Static-host (GitHub Pages / file:// / non-localhost LAN) detection: there is
+// no node backend to answer /peerctl or the 2200x fabric peers, so the mesh
+// must be honest about it (this console never fabricates a phantom mesh). The
+// fabric buttons then run the SAME E91 math client-side via secsim-e91.mjs —
+// fully in-browser, no server, no data collection (TOS-safe on static Pages).
+const IS_STATIC_HOST = (() => {
+  const override = new URLSearchParams(location.search).get('static');
+  if (override === '1') return true;
+  if (override === '0') return false;
+  try {
+    const h = location.hostname.toLowerCase();
+    if (location.protocol === 'file:') return true;
+    if (location.protocol === 'https:') return true;
+    return !(h === 'localhost' || h === '127.0.0.1');
+  } catch (_) { return false; }
+})();
+// in-browser E91 fabric state (only meaningful on a static host)
+let simOn = false;             // entanglement fabric armed in sim mode
+let simPeers = 2;              // how many logical peers the in-browser mesh runs
+let simRev = 0;                // rotation/rev for reproducible key re-derivation
+const simRounds = () => Math.max(400, Math.min(100000, (+($('qkRounds') && $('qkRounds').value) || 4000)));
+let qkUrls = IS_STATIC_HOST ? [] : ['http://127.0.0.1:20003/e91', 'http://127.0.0.1:20006/e91', 'http://127.0.0.1:20009/e91', 'http://127.0.0.1:20012/e91', 'http://127.0.0.1:20015/e91'];
 let qkArmed = false, qkRound = 0, qkEveArmed = false;
-let qkState = { peers: 0, links: [], honest: 0, aborts: 0, conference: null };
+let qkState = { peers: 0, links: [], honest: 0, aborts: 0, conference: null, up: 0, down: [], sim: IS_STATIC_HOST };
 let qkLastGood = 0;
 
 // ── data buffers ────────────────────────────────────────────────────────
@@ -2140,7 +2222,32 @@ async function sha256hex(s){
     return [...new Uint8Array(b)].map(x => x.toString(16).padStart(2, '0')).join('');
   }catch(e){ return null; }
 }
+async function simPollQkd(){
+  // in-browser E91 mesh — genuinely computed here, no server. Same shape as the
+  // node /e91 poll so the globe, telemetry rows and deck labels all work.
+  const names = Array.from({ length: simOn ? Math.max(1, simPeers) : 0 }, (_, i) => 'node-' + i);
+  const out = { peers: names.length, links: [], honest: 0, aborts: 0, avgChsh: 0, bits: 0, conference: null, up: names.length, down: [], sim: true };
+  if (names.length >= 2){
+    const mesh = await simMesh(names, { n: simRounds(), eve: qkEveArmed ? 0.4 : 0 }, 7 + simRev);
+    const links = (mesh.links || []).filter(l => l && l.link);
+    const honest = links.filter(l => l.verdict === 'KEY' && l.chsh > 2);
+    const aborts = links.filter(l => l.verdict === 'ABORT' && l.chsh < 2);
+    out.links = links;
+    out.honest = honest.length;
+    out.aborts = aborts.length;
+    out.avgChsh = honest.length ? honest.reduce((s, l) => s + (l.chsh || 0), 0) / honest.length : 0;
+    out.bits = honest.reduce((s, l) => s + (l.keyBits || 0), 0);
+    out.conference = mesh.conference;
+    out.peers = names.length;
+  }
+  qkState = out;
+  updateEntFabric(out);
+  refreshQkDeck();
+}
 async function pollQkd(){
+  if (IS_STATIC_HOST || !qkUrls.filter(u => u.trim()).length){
+    return simPollQkd();   // static host: the fabric honestly runs in-browser (no backend exists)
+  }
   const urls = qkUrls.filter(u => u.trim());
   const byId = new Map();                    // link id -> best telemetry record (prefer role A)
   const out = { peers: urls.length, links: [], honest: 0, aborts: 0, avgChsh: 0, bits: 0, conference: null, up: 0, down: [] };
@@ -2180,6 +2287,11 @@ function renderQkTelemetry(o){
   tele.hidden = false;
   const portOnly = u => { const m = /:(\d+)/.exec(String(u || '')); return m ? m[1] : String(u || '?'); };
   if (!o.up && !o.links.length){
+    if (o.sim){
+      $('efSum').textContent = simOn ? (simPeers + '/' + simPeers + ' in-browser peers · 0 links yet') : 'fabric idle — press ⟠ Entangle (or ⟑ Deploy) to run the E91 mesh in this page';
+      $('efRows').innerHTML = '<div class="es">static preview: no <code>entangle-peer.mjs</code> hosts are reachable from here, so the fabric is computed <b>in-browser</b> with the same E91 math (Bell-CHSH S, noise-free aligned bits → SHA-256 shared secret). Arm it to draw the mesh — nothing is fabricated until you press a button.</div>';
+      return;
+    }
     $('efSum').textContent = 'fabric offline — 0/' + o.peers + ' peer' + (o.peers === 1 ? '' : 's') + ' answering ' + o.down.map(portOnly).join(' ');
     $('efRows').innerHTML = '<div class="es">the globe only draws entangled nodes when a live peer answers <b>/e91</b>. Start <code>entangle-peer.mjs</code> on the peer host (or run the cluster with --keep), then press <b>⟲ preview</b> — nothing was found yet, so the sphere stays dark (this console never draws a phantom mesh).</div>';
     return;
@@ -2207,33 +2319,47 @@ function renderQkTelemetry(o){
 }
 function refreshQkDeck(){
   $('qkEntangle').className = 'pad' + (qkArmed ? ' active' : ' cold');
-  $('dvQk').textContent = qkArmed ? (qkState.peers + ' peers · ' + qkState.links.length + ' links · r' + qkRound) : 'cluster off';
+  $('dvQk').textContent = IS_STATIC_HOST
+    ? (qkArmed ? (simOn ? simPeers + ' sim peer' + (simPeers === 1 ? '' : 's') + ' · r' + qkRound : 'cluster off') : 'standby · press ⟠')
+    : (qkArmed ? (qkState.peers + ' peers · ' + qkState.links.length + ' links · r' + qkRound) : 'cluster off');
   $('dvQkEve').textContent = qkState.aborts + ' aborts';
   $('qkEve').className = 'pad' + (qkEveArmed ? ' active' : '');
   $('dvQkMesh').textContent = qkState.conference ? qkState.conference.slice(0, 12) + '…' : (qkState.links.length ? '— no honest links' : '—');
   $('qkMesh').className = 'pad' + (qkState.conference ? ' active' : ' cold');
   renderQkTelemetry(qkState);
+  const dh = document.getElementById('deckHead');
+  if (dh){ const st = qkState.sim ? ('in-browser E91 · ' + (simOn ? simPeers + ' peers armed' : 'idle')) : (qkArmed ? 'armed' : 'at rest'); dh.textContent = '⟠ ' + st; }
 }
 $('qkEntangle').addEventListener('click', () => {
   qkArmed = !qkArmed;
   qkRound++;
-  logEv('', qkArmed ? ('entanglement fabric armed — round ' + qkRound + ' across ' + qkUrls.filter(u => u.trim()).length + ' peers') : 'entanglement fabric disarmed');
+  if (IS_STATIC_HOST){ simOn = qkArmed; simRev = qkRound; logEv('', qkArmed ? ('entanglement fabric armed — in-browser E91 over ' + simPeers + ' simulated peer' + (simPeers === 1 ? '' : 's') + ' (static preview · no node backend)') : 'entanglement fabric disarmed (in-browser)'); }
+  else logEv('', qkArmed ? ('entanglement fabric armed — round ' + qkRound + ' across ' + qkUrls.filter(u => u.trim()).length + ' peers') : 'entanglement fabric disarmed');
   pollQkd();
 });
 $('qkRotate').addEventListener('click', () => {
   qkRound++;
-  logEv('', 'key rotate → round ' + qkRound + ' — pairwise keys re-derived from the peers');
+  if (IS_STATIC_HOST){ simRev = qkRound; logEv('', 'key rotate → round ' + qkRound + ' — pairwise keys re-derived in the in-browser E91 fabric'); }
+  else logEv('', 'key rotate → round ' + qkRound + ' — pairwise keys re-derived from the peers');
   pollQkd();
 });
 $('qkEve').addEventListener('click', () => {
   qkEveArmed = !qkEveArmed;
-  logEv('', qkEveArmed ? 'eve marker emphasises aborts — Bell-CHSH S computed from peer telemetry (read-only view)' : 'eve marker cleared');
+  logEv('', IS_STATIC_HOST
+    ? (qkEveArmed ? 'eve η=0.4 injected — in-browser E91 links now record real Bell-CHSH S < 2 aborts' : 'eve disturbance cleared — in-browser fabric clean again')
+    : (qkEveArmed ? 'eve marker emphasises aborts — Bell-CHSH S computed from peer telemetry (read-only view)' : 'eve marker cleared'));
   pollQkd();
 });
 $('qkMesh').addEventListener('click', () => pollQkd());
 $('qkBench').addEventListener('click', async () => {
   const n = Math.max(100, Math.min(100000, (+$('qkRounds').value || 4000)));
   $('qkRounds').value = n;
+  if (IS_STATIC_HOST || !qkUrls.filter(u => u.trim()).length){
+    logEv('', 'bench ⟳ ' + n + ' rounds across ' + simPeers + ' in-browser peer' + (simPeers === 1 ? '' : 's') + ' — E91 math computed right here (no node backend on this preview)');
+    await simPollQkd();
+    qkRevReport();
+    return;
+  }
   const urls = qkUrls.filter(u => u.trim());
   if (!urls.length){ logEv('', 'bench — no mesh URLs set'); return; }
   logEv('', 'bench ⟳ ' + n + ' rounds across ' + urls.length + ' peers — re-running each link the initiator drives');
@@ -2250,7 +2376,19 @@ $('qkBench').addEventListener('click', async () => {
   logEv('', 'bench done — ' + done + ' peer' + (done === 1 ? '' : 's') + ' re-ran' + (failed ? ', ' + failed + ' unreachable' : '') + ' → re-reading telemetry');
   await pollQkd();
 });
+function qkRevReport(){
+  const l = qkState.links || [];
+  logEv('', '⟠ in-browser fabric now: ' + l.length + ' link' + (l.length === 1 ? '' : 's') + ' · honest ' + qkState.honest + ' · aborts ' + qkState.aborts + (qkState.conference ? ' · conf ' + qkState.conference.slice(0, 12) + '…' : ''));
+}
 $('qkdApply').addEventListener('click', () => {
+  if (IS_STATIC_HOST){
+    simPeers = Math.max(1, Math.min(24, Math.floor(+$('qkNodes').value) || 2));
+    $('qkNodes').value = simPeers;
+    simOn = true; qkArmed = true; simRev = qkRound;
+    logEv('', 'in-browser mesh → ' + simPeers + ' simulated peer' + (simPeers === 1 ? '' : 's') + ' (static preview — mesh runs client-side; no node hosts to dial)');
+    pollQkd();
+    return;
+  }
   qkUrls = $('qkdUrls').value.split(',').map(u => u.trim()).filter(Boolean);
   if (!qkUrls.length) qkUrls = ['http://127.0.0.1:20003/e91'];
   if (qkArmed) logEv('', 'fabric mesh → ' + qkUrls.length + ' peers');
@@ -2260,6 +2398,11 @@ $('qkdApply').addEventListener('click', () => {
 let supState = null, lastSupLogs = [];
 let supLaunching = false;   // guard the Start Supervisor button against double-clicks
 async function ctlSup(action, extra){
+  if (IS_STATIC_HOST){
+    // in-browser supervisor: same actions, no node process behind them — the
+    // sim peers genuinely start/stop/reshape the in-page E91 mesh.
+    return simSupCtrl(action, extra);
+  }
   const q = new URLSearchParams(extra || {});
   q.set('action', action);
   try{
@@ -2268,6 +2411,47 @@ async function ctlSup(action, extra){
     if (!r.ok) throw new Error('supervisor HTTP ' + r.status);
     return await r.json();
   }catch(e){ return { ok:false, error: String(e && e.message || e) }; }
+}
+// sim-mode supervisor state (static preview only) — reshapes simPeers/simOn
+// so pollSup and the deck render a believable, honest fabric timeline.
+let simSup = { watchdog: false, pairs: [{ name: 'node-0', up: true, upS: 0, restarts: 0, rssMB: null }], desired: 1 };
+function simSupCtrl(action, extra){
+  const q = new URLSearchParams(extra || {});
+  let shaped = false;                     // true → mesh must re-run (state changed)
+  switch (action){
+    case 'launch':
+      simOn = true; qkArmed = true; simRev = qkRound; simPeerSup(simPeers); shaped = true;
+      break;
+    case 'start':
+      simOn = true; simPeerSup(simPeers); shaped = true;
+      break;
+    case 'stop':
+      simOn = false; simPeerSup(simPeers, 'down'); shaped = true;
+      break;
+    case 'restart':
+      simRev = qkRound; simOn = true; simPeerSup(simPeers); shaped = true;
+      break;
+    case 'recover':
+      simRev = qkRound; simOn = true; simPeerSup(simPeers); shaped = true;
+      break;
+    case 'wd':
+      simSup.watchdog = (q.get('on') === '1'); shaped = true;
+      break;
+    case 'deploy': {
+      const n = Math.max(1, Math.min(24, Math.floor(+q.get('nodes')) || 2));
+      $('qkNodes').value = n; simPeers = n; simOn = true; qkArmed = true; simRev = qkRound; simPeerSup(n); shaped = true;
+      break;
+    }
+    default: break;                       // 'status' / 'log' — read-only
+  }
+  if (shaped) pollQkd();
+  return Promise.resolve({ ok: true, watchdog: simSup.watchdog, pairs: simSup.pairs, desired: simSup.pairs.length, devices: [], seeded: simOn, sim: true, stats: null, autoCap: null, auto: false, quarantines: [], lines: action === 'log' ? [] : undefined });
+}
+function simPeerSup(n, state){
+  const up = state !== 'down';
+  const pairs = [];
+  for (let i = 0; i < n; i++) pairs.push({ name: 'node-' + i, up, upS: up ? 42 : 0, restarts: 0, rssMB: null });
+  simSup.pairs = pairs; simSup.desired = n;
 }
 async function launchSup(){
   if (supLaunching) return;
@@ -2800,6 +2984,78 @@ document.addEventListener('keydown', e => {
     case 'p': restoreWorld(); break;
   }
 });
+
+// ── start menu (mobile stasher) ─────────────────────────────────────────
+const SM_GROUPS = {
+  'smInfo': [['sMode','mode'],['sNodes','nodes'],['sGuards','guards'],['sFire','firewall'],['sQuar','quarantined'],['sMesh','mesh key']],
+  'smDeck': [['opArm','⟳ Auto-Defense: arm/relax'],['opGuardUp','✚ Guards: raise shield'],['opFire','⛨ Firewall: boost ratio'],['opRot','↻ Rotate: recompute lattice'],['btnQuar','⬢ Quarantine: harden exposed'],['btnRing','◎ Ring: retune blend'],['btnRelease','↺ Release: soften ring'],['btnDeploy','✈ Deploy: bind agent to node'],['stSweep','⌂ Sweep: probe all ports'],['stPerimeter','◫ Perimeter: pace the band'],['stRash','⧗ Rash: bleed the ring'],['stPursuit','☍ Pursuit: chase the vector']],
+  'smFab': [['qkEntangle','⟠ Entangle: arm fabric'],['qkRotate','⇆ Rotate keys'],['qkEve','⚑ Eve: inject noise'],['qkMesh','⌬ Mesh key'],['qkBench','▌ Bench: re-run fabric']],
+  'smSup': [['qkSupWd','⏱ Watchdog'],['qkSupStart','▶ Start supervisor'],['qkSupStop','■ Stop supervisor'],['qkSupRecover','↶ Recover'],['qkDeploy','⚥ Deploy peers: count ↦ field']],
+  'smNav': [['lnkTest','◸ test suite'],['lnkFs','⛶ fullscreen'],['lnkRefresh','⟲ preview'],['lnkHelp','? guide'],['lnkTheme','◈ theme']],
+};
+function buildStartMenu(){
+  const nodes = new Set(['#topbar .pill']);
+  for (const [gid, items] of Object.entries(SM_GROUPS)){
+    const g = document.getElementById(gid); if (!g) continue; g.textContent = '';
+    if (gid === 'smInfo'){
+      const pills = document.getElementById('smPills');
+      for (const pid of ['phase','pillNodes','pillGuards','pillProbes','pillBlocked']){
+        const src = document.getElementById(pid); if (!src) continue;
+        const p = src.cloneNode(true); p.id = 'sm_' + pid; p.title = pid;
+        p.addEventListener('click', () => { const k = clicksFor(pid, (src.textContent||'')); logEv('', pid + ' → ' + k); });
+        pills.appendChild(p);
+      }
+      continue;
+    }
+    for (const [id, label] of items){
+      const src = document.getElementById(id); if (!src) continue;
+      const b = document.createElement('button'); b.className = 'sm'; b.textContent = label;
+      b.addEventListener('click', () => { src.click(); });
+      g.appendChild(b);
+    }
+  }
+}
+document.getElementById('menuBtn').addEventListener('click', openStartMenu);
+document.getElementById('smClose').addEventListener('click', closeStartMenu);
+function openStartMenu(){
+  const m = document.getElementById('startMenu');
+  if (!m.hasAttribute('data-built')){ buildStartMenu(); m.setAttribute('data-built',''); }
+  syncStartMenu();
+  m.hidden = false;
+}
+function closeStartMenu(){ document.getElementById('startMenu').hidden = true; }
+function syncStartMenu(){
+  // clone current pill text so readouts stay live in the drawer
+  for (const pid of ['phase','pillNodes','pillGuards','pillProbes','pillBlocked']){
+    const src = document.getElementById(pid); const t = document.getElementById('sm_' + pid);
+    if (src && t) t.textContent = src.textContent;
+  }
+}
+document.addEventListener('keydown', e => { if (e.key === 'Escape') closeStartMenu(); });
+
+// ── deck minimize (persists across reloads) ─────────────────────────────
+let deckMin = false;
+try{
+  const stored = localStorage.getItem('secdef-deck-min');
+  deckMin = stored !== null ? stored === '1' : matchMedia('(max-width:760px)').matches;
+}catch(_){ deckMin = matchMedia('(max-width:760px)').matches; }
+function applyDeckMin(on){
+  deckMin = on;
+  document.getElementById('deck').classList.toggle('deckMin', on);
+  document.getElementById('deckMin').textContent = on ? '▸' : '▾';
+  try{ localStorage.setItem('secdef-deck-min', on ? '1' : '0'); }catch(_){}
+}
+document.getElementById('deckMin').addEventListener('click', () => applyDeckMin(!deckMin));
+applyDeckMin(deckMin);
+
+// ── sim bootstrap (static preview only) ─────────────────────────────────
+if (IS_STATIC_HOST){
+  simPeers = 2; simOn = false; simPeerSup(simPeers, 'down');
+  const qkIn = document.getElementById('qkdUrls');
+  if (qkIn){ qkIn.value = ''; qkIn.placeholder = 'in-browser E91 — no node hosts reachable from this static preview'; qkIn.disabled = false; qkIn.title = 'node hosts can\u2019t be reached from a static page; the fabric runs client-side'; }
+  logEv('', 'static preview — no node backend here, so the fabric buttons run the same E91 math in-browser (⟠ Entangle arms ' + simPeers + ' simulated peers). Readouts stay honest: no seeded attackers, moot services stay moot.');
+  document.getElementById('deckHead').textContent = 'static preview · in-browser E91';
+}
 
 // ── init ────────────────────────────────────────────────────────────────
 fit();
