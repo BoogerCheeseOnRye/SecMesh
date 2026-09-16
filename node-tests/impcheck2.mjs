@@ -1,0 +1,17 @@
+import { boot, runFrames, allHandlers } from './ui-harness.mjs';
+const app = (await boot()).app;
+const fire = (id, ev='click', arg) => { const t = allHandlers().find(([e, , el]) => e===ev && el && el._id===id); t[1](arg); };
+await runFrames(40);
+for (let i=0;i<100;i++) fire('ratePlus');
+fire('btnRun');
+await runFrames(200);
+const data = app.exportData();
+const snap = document.getElementById('snapFile');
+snap.files = [{ text: async () => JSON.stringify(data) }];
+fire('snapFile', 'change', {});
+await new Promise(r => setImmediate(r));
+await new Promise(r => setImmediate(r));
+await new Promise(r => setImmediate(r));
+const ch = app.ch;
+console.log('events:', ch.events.map(e=>e.msg).join(' | '));
+console.log('atoms', ch.atoms.length, 't', ch.t);

@@ -1,0 +1,8 @@
+[Desktop Entry]
+Type=Application
+Name=Aarkanum AI
+Comment=Aarkanum — launch the whole secmesh fabric (serve.js + supervisor + host peers + adb phones + console)
+Exec=aarkanum-secmesh-launch
+Icon=network-server
+Terminal=false
+Categories=Development;

@@ -1,0 +1,8 @@
+[Desktop Entry]
+Type=Application
+Name=Aarkanum SecMesh
+Comment=Launch the whole fabric: serve.js + supervisor + host peers + adb phones + defense console
+Exec=aarkanum-secmesh-launch
+Icon=network-server
+Terminal=false
+Categories=Development;System;

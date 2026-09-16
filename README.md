@@ -1,0 +1,168 @@
+# ⬡ Aarkanum Laboratories — portable test bundle
+
+Everything you need to run the lab **and** verify it on any device with Node.js ≥ 18
+(Termux, Linux, macOS, Windows). No build step, no installs.
+
+```
+aarkanum-test/
+├── app/          → the web app. Serve this folder, open in a browser.
+│   ├── serve.js  → tiny static server (node serve.js) → http://localhost:8080
+│   ├── experiments.html / index.html / landing.html / guide.html / readme.html
+│   ├── exp-app.js · exp-core.mjs · gif-enc.mjs · elements.data.js
+│   ├── crosslab/
+│   │   ├── physics_simulator.html   → research tool (physics engine + security demo)
+│   │   ├── security_defender.html   → defense console: live ops view + streamdeck deck + tap-inspect (nodes & real probes)
+│   │   ├── secsim-core.mjs          → auto-generated shared engine (CFG + SpatialMap + Sim)
+│   │   └── preview.html / README.md
+│   └── lib/      → three.js r160 (vendored, includes OrbitControls etc.)
+├── node-tests/   → headless self-check: DOM+WebGL fakes, no browser needed
+│   ├── ui-harness.mjs   → fake document/canvas/WebGL harness
+│   ├── exp-app.mjs · exp-core.mjs · gif-enc.mjs · elements.data.js (same code as app/)
+│   ├── sync-seccore.mjs → regenerates app/crosslab/secsim-core.mjs from physics_simulator.html
+│   ├── defense-tool.mjs → CLI security-playbook runner against the shared engine
+│   ├── mesh-guardian.mjs → defense agent (the system): rate-limits & repels flood vectors, HTTP /status for the console
+│   ├── mesh-tester.mjs   → offense suite for your own devices (syn-slew/snaplag/udp-amp/pscan), A/B verdict
+│   ├── mesh-control.mjs  → raw baseline: same listening surface, no defense ("system NOT running")
+│   ├── mesh-selfcheck.mjs→ one-device A/B: system ON vs OFF, real loopback probes
+│   ├── node_modules/    → three r160 for Node resolution
+│   └── *.mjs            → the probes below
+└── selfcheck.mjs → runs every probe, prints PASS/FAIL per suite
+```
+
+## Quick start — visual (needs a browser)
+
+```bash
+cd app
+node serve.js          # → http://localhost:8080
+```
+Then open `http://localhost:8080` (or `http://<this-device-IP>:8080` from
+any phone/tablet on the same Wi-Fi) and tap **⚡ Experiments** → the lab.
+
+**Entanglement fabric across devices (the console's live fabric row):** the same
+`serve.js` auto-boots `peer-supervisor.mjs` (tier-1 watchdog on :22100), which by
+default also adopts every physically-attached adb phone (`--devices all`) as
+`dev-0..dev-N` and meshes them with the host census — full K-mesh, every link KEY.
+Two gotchas (both fixed inside the supervisor): every phone needs **`adb reverse`**
+routes for the host ent ports or its outbound dials ECONNREFUSED (the seed exits 1,
+phones sit at 0 links), and the seed must pass **explicit `ent:ctl`** pairs (the
+parsePeers `ctl = ent + 1000` default is wrong for the 2000x/2200x families, where
+control = ent + 1).
+
+**Port families** (each peer = 3 consecutive ports):
+
+| slot | family | ent · ctl · sta | device-side |
+|---:|:---|:---|---:|
+| host node-*i* | `2000x` | `20001+3i` · `+1` · `+2` | — |
+| adb dev-*i* | `2200x` (host) | `22001+3i` · `+1` · `+2` | ent `7200+10i` · ctl `8200+10i` · sta `9200+10i` |
+| qkd-selfcheck sandbox | `2600x` | `26001+3i` · `+1` · `+2` | — |
+
+ES modules + an import map require HTTP — do **not** open `experiments.html` via `file://`.
+
+## Quick start — headless self-check (needs only Node)
+
+```bash
+node selfcheck.mjs
+```
+Expected: `PASS` on all 20 suites, ending with `SELFCHECK-OK: 20/20 green`.
+
+> The entanglement gate (`qkd-selfcheck.mjs`) runs on its own sandbox port base
+> (2600x) so it never collides with a live fabric — it is safe to run while the
+> supervisor + phones are up.
+
+Or run one suite directly:
+```bash
+cd node-tests
+node run.mjs            # boot + 40 physics frames of the salt experiment
+node scanning-probe.mjs # MRI orbit + clip export (16-frame filmstrip + anim player + GIF)
+node gif-probe.mjs      # GIF89a codec round-trip + app clip export writes .gif
+node player-probe.mjs   # clip player infocard: frames + full run data + print syntax check
+node laserwire-probe.mjs # beam wireframe source geometry + settings toggle + cage-following particles
+node geom-probe.mjs     # 20-experiment deploy sweep + dossier feeder + 26-mount beam bank
+node inst-probe.mjs     # instruments: chart · spec · recipe · stage · lab book · import
+node custom-probe.mjs   # custom experiments: save → command centre + picker + cross-wall tile + delete
+node player-probe.mjs   # clip player infocard: frames + full run data embedded + SOM script syntax
+node mesh-selfcheck.mjs # defense A/B: system ON vs OFF on 127.0.0.1, real probes
+node qkd-selfcheck.mjs  # 4-node entanglement fabric (E91): pairwise Bell-CHSH + conference key + Eve abort + stealth-Eve leak probe
+node agent-pen.mjs      # agentic autonomy pen bench: rogue impostor + control-API abuse + /e91 fuzz + forged-telemetry rejection
+node tls-hybrid.mjs     # PQ-hybrid TLS gate: AEAD+PFS-only floor, TLSv1.2 downgrade rejection, X25519MLKEM768 negotiable
+node sweep-novel.mjs    # novel-vector sweep: 3 unseen attack shapes (jittered flood / overdrive / telegr) — behavior repels more than baseline
+```
+`ui-harness.mjs` fakes DOM/canvas/WebGL, so the lab boots and runs its full
+wiring (handlers, MRI maps, beam physics, feeder, deploy pipeline) with zero GUI.
+
+## What the probes cover
+
+| probe | proves |
+| --- | --- |
+| `run.mjs` | page boots, tap + input events process, frames render, no exceptions |
+| `grid-test.mjs` | experiment menu lists 20, picking works, cross-wall A/B tiles lock rates & seed |
+| `parts-probe.mjs` | tap-inspect, settings handlers, overlay modes, HUD scale, part modal |
+| `mods-probe.mjs` | 7 moveable UI modules, drag + edge snap; the MRI scanner spawns docked under the top bar (flush left, gap) and stale positions that land on/above the bar are re-docked; the chamber-scan minimap spawns mid screen (~80px below centre), honours real drag spots, discards stale corner saves, and hidden modules never persist zero rects |
+| `overlay-probe.mjs` | modals clamp/fold/Esc chain, shape switches keep atoms in-bounds |
+| `rate-probe.mjs` | speed stepper 0.01 fs → 3.2 T y, HUD time truth |
+| `settings-probe.mjs` | settings buttons, agents round-trip |
+| `scanning-probe.mjs` | MRI orbit 0/90°, all-axis map, clip record→16 frames→save reset |
+| `geom-probe.mjs` | 6 tube shapes, TIME_BANDS, dossier feeder presets, 20-experiment deploy sweep (0 escaped atoms), 26-mount beam bank + traverse offsets + rig spinner counts |
+| `inst-probe.mjs` | instruments: chart · spec · recipe · stage · lab book · import |
+| `gif-probe.mjs` | hand-rolled GIF89a codec (NETSCAPE loop, GCE alpha, 9→11-bit LZW) round-trips idempotently; `exportClipFilm` writes `.png` + `.gif` |
+| `laserwire-probe.mjs` | 3D wireframe laser-head at each firing beam (settings toggle flips it, 12-box pool), and spawned particles are pinned inside the internal geometry cage |
+| `custom-probe.mjs` | custom experiments: save → command centre + picker + cross-wall tile + delete |
+| `player-probe.mjs` | clip player infocard: frames + full run data embedded + SOM script syntax |
+| `sync-seccore.mjs` | **shared-engine guard**: `--check` proves `app/crosslab/secsim-core.mjs` is in sync with `physics_simulator.html`, and `--smoke` boots the generated engine to verify attacker-source telemetry, node quarantine/release and manual defender deployment all work end-to-end |
+| `mesh-selfcheck.mjs` | **real defense A/B**: raises a guardian (system ON) and a raw baseline (system OFF) on loopback, drives identical probes from `mesh-tester.mjs`, and proves `repel(guardian) > repel(baseline)` (6384 events: 20.3% blocked with system ON, 0% without) |
+| `qkd-selfcheck.mjs` | 4-node entanglement fabric (E91): pairwise Bell-CHSH + conference key + Eve abort + stealth-Eve leak probe |
+| `agent-pen.mjs` | agentic autonomy pen bench: rogue-port impostor + control-API abuse + /e91 fuzz + forged-telemetry rejection vs peer-supervisor (52/52 invariants held) |
+| `tls-hybrid.mjs` | PQ-hybrid TLS gate: AEAD+PFS-only floor, TLSv1.2 downgrade rejection, X25519MLKEM768 hybrid loopback negotiable |
+| `sweep-novel.mjs` | novel-vector sweep: 3 unseen attack shapes (jittered flood / overdrive / telegr) — behavior repels more than baseline |
+
+## Real device security test suite
+
+The defense console is the *actual tool* on a real network: attackers only ever
+appear from probes a **verified agent reports** — it never fabricates them. Run
+the suite across your own devices:
+
+```bash
+# Device B — runs the system (defended target)
+node node-tests/mesh-guardian.mjs --listen 7171 --status 7172
+# then open security_defender.html with agent URL http://<B-IP>:7172/status → watch repels live
+
+# Device A — attacker (does NOT run the system)
+node node-tests/mesh-tester.mjs --target <B-IP> --port 7171 --vectors syn-slew,snaplag,udp-amp --rate 40 --count 400
+
+# Device B again — prove the "without running the system" leg
+node node-tests/mesh-control.mjs --listen 7173
+node node-tests/mesh-tester.mjs --target <B-IP> --port 7173 --vectors syn-slew,snaplag,udp-amp --rate 40 --count 400 --baseline
+```
+
+The guardian rate-limits and refuses flood vectors from userspace (no firewall
+claims), counts every event, and exposes `accepted / blocked / recent` as JSON at
+`/status` (CORS-open) for the console's live situation board. Trafic stays on
+your own LAN; testing refuses non-private targets unless `--force`.
+
+## GIF export
+
+`exportClipFilm` writes a **client-side GIF89a** (`.gif`) next to the PNG filmstrip
+and anim player — no network, zero dependencies. The GIF now downloads directly like
+the PNG (plus the raw frames manifest), so it reaches you even without File System
+Access. Also saved: `<base>-frames.json` raw RGBA frames, re-encodable headlessly
+with the bundled CLI:
+
+```bash
+node mri2gif.mjs <base>-frames.json [out.gif]   # → 4-frame GIF, same codec as the app
+```
+
+The 3-bits-red/3-bits-green/2-bits-blue palette + LZW encoder are a faithful port of
+giflib's `EGifCompressLine` (codes emit at the current width; the width raises only
+when `freeEnt >= (1 << nBits)`, keeping the encoder dict exactly one entry ahead of
+the decoder). GIFs decode back to the same indices byte-for-byte, including across
+the 9→10→11→12-bit boundaries.
+
+## Sharing to another real device
+
+1. Copy `aarkanum-test.tar.gz` over (scp/sftp, `adb push`, local Wi-Fi file drop, USB…).
+2. Extract: `tar -xzf aarkanum-test.tar.gz` (Windows 10+: `tar -xzf` works in PowerShell/cmd).
+3. `node selfcheck.mjs` to prove the port, then `cd app && node serve.js` and open from the browser.
+4. Devices without Node can still use the app — serve the `app/` folder from anything
+   (`python3 -m http.server 8080`, nginx, a static-hosting site) and browse.
+
+Requires Node ≥ 18 only for `serve.js` / the self-check; the web app itself is plain ES modules + three.js.

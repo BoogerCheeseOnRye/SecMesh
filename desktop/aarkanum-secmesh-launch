@@ -1,0 +1,72 @@
+#!/bin/bash
+# aarkanum-secmesh-launch — bring up the ENTIRE aarkanum system (secmesh + fabric):
+#   adb → serve.js (:8080) → peer-supervisor (:22100) → host census peers (2000x)
+#   → adb phone fabric (2200x) → open the defense console in the browser.
+# Single entry point; idempotent — run it any time, it resumes whatever is down.
+
+# Resolve the repo layout relative to THIS script. Installed form:
+#   ~/.local/bin/aarkanum-secmesh-launch      (symlink/copy of desktop/<same>)
+#   ~/Desktop/aarkanum*.desktop
+# Repo form:   <repo>/desktop/aarkanum-secmesh-launch
+SELF="$(readlink -f "${BASH_SOURCE[0]:-$0}" 2>/dev/null || echo "$0")"
+SELFDIR="$(dirname "$SELF")"
+if [ -n "$AARKANUM_HOME" ]; then
+  REPO="$AARKANUM_HOME"
+elif [ -f "$SELFDIR/../app/serve.js" ]; then
+  REPO="$(cd "$SELFDIR/.." && pwd)"
+elif [ -f "$SELFDIR/app/serve.js" ]; then
+  REPO="$SELFDIR"
+else
+  REPO="${AARKANUM_DEFAULT_HOME:-$HOME/aarkanum}"
+fi
+APP="$REPO/app"
+
+LOG="$APP/logs/secmesh-launch.log"
+NODE="${NODE:-$(command -v node || echo "$HOME/.local/bin/node")}"
+CONSOLE_URL="http://localhost:8080/crosslab/security_defender.html"
+
+mkdir -p "$(dirname "$LOG")"
+log(){ echo "[$(date '+%H:%M:%S')] $*" | tee -a "$LOG"; }
+
+# 1) adb
+if ! adb get-state >/dev/null 2>&1; then
+  log 'starting adb server…'
+  adb start-server >/dev/null 2>&1
+  sleep 1
+fi
+NDEV=$(adb devices | awk 'NR>1 && $2=="device"{n++} END{print n+0}')
+log "adb: $NDEV device(s) attached"
+
+# 2) serve.js (:8080) — the web/API server. It boots the supervisor itself.
+if curl -sf -o /dev/null http://127.0.0.1:8080/ ; then
+  log 'serve.js already up on :8080'
+else
+  log 'starting serve.js on :8080…'
+  nohup "$NODE" "$APP/serve.js" >> "$APP/logs/web.log" 2>&1 &
+  disown
+  for i in $(seq 1 30); do
+    if curl -sf -o /dev/null http://127.0.0.1:8080/ ; then break; fi
+    sleep 1
+  done
+  curl -sf -o /dev/null http://127.0.0.1:8080/ && log 'serve.js up' || log 'WARN serve.js not answering yet'
+fi
+
+# 3) supervisor (:22100) — ensure path auto-starts it with --devices all
+if curl -sf http://127.0.0.1:22100/?action=status >/dev/null 2>&1 ; then
+  log 'peer-supervisor already up'
+else
+  log 'bootstrapping peer-supervisor via /peerctl?action=launch…'
+  curl -sf "http://127.0.0.1:8080/peerctl?action=launch" >/dev/null 2>&1
+  sleep 3
+  curl -sf http://127.0.0.1:22100/?action=status >/dev/null 2>&1 && log 'peer-supervisor up' || log 'WARN supervisor still down'
+fi
+
+# 4) status summary
+log "fabric: $(curl -sf http://127.0.0.1:22100/?action=status 2>/dev/null | head -c 400 || echo '—')"
+log "console → $CONSOLE_URL"
+
+# 5) open the console in the default browser
+if command -v xdg-open >/dev/null 2>&1; then
+  nohup xdg-open "$CONSOLE_URL" >/dev/null 2>&1 &
+  disown
+fi

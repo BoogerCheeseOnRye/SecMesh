@@ -1,0 +1,299 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Aarkanum Laboratories · Technical Readme</title>
+<style>
+  :root{
+    --bg:#04060e; --panel:#070b18; --line:#1b2750; --line2:#223052;
+    --txt:#dbe6ff; --dim:#7c8db3; --amber:#ffb020; --cyan:#37c8ff;
+    --good:#59ff9c; --danger:#ff5b5b; --mono:ui-monospace,'SF Mono','Cascadia Mono','Roboto Mono','Segoe UI',monospace;
+  }
+  *{ box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
+  html{ scroll-behavior:smooth; }
+  body{ margin:0; background:radial-gradient(90% 60% at 50% -10%, rgba(63,157,255,.10), transparent 60%), var(--bg);
+    color:var(--txt); font:13.5px/1.65 var(--mono); overflow-x:hidden; }
+  a{ color:var(--cyan); text-decoration:none; border-bottom:1px dashed rgba(126,231,255,.35); }
+  a:hover{ color:var(--amber); border-color:var(--amber); }
+  code{ background:#0a0f1f; border:1px solid var(--line); border-radius:3px; padding:1px 6px; font-size:12px; color:#9fcfff; }
+  kbd{ display:inline-block; background:rgba(126,231,255,.1); border:1px solid rgba(126,231,255,.3);
+    color:var(--cyan); padding:0 6px; border-radius:3px; font-size:11px; }
+  pre{ background:#05080f; border:1px solid var(--line2); border-radius:4px; padding:12px 14px;
+    overflow-x:auto; font-size:12px; color:#cfe6ff; }
+  pre .c{ color:#4a5f84; }
+  h1,h2,h3{ font-weight:700; letter-spacing:1.5px; }
+  h2{ font-size:14px; color:var(--amber); text-transform:uppercase; margin:46px 0 4px;
+    display:flex; align-items:center; gap:10px; }
+  h2::before{ content:'▮ ▮'; color:var(--cyan); font-size:9px; letter-spacing:-2px; }
+  h2::after{ content:''; flex:1; height:1px; background:linear-gradient(90deg, rgba(120,200,255,.35), transparent); }
+  h3{ font-size:12px; color:var(--cyan); letter-spacing:1px; margin:24px 0 2px; text-transform:uppercase; }
+
+  .top{ position:sticky; top:0; z-index:20; display:flex; align-items:center; gap:10px; flex-wrap:wrap;
+    padding:10px 18px; background:linear-gradient(180deg, rgba(12,19,40,.98), rgba(7,11,22,.94));
+    border-bottom:1px solid var(--line2); }
+  .top .brand{ color:var(--amber); font-weight:700; font-size:14px; letter-spacing:3px; }
+  .top .ver{ font-size:10px; color:var(--dim); letter-spacing:1px; }
+  .top nav{ margin-left:auto; display:flex; gap:6px; flex-wrap:wrap; }
+  .top a{ padding:3px 9px; border:1px solid var(--line); color:var(--dim); font-size:11px;
+    text-decoration:none; border-bottom:1px solid var(--line); }
+  .top a:hover{ color:var(--amber); border-color:var(--amber); }
+
+  .stage{ max-width:900px; margin:0 auto; padding:26px 22px 90px; }
+
+  .lede{ font-size:12.5px; color:#b8c9e6; max-width:760px; }
+  .lede b{ color:var(--cyan); }
+
+  table{ border-collapse:collapse; width:100%; margin:12px 0; font-size:12px; }
+  th{ text-align:left; color:var(--dim); text-transform:uppercase; font-size:10px; letter-spacing:1.4px;
+    border-bottom:1px solid var(--line2); padding:7px 10px; white-space:nowrap; }
+  td{ border-bottom:1px solid #101a33; padding:7px 10px; vertical-align:top; }
+  tr:hover td{ background:rgba(18,28,58,.5); }
+  td.n{ color:var(--dim); white-space:nowrap; }
+
+  .grid2{ display:grid; grid-template-columns:1fr 1fr; gap:12px; margin-top:10px; }
+  .card{ background:linear-gradient(170deg, rgba(12,16,36,.8), rgba(6,8,20,.7));
+    border:1px solid var(--line); border-radius:10px; padding:14px 16px; }
+  .card b.t{ display:block; font-size:11px; letter-spacing:2px; color:var(--amber); text-transform:uppercase; margin-bottom:8px; }
+  .card ul{ margin:0; padding-left:18px; }
+  .card li{ margin:4px 0; font-size:12px; }
+
+  .steps{ margin:10px 0; padding-left:0; list-style:none; counter-reset:s; }
+  .steps > li{ counter-increment:s; margin:8px 0; padding:10px 12px 10px 44px; position:relative;
+    background:rgba(8,12,24,.55); border:1px solid var(--line); border-radius:8px; font-size:12px; }
+  .steps > li::before{ content:counter(s); position:absolute; left:10px; top:10px; width:24px; height:24px;
+    border-radius:50%; border:1px solid var(--cyan); color:var(--cyan); font-size:11px;
+    display:flex; align-items:center; justify-content:center; }
+  .steps b{ color:var(--cyan); }
+
+  .tipbox{ border-left:3px solid var(--amber); background:rgba(255,176,32,.06); padding:8px 12px;
+    border-radius:0 3px 3px 0; margin:12px 0; font-size:12px; }
+  .warn{ border-left-color:var(--danger); background:rgba(255,91,91,.06); }
+
+  .foot{ margin-top:70px; padding-top:16px; border-top:1px solid var(--line2);
+    font-size:10px; color:var(--dim); letter-spacing:1px; text-align:center; }
+  .foot span.sep{ color:var(--line2); margin:0 8px; }
+
+  @media (max-width:720px){ .grid2{ grid-template-columns:1fr; } }
+</style>
+</head>
+<body>
+
+<div class="top">
+  <span class="brand">⬡ AARKANUM LABORATORIES</span>
+  <span class="ver">TECHNICAL README · v1 · offline-first</span>
+  <nav>
+    <a href="landing.html">hub</a>
+    <a href="experiments.html">lab</a>
+    <a href="index.html">table</a>
+    <a href="guide.html">guide</a>
+    <a href="about.html">about</a>
+    <a href="README.md">readme.md</a>
+  </nav>
+</div>
+
+<div class="stage">
+
+  <h2 style="margin-top:6px">What this is</h2>
+  <p class="lede">A self-contained nanoscale matter simulator that ships as <b>three static worlds</b> — a folding 3D
+  periodic table, a chemistry lab with machine presets, and a cross-lab field engine — running entirely in the browser
+  from plain ES modules. There is <b>no build step, no package manager, no network</b> at runtime: `three.js` r160 is
+  vendored under <code>lib/</code> and wired by an import map.</p>
+
+  <h2>Run it</h2>
+  <pre>node serve.js          <span class="c"># → http://localhost:8082 (zero-dependency static server)</span>
+<span class="c"># or any static server over HTTP, because ES modules need http:</span>
+python3 -m http.server 8082</pre>
+  <div class="tipbox">Landing hub: <code>landing.html</code> · lab: <code>experiments.html?exp=salt</code> ·
+    table: <code>index.html</code> · field engine: <code>crosslab/physics_simulator.html</code> ·
+    this page: <code>readme.html</code>.</div>
+
+  <h2 id="files">Files &amp; roles</h2>
+  <table>
+    <tr><th>File</th><th>Role</th><th>Dependencies</th></tr>
+    <tr><td class="n">index.html</td><td>Folding 3D periodic table — all 118 elements, orbit/zoom/pan, fact cards.</td><td>three r160, elements.data.js</td></tr>
+    <tr><td class="n">experiments.html</td><td>The lab UI: HUD stats bar, top actions, command center, tools drawer, MRI bar, modules, <code>&lt;style&gt;</code> design system.</td><td>exp-app.js, exp-core.mjs, elements.data.js</td></tr>
+    <tr><td class="n">exp-app.js</td><td>Lab app: viewport/renderer, UI wiring, machines, feeder, tracking, MRI, cross wall, settings, exports.</td><td>three, exp-core.mjs</td></tr>
+    <tr><td class="n">exp-core.mjs</td><td>Pure physics engine — <b>no DOM (headless-testable)</b>: Chamber, Lennard-Jones+Coulomb, bonds, decay, Chladni, machines, time-scale.</td><td>—</td></tr>
+    <tr><td class="n">elements.data.js</td><td><code>window.ELEMENTS_DATA</code>: audited 118-row dataset (<code>z s n m en d melt boil ion grp per blk cat cfg shells year era crust cosmic cpk</code>). Generated — do not hand-edit.</td><td>—</td></tr>
+    <tr><td class="n">landing.html</td><td>Labs hub — links into each world and every experiment (read from <code>EXPERIMENTS</code>).</td><td>exp-core.mjs export</td></tr>
+    <tr><td class="n">crosslab/</td><td>The universe world — standalone swarm-and-field engine (see the file rows below).</td><td>three r160</td></tr>
+    <tr><td class="n">crosslab/physics_simulator.html</td><td>Quantum→Universe engine: 16 scales of swarm-and-field physics; presets via <code>?preset=</code>; tracking overlay + tap-inspect; export infocard; and the <b>SecMesh</b> security demo with <b>moving-target auto-defense</b> (strategy rotation over unique per-defender paths through the data lattice).</td><td>three r160</td></tr>
+    <tr><td class="n">crosslab/security_defender.html</td><td><b>Security defense console</b> — harmonic at rest (<b>zero fabricated attackers</b>): 180 service nodes wrapped to a globe, research-tool-style node tap-inspect (mesh addr/port/load/stress), streamdeck ops deck (auto-defense, guards+2, firewall, rotate, quarantine/ring/release/deploy, strategies, <b>entanglement-fabric row: ⟠ entangle · ⇆ rotate keys · ⚑ eve · ⌬ mesh key</b>), live status + situation boards fed every 3 s by a real <b><code>mesh-guardian</code> agent</b> — red probes stream onto the globe when the agent blocks vectors — <b>plus the four <code>/e91</code> peer endpoints</b> (test suite → mesh field) rendering the E91 cluster live as orbiting peer spheres (own defense-grid shells, tappable for their per-link cards; control·hub card = cluster/system summary; fullscreen toggle in the top bar), a <b>live per-link telemetry readout</b> (KEY/ABORT · Bell-CHSH S · initiator/responder · rounds · key bits · full key) under the fabric deck, a <b>bench ramp-up control</b> (<code>⟳ bench N</code> → each peer re-runs its initiator links at N via <code>POST /bench?n=N</code>; bits ≈ n/9, secret = SHA-256 of the corrected bits), and a separated system-testing suite (guardian · tester · baseline).</td><td>three r160, secsim-core.mjs</td></tr>
+    <tr><td class="n">crosslab/secsim-core.mjs</td><td><b>Auto-generated</b> shared engine (<code>CFG</code> + <code>SpatialMap</code> + <code>Sim</code>, plus defense primitives <code>attackerSource</code> / <code>quarantineNode</code> / <code>deployDefender</code>). Imported by the console page and every node tool. Rebuilt from <code>physics_simulator.html</code> by <code>node-tests/sync-seccore.mjs</code>.</td><td>—</td></tr>
+    <tr><td class="n">crosslab/preview.html</td><td>Gallery — three headline plates (Quantum Foam / Atomic Lattice / Galactic Web) as live embeds; its AI/security mapping is folded into <a href="guide.html#ais">guide §4c</a>.</td><td>—</td></tr>
+    <tr><td class="n">lib/</td><td>Vendored <code>three.module.js</code> r160 + <code>addons/</code> (import map: <code>three</code> → <code>/lib/three.module.js</code>).</td><td>MIT · three.js project</td></tr>
+    <tr><td class="n">serve.js</td><td>Node static server, lists <code>text/html; charset=utf-8</code> etc., <code>no-store</code>, path-normalized (no traversal).</td><td>node core only</td></tr>
+    <tr><td class="n">guide.html</td><td>Field guide &amp; table of contents — the full manual, section-linked.</td><td>—</td></tr>
+    <tr><td class="n">readme.html</td><td>This page — technical readme, architecture, agent/manual usage, credits.</td><td>—</td></tr>
+  </table>
+
+  <h3>Repo-level instrumentation <span style="color:var(--dim);font-weight:400;text-transform:none;letter-spacing:0">(siblings of <code>app/</code>, part of the same project)</span></h3>
+  <table>
+    <tr><th>Path</th><th>Role</th></tr>
+    <tr><td class="n">docs/secmesh-concept.md</td><td>SecMesh concept paper — model equations, method, the 69-trial matrix (groups A–G, JSONL), five effectiveness calculations, honest limits, repro commands.</td></tr>
+    <tr><td class="n">node-tests/secmesh-exp.mjs</td><td>Headless matrix runner — extracts the real <code>SpatialMap</code> + <code>Sim</code> classes and CFG literal from the HTML, seeds RNG, drives 700-step trials, writes <code>node-tests/secmesh-runs/group{…}.jsonl</code>.</td></tr>
+    <tr><td class="n">node-tests/sync-seccore.mjs</td><td>Regenerates <code>app/crosslab/secsim-core.mjs</code> from <code>physics_simulator.html</code> so the browser console and every node tool share the exact <code>Sim</code>; also a <code>--check --smoke</code> probe that boots the generated engine.</td></tr>
+    <tr><td class="n">node-tests/defense-tool.mjs</td><td>CLI playbook runner against the shared engine — <code>run --plan "q@50:n3,d@60:0,1,0"</code> / <code>soak --seeds 7,8,9</code>; appends JSON telemetry to <code>node-tests/secmesh-runs/defense-*.jsonl</code>.</td></tr>
+    <tr><td class="n">node-tests/mesh-guardian.mjs</td><td>The <b>system</b> — real mesh-defense agent your console reports on. TCP flood defense in userspace: per-source rate-limit (<code>syn-slew</code>), live-connection cap (<code>slew-overload</code>), idle keep-alive eviction (<code>conn-linger</code>), echoed keep-alives (<code>snaplag</code>), optional UDP echo (<code>udp-amp</code>). CORS-open HTTP <code>/status</code> (<code>accepted / blocked / byVector / recent</code>) that the console polls.</td></tr>
+    <tr><td class="n">node-tests/mesh-tester.mjs</td><td>The <b>attacker</b> — runs on a device that does <b>not</b> run the system. Vectors <code>syn-slew</code>/<code>snaplag</code>/<code>udp-amp</code>/<code>pscan</code>, serve-based classification, <code>VERDICT GUARD|BASELINE engaged X/Y (Z%)</code>; refuses non-private targets unless <code>--force</code>.</td></tr>
+    <tr><td class="n">node-tests/mesh-control.mjs</td><td>The <b>system-OFF baseline</b> — same wire surface as the guardian, no defense, for the A/B contrast.</td></tr>
+    <tr><td class="n">node-tests/mesh-selfcheck.mjs</td><td>One-device A/B — guardian vs baseline on 127.0.0.1; passes (<code>SELFCHECK-A-B-PASS</code>) when system-ON repels measurably more than system-OFF (latest 12 210-event run: guard 6384 events → 1296 blocked (20.3%, incl. reset+timeout) vs control 5826 events → 0 blocked; full 5-vector bench: 50.1% vs 0% — see <a href="#secmesh-bench">§SecMesh measured results</a>).</td></tr>
+    <tr><td class="n">node-tests/entangle-peer.mjs</td><td><b>Entanglement fabric peer</b> — one process per phone. Runs the E91 (Ekert) simulator endpoint: entangled (<code>--entangle</code>), coordinator control (<code>--control</code>), HTTP <code>/e91</code> for the console streamdeck (<code>--status</code>).</td></tr>
+    <tr><td class="n">node-tests/qkd-cluster.mjs</td><td><b>Cluster coordinator</b> — complete-graph mesh over <b>N peers</b> (n(n−1)/2 links, concurrent); Bell-CHSH per link, E1-key per honest link, <b>conference key</b> over the honest links, <code>--out .json</code>. Provisions peers via <code>--self --nodes N</code> (127.0.0.1), <code>--peers name=host:ent[:ctl];</code> (LAN phones) or <code>--adb all</code> (every attached device, async spawn + forward + teardown). <code>--eve node-k</code> proves eavesdropping collapses CHSH and aborts. Control-node ready: any always-on host can drive the whole fabric. <b>Live proof: 5 nodes → 10/10 links KEY (S = 2.68–2.93), 417–456 bits each, one conference key — <code>qkd-run.json</code>.</b></td></tr>
+    <tr><td class="n">node-tests/qkd-selfcheck.mjs</td><td>Gate probe — <code>--self --nodes 4</code> run asserts honest links hold S ≈ 2·√2 (KEY) and the links touching <code>--eve node-2</code> collapse to S &lt; 2 (ABORT); conference key derives from honest keys only. Green in <code>selfcheck.mjs</code>.</td></tr>
+    <tr><td class="n">node-tests/agent-pen.mjs</td><td>Agentic autonomy pen bench — rogue-port impostor, control-API abuse, <code>/e91</code> quantum-fuzz, forged-telemetry rejection vs a sandboxed tier-1 supervisor; 52/52 invariants held (incl. honeytoken decoy + signed-control phases E/F).</td></tr>
+    <tr><td class="n">node-tests/tls-hybrid.mjs</td><td>PQ-hybrid TLS gate — AEAD+PFS-only floor, TLSv1.2 downgrade rejection, X25519MLKEM768 hybrid loopback negotiable. Green in <code>selfcheck.mjs</code>.</td></tr>
+    <tr><td class="n">node-tests/sweep-novel.mjs</td><td>Novel-vector sweep — 3 unseen attack shapes (jittered flood / overdrive / telegr) repelled by behavior, not signature; system-ON repels strictly more than baseline. Green in <code>selfcheck.mjs</code>.</td></tr>
+    <tr><td class="n">node-tests/peer-supervisor.mjs</td><td>Tier-1 watchdog — owns entangle-peer processes (NUL-safe argv adoption), health-checks <code>/e91</code> every ~3 s, auto-restarts dead peers (2-strike, 6 s grace), adaptive seed (×0.6/×0.4 on memory/load pressure), autonomous scale (grow +1 after 3 good ticks, retire after 12 pressured), RSS-leak reboot + restart-thrash quarantine (10 min), rotating logs. Control via <code>GET /?action=…</code>.</td></tr>
+    <tr><td class="n">node-tests/parent-watchdog.mjs</td><td>Tier-2 watchdog (<code>--web 8081,8080</code>) — re-spawns a dead supervisor or serve.js, reboots a leaking tier-1 (&gt; <code>--sup-rss-hard</code> MB), calls recover on a fabric dead &gt; 60 s (throttled 5 min, defers while quarantined).</td></tr>
+    <tr><td class="n">node-tests/bringup_census.mjs</td><td>USB bring-up census — walks `adb devices`, forwards the per-device ent/ctl/sta ports (base 20001), launches each phone's <code>launch.sh</code>, then reports <code>N/5 UP</code> via the console mesh endpoint.</td></tr>
+    <tr><td class="n">node-tests/secmesh-runs/</td><td>Raw telemetry for groups A–G (69 trials: threat, defenders, firewall, batch, decomposition, overload, fleet scale) plus defense-console soak/playbook runs <b>and the A/B selfcheck legs</b> (<code>selfcheck-guard.jsonl</code> system-ON 6384 events · 20.3% blocked vs <code>selfcheck-control.jsonl</code> system-OFF 5826 events · 0% blocked).</td></tr>
+    <tr><td class="n">selfcheck.mjs</td><td>20-probe regression gate spanning both worlds (contents serve, module syntax, physics sims, exports, shared-engine sync, real defense A/B, E91 fabric, agent pen, PQ-TLS, novel-vector sweep) — prints <code>OK 20/20</code>.</td></tr>
+  </table>
+
+  <h2 id="secmesh-bench">SecMesh — measured results, comparable to products</h2>
+  <p class="lede">Every percentage below was measured live on this device — no fabricated figures. The sender
+  (<code>mesh-tester.mjs</code>) fires <b>real TCP/UDP probes</b> at a defended listener (<code>mesh-guardian.mjs</code>,
+  "system ON") and at an identical undefended listener (<code>mesh-control.mjs</code>, "system OFF") on loopback, then
+  counts what each side actually <i>served</i>. Re-measure any time:</p>
+  <pre>node node-tests/bench-vectors.mjs --count 300 --rate 30 --reps 3 --out bench-vectors.json</pre>
+  <p class="lede">Configuration: <b>300 probes × 5 vectors × 3 reps</b>, sender at 30/s, linger held 6.5 s
+  (longer than the 6 s idle-eviction window, so idle eviction is actually exercised).</p>
+  <table>
+    <tr><th>Vector</th><th>System ON repel</th><th>System OFF repel</th><th>Δ</th><th>ON spread (min–max)</th></tr>
+    <tr><td class="n">syn-slew · TCP flood</td><td>42.11%</td><td>0.00%</td><td>+42.11</td><td>41.00 – 43.33%</td></tr>
+    <tr><td class="n">linger · idle hold</td><td>100.00%</td><td>0.00%</td><td>+100.00</td><td>100.00%</td></tr>
+    <tr><td class="n">snaplag · echo / latency</td><td>8.33%</td><td>0.00%</td><td>+8.33</td><td>7.00 – 9.67%</td></tr>
+    <tr><td class="n">udp-amp · UDP flood</td><td>50.11%</td><td>0.00%</td><td>+50.11</td><td>50.00 – 50.33%</td></tr>
+    <tr><td class="n"><b>overall TCP+UDP</b></td><td><b>50.10%</b></td><td><b>0.00%</b></td><td><b>+50.1 pp</b></td><td>49.5 – 50.2%</td></tr>
+  </table>
+  <p class="lede"><b>Latency tax:</b> snaplag echo round-trip measured the same with the system on as with it off
+  (4 ms vs 4 ms) — the admission checks add no visible delay at LAN scale.</p>
+
+  <h3>Plain-English map — this box vs a different product</h3>
+  <p class="lede">Think of the system as a bouncer at the front door; "system OFF" is the same building with the door
+  propped open (a stock server with no firewall — everything gets in).</p>
+  <table>
+    <tr><th>Measured</th><th>What it means</th><th>Same mechanism in a product</th></tr>
+    <tr><td class="n">syn-slew 42%</td><td>Per-source pace rule: rush the door faster than the allowed rate and the excess is turned away.</td><td>WAF rate limits · Apache/Nginx <code>limit_req</code> · Cloudflare per-IP throttling</td></tr>
+    <tr><td class="n">linger 100% vs 0%</td><td>"No standing in the lobby": idle connections are escorted out after the 6 s eviction window; a stock server holds them forever.</td><td>Firewall / load-balancer idle timeouts (pfSense, HAProxy <code>timeout client</code>, F5-style session reaping)</td></tr>
+    <tr><td class="n">udp-amp 50%</td><td>UDP datagrams treated as noise: past the allow rate the system stops accepting, where a stock echo accepts 100%.</td><td>DDoS UDP clamp / L3-L4 mitigation (Cloudflare, Arbor), DNS-amplification defense</td></tr>
+    <tr><td class="n">snaplag ~8%</td><td>The occasional over-speed rush gets rejected, but legitimate traffic is slowed by ~0 ms.</td><td>The "does the security product slow my users down?" number</td></tr>
+  </table>
+  <p class="lede">Introduce the system and it behaves like a small <b>next-generation firewall / rate-limiting edge</b>
+  (pfSense + Suricata class, or Cloudflare rate rules) — rejecting about half of the attack traffic it's fed while
+  adding ~0 ms of visible latency.</p>
+
+  <div class="tipbox"><b>Where cryptography fits (SHA-256, TLS, the engine's quantum-crypto mode).</b> Those are the
+  <i>data layer</i> — the tamper-proof envelopes and key exchange that protect conversation contents (the physics engine
+  even simulates a quantum-keys class of it). This benchmark is the <i>admission layer</i> — who gets through the front
+  door at all. They do not compete: encrypted traffic still passes admission first, and swapping SHA-256 for another hash
+  would move none of the numbers above. The table is about the door; crypto is about the safe inside.</div>
+
+  <h2 id="arch">Runtime architecture</h2>
+  <pre>index.html / experiments.html        <span class="c"># static chrome + inline CSS design system</span>
+   └─ elements.data.js                <span class="c"># dataset, plain window global</span>
+   └─ importmap { "three": "/lib/three.module.js", "three/addons/": "/lib/addons/" }
+   └─ exp-core.mjs                    <span class="c"># deterministic engine, no DOM, node-testable</span>
+        ├─ Chamber            atoms, bonds, forces, thermostat, substeps
+        ├─ fitAtomsToShape    cube→tokamak→stellarator(twist)→cuboid→plates via occupy
+        ├─ machines           B / E / power fields, feeder (MAX_FEED cap), beams
+        ├─ Chladni            standing-wave sand modes
+        └─ RATES              31 preset rates: 0.01 fs/step … 3.2 T y/step
+   └─ exp-app.js                       <span class="c"># DOM UI, three.js viewport, wiring only</span>
+        ├─ renderer           WebGL, preserveDrawingBuffer, low-power
+        ├─ machines           UI cards + readouts (B · E · P · ☀ vs N atoms · ⇢ fed · auto)
+        ├─ tracking           bonded-cluster overlay (face-tracker style) + tap → pinned popup
+        ├─ MRI                slice tomography, ALL-axis map, clip → GIF + experiment-infocard -anim.html
+        ├─ cross wall         per-tile mini chambers, each blitted onto its own cw-canvas
+        └─ exports            aps-&lt;exp&gt;-&lt;t&gt;fs.json (full run + atoms + bonds + events)
+   crosslab/physics_simulator.html          <span class="c"># standalone Universe world (module script)</span>
+        ├─ SpatialMap / Sim     swarm + field engine, SecMesh sec-step (DOM-free, headless-testable)
+        ├─ Renderer3D + optics  three.js viewport, tracking overlay, tap-inspect
+        └─ auto-defense         moving-target controller — strategy rotation over unique
+                                per-defender paths through the data lattice (CFG.autoDefense)</pre>
+  <p class="lede">The split is deliberate: <code>exp-core.mjs</code> is a plain module with no globals, so the whole
+  physics can be validated headlessly. The lab ships a family of standalone probes that boot the code through the same
+  <code>node</code> process (<code>run.mjs</code>, <code>rate-probe.mjs</code>, <code>ui-stress.mjs</code>,
+  <code>overlay-probe.mjs</code>, scanning, settings, grid, parts, mods, mach-sweep, laser-probe, urlparam-test,
+  exp-core-test …) to gate regressions.</p>
+
+  <h2 id="physics">Physics &amp; data model — the honest approximations</h2>
+  <table>
+    <tr><th>Layer</th><th>What's really computed</th></tr>
+    <tr><td>Interaction</td><td>Lennard-Jones pairwise + Coulomb for charge, cell-hashed neighbour lists.</td></tr>
+    <tr><td>Thermostat</td><td>Soft; rate-scaled heating term + operating-point taper so °K ≈ real kinetic temperature at every speed.</td></tr>
+    <tr><td>Bonding</td><td>Form/break on geometry + energy; ionic / covalent / hydrogen colour-coded; excited states, reactions, radioactive decay.</td></tr>
+    <tr><td>Fields</td><td>Constant <b>B</b> (Lorentz), constant <b>E</b>, RF-style <b>power</b>, plus the collimated beam bank (ray / pulse / trap / flood).</td></tr>
+    <tr><td>Time scale</td><td>Resolved fine-regime solver for chemistry band; coarse rate-consistent fast-forward; deep-macro single-substep up to <code>3.2 T y/step</code> (PBD rigid bonds, renormalized thermo).</td></tr>
+  </table>
+  <p class="lede">Exports land as processable JSON:
+  <code>aps-&lt;exp&gt;-&lt;t&gt;fs.json</code> → <code>{ format, experiment, run, feed, atoms, bonds, events }</code>.
+  <code>atoms</code> are nm &amp; nm/step, <code>bonds</code> index into <code>atoms</code>, and <code>run</code>
+  carries rate, temperature, fields, the full beam bank, shape, feeder totals, and the cross-lab preset — see the
+  <a href="guide.html#data">guide §6</a> for the schema.</p>
+
+  <h2 id="use">Use it — by hand or by agent</h2>
+  <div class="grid2">
+    <div class="card">
+      <b class="t">By hand (manual)</b>
+      <ul>
+        <li>Open the lab; the <b>▦</b> command center lists every experiment → tap a dossier → <b>DEPLOY</b>.</li>
+        <li>Top bar: <kbd style="color:var(--cyan)">▶/⏸</kbd> run, <kbd style="color:var(--cyan)">↻</kbd> reset, <kbd style="color:var(--cyan)">◎</kbd> tracking, <kbd style="color:var(--cyan)">−/＋</kbd> time-speed (the pill reads the exact Δ).</li>
+        <li>Top bar cluster <b>＋</b> spawns elements; <b>⚙</b> opens geometry / Chladni / scope / laser / machines+feeder / MRI / cross-lab. The MRI scanner docks itself under the top bar (flush left) and drags by the <b>≡</b> grip; clip saves a <b>GIF</b> + filmstrip PNG + manifest + a self-contained <b>experiment report</b> (<code>-anim.html</code>) — the full technical document with instrument captures, gray→hot imaging sheets, all four MRI channels and the written results.</li>
+        <li>⚙ gear in the HUD (right edge) = settings: overlays, hud size, modules, save root, agent identity.</li>
+        <li>Full picture: <a href="guide.html">guide.html</a>.</li>
+      </ul>
+    </div>
+    <div class="card">
+      <b class="t">By agent</b>
+      <ul>
+        <li><b>Boot a target</b>: <code>experiments.html?exp=&lt;id&gt;</code> (salt, melt, iron, rust, plasma, bubble, alloy, aero, slush, mine) skips drive-time.</li>
+        <li><b>Export state</b>: ▦ → <b>⬇ export data</b> writes <code>experiments/aps-…-&lt;t&gt;fs.json</code> under your <b>save root</b>.</li>
+        <li><b>Identify</b>: ⚙ settings → <b>agent</b> names the export <code>agents/&lt;you&gt;/…</code> so work lands in one folder.</li>
+        <li><b>Inspect from JSON</b>: atoms, bonds, events, run/beam config — no UI scraping needed.</li>
+        <li><b>Machine-read the doc set</b>: <code>README.md</code> (short), <code>guide.html</code> (manual), <code>readme.html</code> (this), exported schema — all local, all plain text.</li>
+        <li><b>Headless checks</b>: the engine is module-pure, so an agent can require <code>exp-core.mjs</code> and assert on <code>new Chamber</code> without a browser.</li>
+      </ul>
+    </div>
+  </div>
+
+  <h2 id="agent">Agent walkthrough — a repeatable recipe</h2>
+  <ol class="steps">
+    <li><b>Serve the folder.</b> <code>node serve.js</code> (or any static HTTP server). Agents should read files from disk; a live page is only needed for a run.</li>
+    <li><b>Pick a world.</b> Periodic table → <code>index.html</code> · chemistry → <code>experiments.html?exp=&lt;id&gt;</code> · universe → <code>crosslab/physics_simulator.html</code>. Every experiment id/goal/step is exported from <code>exp-core.mjs</code> (<code>EXPERIMENTS</code>).</li>
+    <li><b>Capture a baseline.</b> Export before any change (<code>⬇ export data</code>) so the <code>run</code> object documents rate, fields and beams verbatim.</li>
+    <li><b>Drive one knob at a time</b> — heat, temp, B axis, beam axis/type, feeder schedule, shape — and re-export; the diff is the entire experiment state. Debugging a run is reading <code>events[]</code>.</li>
+    <li><b>Regression-gate changes.</b> Re-run the headless suite (run / rate-probe / ui-stress / overlay-probe / settings / grid / scanning / parts / mods / mach-sweep / laser-probe / urlparam-test / exp-core-test). The lab is stable when all print <code>*-OK</code>.</li>
+  </ol>
+
+  <h2 id="credits">Credits &amp; attribution</h2>
+  <p class="lede">This project is assembled from <b>homegrown physics + audited data + one open library</b>. Nothing is hot-linked; all license-relevant files ship in repo.</p>
+  <table>
+    <tr><th>Component</th><th>Author / origin</th><th>Licence &amp; notes</th></tr>
+    <tr><td class="n">three.js r160</td><td><a href="https://threejs.org">three.js project</a> — <a href="https://github.com/mrdoob/three.js">github.com/mrdoob/three.js</a> (vendored: <code>lib/three.module.js</code> + <code>lib/addons/</code>)</td><td>MIT — <a href="https://github.com/mrdoob/three.js/blob/dev/LICENSE">LICENSE</a>. WebGL scene graph, cameras, geometries. Vendored offline; no CDN.</td></tr>
+    <tr><td class="n">Element dataset</td><td>Compiled audit of standard reference values (IUPAC standard atomic weights, common constants) → <code>elements.data.js</code></td><td>Reference facts (facts are not copyrightable); values cross-checked against <a href="https://iupac.org/what-we-do/periodic-table-of-elements/">IUPAC periodic table</a>. No third-party dataset file is bundled.</td></tr>
+    <tr><td class="n">Physics engine</td><td>Homegrown (this repo) — <code>exp-core.mjs</code></td><td>Honest approximations; not a validated MD code. Units: nm, fs-scale sim-time.</td></tr>
+    <tr><td class="n">UI icons / glyphs</td><td>Unicode symbols (⚙ ▦ ◎ ⬡ ☾ ∿ ⌬ ⚠ …) + system UI font stack</td><td>Free to use; no icon library is bundled.</td></tr>
+  </table>
+  <div class="tipbox warn"><b>Offline note:</b> the app performs no network I/O and embeds no CDN references — audit any added asset against that promise. Vendored library files must keep their upstream licence text when updated.</div>
+
+  <h2 style="margin-top:60px">The three worlds, one directory</h2>
+  <table>
+    <tr><th>World</th><th>Entry</th><th>Agent-friendly surface</th></tr>
+    <tr><td>Chemistry lab</td><td><a href="experiments.html">experiments.html</a></td><td><code>?exp=</code> id map · JSON export · <code>EXPERIMENTS</code>/<code>SHAPES</code>/<code>CHLADNI_MODES</code> exports</td></tr>
+    <tr><td>Periodic table</td><td><a href="index.html">index.html</a></td><td><code>window.ELEMENTS_DATA</code>, 118 rows × 20 fields</td></tr>
+    <tr><td>Universe / cross-lab</td><td><a href="crosslab/physics_simulator.html">crosslab/physics_simulator.html</a> · <a href="crosslab/preview.html">gallery</a></td><td><code>?preset=</code> cold boot (6 plates) · per-node JSON · ⚒ export infocard (run + structure + security) · SecMesh baseline via <code>node node-tests/secmesh-exp.mjs all</code> · moving-target auto-defense toggle</td></tr>
+  </table>
+
+  <div class="foot">
+    Aarkanum Laboratories · offline-first, zero-dependency<span class="sep">·</span>
+    <a href="landing.html">hub</a><span class="sep">·</span><a href="experiments.html">lab</a><span class="sep">·</span>
+    <a href="index.html">table</a><span class="sep">·</span><a href="guide.html">guide</a><span class="sep">·</span>
+    <a href="README.md">readme.md</a>
+  </div>
+
+</div>
+</body>
+</html>

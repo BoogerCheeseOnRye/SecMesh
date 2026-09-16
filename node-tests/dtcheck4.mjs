@@ -1,0 +1,15 @@
+import { boot, runFrames, allHandlers } from './ui-harness.mjs';
+import path from 'node:path'; import { fileURLToPath } from 'node:url';
+const DIR = path.dirname(fileURLToPath(import.meta.url));
+const mod = await boot();
+const app = mod.app;
+const fire = (id, ev='click') => { const t = allHandlers().find(([e, , el]) => e===ev && el && el._id===id); if(!t) throw new Error('no '+id); t[1](); };
+await runFrames(40);
+for (let i=0;i<100;i++) fire('ratePlus');
+fire('btnRun');
+await runFrames(200);
+const I = app._inst;
+console.log('chart t=', I.chart.t.length, 'last=', I.chart.t.slice(-1)[0], 'finite=', I.chart.t.every(Number.isFinite));
+console.log('spec bins=', I.spec.bins.length, 'press at=', I.press.at, 'Pa=', I.press.Pa, 'Pa finite=', Number.isFinite(I.press.Pa));
+console.log('T_cur=', app.ch.T_cur, 'T finite=', Number.isFinite(app.ch.T_cur));
+console.log('press mfp finite=', Number.isFinite(I.press.mfp));

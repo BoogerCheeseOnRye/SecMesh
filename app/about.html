@@ -1,0 +1,261 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Aarkanum Laboratories · About the Operator &amp; Origin</title>
+<style>
+  :root{
+    --bg:#05070f; --line:#223052; --txt:#dbe6ff; --dim:#7c8db3;
+    --amber:#ffb020; --cyan:#37c8ff; --good:#59ff9c; --danger:#ff5b5b;
+  }
+  *{ box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
+  html{ scroll-behavior:smooth; }
+  body{ margin:0; background:var(--bg); color:var(--txt);
+    font:14px/1.6 system-ui,-apple-system,'Segoe UI',Roboto,sans-serif; }
+  a{ color:var(--cyan); }
+
+  .top{ position:sticky; top:0; z-index:20; padding:12px 20px;
+    background:linear-gradient(180deg, rgba(12,19,40,.98), rgba(7,11,22,.94));
+    border-bottom:1px solid var(--line); display:flex; align-items:center; gap:12px; flex-wrap:wrap; }
+  .top b{ color:var(--amber); letter-spacing:2px; font-size:15px; }
+  .top .nav{ display:flex; gap:6px; margin-left:auto; flex-wrap:wrap; }
+  .top .nav a{ font-size:11px; color:var(--dim); border:1px solid var(--line);
+    padding:4px 10px; text-decoration:none; }
+  .top .nav a:hover{ color:var(--amber); border-color:var(--amber); }
+  .top .nav a.sel{ color:var(--cyan); border-color:var(--cyan); }
+
+  .doc{ max-width:860px; margin:0 auto; padding:26px 30px 80px; min-width:0; }
+  .doc h2{ margin:44px 0 0; font-size:17px; color:var(--amber); letter-spacing:.8px; }
+  .doc h2::before{ content:'▮ '; color:var(--cyan); font-size:11px; vertical-align:2px; }
+  .doc h3{ margin:26px 0 4px; font-size:13px; color:var(--cyan); letter-spacing:.4px; }
+  .doc p{ margin:8px 0; }
+  .lede{ font-size:15px; line-height:1.7; color:#eaf1ff; }
+  .doc ul{ margin:6px 0 10px; padding-left:20px; }
+  .doc li{ margin:3px 0; }
+  .doc code{ background:#0a0f1f; border:1px solid var(--line); border-radius:2px; padding:1px 5px;
+    font-size:12px; color:#9fcfff; }
+  .doc table{ border-collapse:collapse; width:100%; margin:10px 0; font-size:12px; }
+  .doc th{ text-align:left; color:var(--dim); text-transform:uppercase; font-size:10px; letter-spacing:1px;
+    border-bottom:1px solid var(--line); padding:6px 8px; }
+  .doc td{ border-bottom:1px solid #141c33; padding:5px 8px; vertical-align:top; }
+  .doc td.n{ color:var(--amber); white-space:nowrap; }
+  .tipbox{ border-left:3px solid var(--amber); background:rgba(255,176,32,.06); padding:8px 12px;
+    border-radius:0 3px 3px 0; margin:10px 0; font-size:12.5px; }
+  .warn{ border-left-color:var(--danger); background:rgba(255,91,91,.06); }
+  .stats{ display:grid; grid-template-columns:repeat(auto-fit,minmax(150px,1fr)); gap:12px; margin:16px 0; }
+  .stat{ background:#0a0f1f; border:1px solid var(--line); border-radius:8px; padding:12px 14px; text-align:center; }
+  .stat b{ display:block; font-size:20px; color:var(--cyan); }
+  .stat span{ font-size:10px; color:var(--dim); letter-spacing:1px; text-transform:uppercase; }
+  .card{ background:#0a0f1f; border:1px solid var(--line); border-radius:8px; padding:14px 16px; margin:10px 0; }
+  .card h4{ margin:0 0 6px; font-size:11px; color:var(--cyan); letter-spacing:1px; text-transform:uppercase; }
+  .card p{ margin:0; font-size:12px; line-height:1.62; color:var(--dim); }
+  .foot{ margin-top:70px; padding-top:16px; border-top:1px solid var(--line);
+    font-size:10px; color:var(--dim); letter-spacing:1px; text-align:center; }
+  .col{ columns:2; column-gap:26px; }
+  .col p{ break-inside:avoid; }
+  @media (max-width:720px){ .col{ columns:1; } .doc{ padding:20px 16px 60px; } }
+</style>
+</head>
+<body>
+
+<div class="top">
+  <b>AARKANUM LABORATORIES</b><span style="color:var(--dim);font-size:11px">about the operator &amp; origin</span>
+  <nav class="nav">
+    <a href="landing.html">hub</a>
+    <a href="experiments.html">lab</a>
+    <a href="index.html">table</a>
+    <a href="guide.html">guide</a>
+    <a href="readme.html">tech readme</a>
+    <a class="sel" href="about.html">about</a>
+  </nav>
+</div>
+
+<div class="doc">
+
+  <h2 id="top">The short version</h2>
+  <p class="lede">Aarkanum Laboratories is a one-person outfit. Everything in this repository — the folding
+  periodic table, the chemistry lab, the <b>SecMesh</b> defense engine, the <b>entanglement-fabric QKD cluster</b> over
+  E91 Bell-CHSH — is built by a single solo developer with no formal CS degree, no tech job, and no career in
+  software beyond the C++ teaching-assistant days two decades ago. The premise of this page, and of the whole
+  project, is that <b>concept and execution are the bar</b> — not the resume that usually sits in front of them.</p>
+
+  <div class="stats">
+    <div class="stat"><b>15</b><span>public repos</span></div>
+    <div class="stat"><b>6 wk</b><span>age of physicsSim</span></div>
+    <div class="stat"><b>2026-09-04</b><span>security chunk began</span></div>
+    <div class="stat"><b>20/20</b><span>self-test gate</span></div>
+    <div class="stat"><b>0</b><span>dependencies at runtime</span></div>
+    <div class="stat"><b>~6 mo</b><span>since AI moment</span></div>
+    <div class="stat"><b>$120/h</b><span>paid tutoring rate · since May</span></div>
+  </div>
+
+  <h2 id="fleet">The hardware it runs on</h2>
+  <p>The whole project is built and demoed on hardware that is ordinary, older, and already in the room — nothing here
+  needs a lab. Aarkanum runs across a small fleet of everyday devices:</p>
+  <table>
+    <tr><th>device</th><th>role · spec</th></tr>
+    <tr><td class="n">Samsung Galaxy Tab S6 Lite (2022)</td>
+      <td><b>Operator console</b> — 10.4&quot; TFT LCD (1200×2000), Snapdragon 732G, 4 GB RAM, 7,040 mAh, S-Pen. Where this repository gets built and the fabric gets watched.</td></tr>
+    <tr><td class="n">ASUS E200HA</td>
+      <td><b>Control node</b> — 11.6&quot; (1366×768), Atom x5-Z8350 1.44–1.84&nbsp;GHz, 4&nbsp;GB soldered DDR3L, 32&nbsp;GB eMMC (29&nbsp;GB usable) + 256&nbsp;GB microSD (UHS v10), running an extreme-tuned antiX&nbsp;Linux 26. The always-on host that drives the whole mesh.</td></tr>
+    <tr><td class="n">REVVL V+ 5G</td>
+      <td>Dimensity 700 · 4/64&nbsp;GB · 6.82&quot; HD+ IPS · 5,000&nbsp;mAh — the first cluster peer.</td></tr>
+    <tr><td class="n">REVVL 6x Pro</td>
+      <td>Dimensity 700 · 6/128–256&nbsp;GB · 50&nbsp;MP quad camera · 5,000&nbsp;mAh.</td></tr>
+    <tr><td class="n">REVVL 7</td>
+      <td>Snapdragon 6 Gen 1 · 6/128&nbsp;GB · 6.58&quot; AMOLED 120&nbsp;Hz · 5,000&nbsp;mAh.</td></tr>
+    <tr><td class="n">REVVL 8 Pro</td>
+      <td>Snapdragon 6 Gen 3 · 6.8&quot; FHD+ AMOLED 120&nbsp;Hz adaptive · 50&nbsp;MP OIS + 13&nbsp;MP ultrawide · 33&nbsp;W wired / 15&nbsp;W wireless · IP67 · 5,000&nbsp;mAh.</td></tr>
+    <tr><td class="n">iBuyPower desktop</td>
+      <td><b>The bench</b> — 10th-gen Core i5 · 32&nbsp;GB DDR4 · 2&nbsp;TB NVMe · RTX 3060 12&nbsp;GB OC · new PSU · Pop!_OS. Currently mid hard-swap (down about a month); back on the mesh when the upgrade lands.</td></tr>
+  </table>
+  <div class="tipbox">Prefer the shipping numbers to anything this page promises: every claim in the repo is re-producible
+  with <code>node selfcheck.mjs</code> on this exact Tab S6 Lite.</div>
+
+  <h2 id="arc">The long version — the arc</h2>
+  <p>23.5 years ago I was a C++ <b>student teacher</b>. The discipline that defines this repository was born in that
+  classroom: I made students write literal C++ <b>on paper, in pencil</b>, before they were allowed anywhere near a
+  compiler. That is worth saying out loud, because it is exactly the discipline this repository runs on: design
+  first, express it plainly, then let the machine verify.</p>
+  <p>Then reality did what reality does. The last twenty-plus years were spent in <b>retail management, fast food, odd
+  jobs, and construction</b> — a long detour that had nothing to do with compilers, classes, or anything on that
+  paper.</p>
+  <p>In <b>March 2026</b> I watched an LLM genuinely write code for the first time and realized the floor had moved:
+  the gap between "an idea and a working program" had collapsed to something one determined person could cross. I
+  started shipping immediately. The GitHub account below (handle: <code>BoogerCheeseOnRye</code>) shows the sprint:
+  <b>fifteen public repositories in roughly five months</b>, beginning the very month the AI moment happened.</p>
+  <p>And the timeline that matters most for this page: <b>the security buildout that now fills these docs began on
+  Friday, September 4, 2026</b> — the two-week mark lands this Friday, September 18. Within the opening week, the
+  SecMesh defense engine, the seeded moving-target auto-defense, the 69-trial baseline, and the whole entanglement
+  fabric over E91 were all conceived and shipped; they have been hardening since. That is the honest denominator for
+  every claim you read in this repository.</p>
+  <p>Alongside the code, the writing: since <b>March 10</b> this operator has been posting on X by hand — roughly
+  <b>25,000 tweets and replies</b> across <code>@wreckmyshit</code> and <code>@boogersandcheez</code>, arguing with,
+  learning from, and getting corrected by the tech sphere at large. Most of the ideas that landed in these repos were
+  first stress-tested at volume in that feed. The archive is kept on the e200ha; this page credits it rather than
+  linking it.</p>
+
+  <div class="tipbox">
+    Receipts for the dates on this page are the repos themselves:
+    <a href="https://github.com/BoogerCheeseOnRye">github.com/BoogerCheeseOnRye</a> (creation timestamps via the public
+    GitHub API). Nothing here is a claim without an artifact behind it.
+  </div>
+
+  <h2 id="lineage">Project lineage</h2>
+  <table>
+    <tr><th>date</th><th>repo</th><th>what it is</th></tr>
+    <tr><td class="n">2026-03-11</td><td><a href="https://github.com/BoogerCheeseOnRye/THE.END.OF.AAA.GAMING">THE.END.OF.AAA.GAMING</a></td>
+      <td>Single-file neon roguelike FPS — 9 stackable powerups, 13 meta upgrades, 10×10 achievements, faux-PVP, gamepad support. Live at <a href="https://boogercheeseonrye.github.io/THE.END.OF.AAA.GAMING/game.html">boogercheeseonrye.github.io</a> — one HTML file, no ads, no tracking, no battle passes.</td></tr>
+    <tr><td class="n">2026-03-12</td><td><a href="https://github.com/BoogerCheeseOnRye/VoidChamber">VoidChamber</a></td>
+      <td>The original <b>VOIDSCREAM</b> — "the neon abyss where screams go to die": anonymous vertical feed with votes, comments, image/GIF/video, everything auto-forgetting at 100 screams. One HTML file, zero accounts. Live at <a href="https://boogercheeseonrye.free.nf/?i=1">boogercheeseonrye.free.nf</a>.</td></tr>
+    <tr><td class="n">2026-03-14</td><td><a href="https://github.com/BoogerCheeseOnRye/voidscream">voidscream</a></td>
+      <td><b>VOIDSCREAM v2 — "The Abyss That Listens"</b>, an offline DID helper built as a private sanctuary: alter-specific everything, mood graphs on real data, dynamic calendar, DM headmates, archives, safety gates. No servers, no tracking, nothing ever leaves the device. The heart of the portfolio.</td></tr>
+    <tr><td class="n">2026-03-16</td><td><a href="https://github.com/BoogerCheeseOnRye/resume">resume</a></td>
+      <td>The resume-as-project site — the first time this operator went public with the whole story.</td></tr>
+    <tr><td class="n">2026-03-20</td><td><a href="https://github.com/BoogerCheeseOnRye/ODT">ODT</a></td>
+      <td><b>Omni Development Terminal</b> — a local, AI-powered game-dev environment: tile/sprite/code editors, live preview, four-way AI agent queue, real-time <b>swarm hub</b> chat (AI bots talk to each other), and hardware scanning with auto-optimization. Multi-model: Ollama, llama.cpp, Chrome Gemini Nano, WebLLM, WASM fallback — no cloud required.</td></tr>
+    <tr><td class="n">2026-03-22</td><td><a href="https://github.com/BoogerCheeseOnRye/QubitVisualizer">QubitVisualizer</a></td>
+      <td>Unix-driven three.js "qubit" — quantum imagery from the command line.</td></tr>
+    <tr><td class="n">2026-03-22</td><td><a href="https://github.com/BoogerCheeseOnRye/QuantizationQuantizationizer">QuantizationQuantizationizer</a></td>
+      <td><b>"The Bat"</b> — extreme model compression (Python, MIT): 1-bit quantization + structured pruning + weight sharing + entropy coding for 50–200× compression (a 14B model toward ~100 MB).</td></tr>
+    <tr><td class="n">2026-04-07</td><td><a href="https://github.com/BoogerCheeseOnRye/GameEngine">GameEngine</a> · <a href="https://github.com/BoogerCheeseOnRye/TwitchPlaysLLMMoE">TwitchPlaysLLMMoE</a></td>
+      <td>Voxel-world jump-off point (powerups / shaders / controls / camera); and a Twitch channel driving a local LLM cluster as a swarm controller.</td></tr>
+    <tr><td class="n">2026-04-21</td><td><a href="https://github.com/BoogerCheeseOnRye/physicsPage">physicsPage</a></td>
+      <td>One-shot physics website — the direct ancestor of physicsSim.</td></tr>
+    <tr><td class="n">2026-04-22</td><td><a href="https://github.com/BoogerCheeseOnRye/ODTPitchdeck">ODTPitchdeck</a></td>
+      <td>Pitch deck for ODT — the product, framed for the person who has ninety seconds.</td></tr>
+    <tr><td class="n">2026-04-25</td><td><a href="https://github.com/BoogerCheeseOnRye/OpencodeMobileFOSS">OpencodeMobileFOSS</a></td>
+      <td>Bringing an open-source coding agent to mobile/offline workflows — how this project gets built in the field.</td></tr>
+    <tr><td class="n">2026-05-31</td><td><a href="https://github.com/BoogerCheeseOnRye/SwarmRam">SwarmRam</a></td>
+      <td>Simulator work in Python, mid-flight.</td></tr>
+    <tr><td class="n">2026-07-20</td><td><a href="https://github.com/BoogerCheeseOnRye/the-system">the-system</a></td>
+      <td><b>THE SYSTEM</b> — orbital mechanics sim with patched-conic gravity and SOI transitions: the 2,000 brightest stars at real 3D positions, a 60,000-star galaxy, 10 planets with moons, Starlink/ISS/GPS constellations, the Tesla Roadster, and resource/build/research/launch loops.</td></tr>
+    <tr><td class="n">2026-07-29</td><td><a href="https://github.com/BoogerCheeseOnRye/physicsSim">physicsSim</a></td>
+      <td><b>Quantum→Universe</b> — a theoretical physics engine spanning 16 orders of magnitude in a single file: a scale ladder from Planck to Universal, with slime-mold pathfinding and neural weight alignment on the same graph. Six weeks old as of this page (2026-07-29 → 2026-09-09); the reason Aarkanum Laboratories exists as an org-style name in these docs. (The <code>planckScale</code>/<code>vacuumEnergy</code> labels are reserved UI knobs — see the crosslab README.)</td></tr>
+    <tr><td class="n">2026-09-04</td><td>this repo — security chunk</td>
+      <td><b>SecMesh + entanglement fabric:</b> the per-rotation-seeded moving-target auto-defense, the 69-trial measured
+      baseline, and the E91 Bell-CHSH cluster with conference keys and an injected, detectable Eve. Started last Friday;
+      under a week old as this page is written.</td></tr>
+  </table>
+
+  <div class="tipbox">
+    Read straight from the READMEs, the pattern across all fifteen repos is a breadth that usually takes an organization,
+    not a person: a shipping game, an anonymous social app, a private sanctuary app (VOIDSCREAM v2), a local AI dev
+    terminal, model compression, astrodynamics, quantum visualization, swarm orchestration — and now a physics engine
+    that argues its own security layer. The common thread is the honest-approximation contract you'll find described on
+    the <a href="about.html#thesis">thesis</a> below: define the approximation, then hold the build to it.
+  </div>
+
+  <h2 id="thesis">Why it matters — the thesis</h2>
+  <p>The same people who get impressed by the live previews have told me in person, repeatedly, that this is beyond the
+  status quo for someone coming into the field cold. I agree with the *direction* of that statement but I want to be
+  precise about where the bar actually is:</p>
+  <ul>
+    <li><b>The concept is the product.</b> The physics engine is built on an <b>honest-approximation contract</b>: it
+    never pretends to be real matter, it states the approximation it makes and then holds itself to it. That same
+    contract extends to the security layer — the <b>SecMesh</b> baseline (69-trial measured table in
+    <a href="guide.html#secmesh">guide.html</a>), the per-rotation-<b>seeded</b> moving-target auto-defense, and the
+    <b>entanglement fabric</b> that runs a real E91 key-agreement protocol across your phones with Bell-CHSH detecting an
+    injected Eve via S &lt; 2.</li>
+    <li><b>Everything is measurable.</b> The repository ships a 20-probe self-test gate in <code>selfcheck.mjs</code>
+    (20/20 green at the time of writing — physics, exports, shared-engine sync, real defense A/B, E91 fabric, agent pen,
+    PQ-hybrid TLS, novel-vector sweep). The white-paper numbers in the guide — admission S ≈ 2.83, eve S ≈ 0.6,
+    patch/pressure pairs, rotation-vs-intercept curves, the 5-node conference key — are <b>measured</b>, not asserted.</li>
+    <li><b>No infrastructure, no excuses.</b> The entire thing is three static pages of vanilla ES modules, vendored
+    three.js, zero dependencies at runtime, zero build step. It demos in the browser you already have.</li>
+  </ul>
+
+  <div class="card">
+    <h4>Scoping it honestly</h4>
+    <p>Six weeks in, this is a proof-of-honesty, not a deployed product. The quantum channel is emulated (photons don't
+    travel over wifi), and the cluster's physical deployment is limited to the phones in reach — not Cloudflare's
+    network. The claim here is <b>conceptual parity</b>: the logic of entanglement-based key agreement, detectable
+    eavesdropping, and conference keying runs end-to-end on real hardware. The deployment layer is a packaging and
+    control-node problem, not a research problem — and it is already being worked (see
+    <a href="guide.html#qkd">guide §4g</a>).</p>
+  </div>
+
+  <h2 id="method">Working method</h2>
+  <div class="col">
+    <p><b>Agent-assisted, personally directed.</b> The AI writes a lot of the keystrokes; the intent, the architecture
+    calls, the honest-approximation framing, and the "what would this actually prove?" bar are mine. Teaching code on
+    paper taught me the grammar of a program long before any AI existed — that grammar is what separates a repo that
+    demos from a repo that <i>argues</i>.</p>
+    <p><b>Gates over vibes.</b> Every subsystem earns a probe; every probe runs as part of a single self-check entry
+    point. If the number stops being green, the change isn't done.</p>
+    <p><b>Docs are part of the build.</b> Every finding lands in the repository twice — prose in
+    <a href="readme.html">readme.html</a>, white-paper tables in <a href="guide.html">guide.html</a> — so a stranger
+    (or a future hiring manager) can read the reasoning without running a single command.</p>
+    <p><b>Deployment posture.</b> The target host is whatever is in reach — this device, a phone, an always-on control
+    node. The system is designed so that "more nodes" is a config line, not a rewrite.</p>
+  </div>
+
+  <h2 id="ops">The operator, in one paragraph</h2>
+  <p>Retail manager, fast-food worker, construction laborer, odd-jobber — and, before all of that, a C++
+  student teacher who made students write literal C++ in pencil. No CS degree has ever appeared on my resume. I watched AI start
+  to code in March 2026 and decided the resume question was finally irrelevant — the work could speak. It has been
+  speaking daily since. And the work itself carries the human part: the same hands that build the swarm hubs and the
+  physics engines built <b>VOIDSCREAM</b> as a private, offline sanctuary for people whose minds hold multiple alters —
+  no servers, no tracking, nothing that ever leaves the device. That pairing — hard engineering and genuine care — is
+  the closest thing to a thesis the operator has. This repository is the current sentence.</p>
+
+  <h2 id="receipts">The valuation, from outside</h2>
+  <p>There is third-party evidence that the direction of travel is right. Since <b>May 2026</b> this operator has held a
+  <b>part-time paid tutoring gig in local AI mastery</b> for a communications engineer — set loose by the <b>Meta
+  layoffs</b>, previously a regional supervisor at a hyperscaler with decades in the role — who set the rate at
+  <b>$120/hour</b> and keeps renewing it. That is not a claim you can file under "self-confidence": it is a senior
+  industry professional putting a number on this operator's local-model work and paying it. The repos above are the
+  reason the number is plausible; the tutor is the person who kept showing up for it.</p>
+
+  <div class="tipbox warn">
+    This page is a living document. The author continues to add chapters — roadmap, deployment diary, the whiteness and
+    wrongness of the "beyond the status quo" claim as measured over time. Expect this file to grow.
+  </div>
+
+  <div class="foot">Aarkanum Laboratories · <a href="https://github.com/BoogerCheeseOnRye">github.com/BoogerCheeseOnRye</a>
+  · <a href="guide.html">field guide</a> · <a href="readme.html">tech readme</a> · companion to the READMEs</div>
+
+</div>
+</body>
+</html>

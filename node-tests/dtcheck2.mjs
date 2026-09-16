@@ -1,0 +1,10 @@
+import { boot, runFrames, allHandlers } from './ui-harness.mjs';
+import path from 'node:path'; import { fileURLToPath } from 'node:url';
+const DIR = path.dirname(fileURLToPath(import.meta.url));
+const mod = await boot();
+const app = mod.app;
+const fire = (id) => { const t = allHandlers().find(([e, , el]) => e==='click' && el && el._id===id); if(!t) throw new Error('no '+id); t[1]?.(); };
+await runFrames(40);
+fire('btnRun');
+await runFrames(120);
+console.log('t=', app.ch.t, 'running=', app.running);

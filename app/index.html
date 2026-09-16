@@ -1,0 +1,1206 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
+<title>Aarkanum Laboratories — the folding periodic table</title>
+<style>
+  *{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent;user-select:none;-webkit-user-select:none}
+  html,body{width:100%;height:100%;overflow:hidden;background:#04050c;color:#dfeeff;
+    font-family:ui-monospace,'SF Mono','Cascadia Mono','Segoe UI',system-ui,sans-serif;touch-action:none;-ms-touch-action:none}
+  #app{position:fixed;inset:0}
+  canvas{display:block}
+  .ui{position:fixed;pointer-events:none}
+
+  /* ---------- top ---------- */
+  #top{top:calc(env(safe-area-inset-top) + 12px);left:14px;right:14px;display:flex;justify-content:space-between;align-items:flex-start}
+  #brand{background:linear-gradient(160deg,rgba(10,14,32,.78),rgba(6,8,20,.55));border:1px solid rgba(120,200,255,.22);
+    border-radius:14px;padding:10px 14px;backdrop-filter:blur(10px);box-shadow:0 8px 30px rgba(0,0,0,.45),inset 0 0 22px rgba(90,160,255,.08)}
+  #brand h1{font-size:15px;letter-spacing:3px;color:#7ee7ff;text-transform:uppercase;font-weight:800;text-shadow:0 0 14px rgba(126,231,255,.7),0 0 40px rgba(126,231,255,.25)}
+  #brand p{font-size:9.5px;color:#9fb4d8;letter-spacing:1.2px;margin-top:3px}
+  #hint{font-size:9px;color:#5f7ea8;margin-top:4px;letter-spacing:.8px;opacity:.85}
+  #courtesy{font-size:9px;color:#4a5f84;letter-spacing:.6px;margin-top:2px}
+
+  /* ---------- right rail ---------- */
+  #rail{right:calc(env(safe-area-inset-right) + 12px);bottom:calc(env(safe-area-inset-bottom) + 96px);display:flex;flex-direction:column;gap:9px;align-items:center}
+  .btn{width:46px;height:46px;border-radius:14px;border:1px solid rgba(140,190,255,.25);background:rgba(8,12,28,.7);
+    backdrop-filter:blur(8px);color:#9fe3ff;font-size:16px;display:flex;align-items:center;justify-content:center;
+    cursor:pointer;pointer-events:auto;box-shadow:0 4px 16px rgba(0,0,0,.5),inset 0 0 14px rgba(80,170,255,.06);transition:transform .12s,box-shadow .2s}
+  .btn:active{transform:scale(.92)}
+  .btn.on{border-color:#7ee7ff;color:#04050c;background:linear-gradient(160deg,#7ee7ff,#3f9dff);box-shadow:0 0 22px rgba(126,231,255,.55)}
+  .btn .lbl{font-size:8px;letter-spacing:1px;color:#8fb2d6;margin-top:1px}
+  .btn.on .lbl{color:#062}
+
+  /* ---------- legend ---------- */
+  #legend{left:14px;bottom:calc(env(safe-area-inset-bottom) + 16px);min-width:138px;max-width:200px;
+    background:linear-gradient(160deg,rgba(10,14,32,.72),rgba(6,8,20,.5));border:1px solid rgba(120,200,255,.18);
+    border-radius:12px;padding:9px 11px;backdrop-filter:blur(8px);box-shadow:0 8px 24px rgba(0,0,0,.4)}
+  #legendName{font-size:10px;letter-spacing:1.6px;color:#7ee7ff;text-transform:uppercase;font-weight:700}
+  #legendSub{font-size:8.5px;color:#6f88b0;margin-top:2px;letter-spacing:.5px}
+  #grad{height:10px;border-radius:6px;margin-top:7px;border:1px solid rgba(255,255,255,.14);box-shadow:inset 0 1px 3px rgba(0,0,0,.5)}
+  #ticks{display:flex;justify-content:space-between;font-size:8px;color:#7a92b8;margin-top:3px;letter-spacing:.4px}
+  #cat{display:flex;flex-wrap:wrap;gap:4px;margin-top:7px}
+  .catDot{display:flex;align-items:center;gap:5px;font-size:8.5px;color:#9fb4d8}
+  .catDot i{width:9px;height:9px;border-radius:3px;display:inline-block;box-shadow:0 0 6px currentColor}
+
+  /* ---------- info card ---------- */
+  #card{left:50%;bottom:calc(env(safe-area-inset-bottom) + 16px);transform:translateX(-50%) translateY(130%);width:min(400px,calc(100vw - 28px));
+    background:linear-gradient(165deg,rgba(12,16,36,.9),rgba(6,8,20,.82));border:1px solid rgba(126,231,255,.3);
+    border-radius:18px;padding:14px 16px;backdrop-filter:blur(14px);
+    box-shadow:0 0 40px rgba(0,0,0,.6),inset 0 0 24px rgba(90,170,255,.07);
+    transition:transform .38s cubic-bezier(.2,.9,.25,1.2);pointer-events:auto;z-index:30}
+  #card.open{transform:translateX(-50%) translateY(0)}
+  #cardTop{display:flex;align-items:center;gap:14px}
+  #sym{font-size:46px;font-weight:800;color:#fff;text-shadow:0 0 18px currentColor;line-height:1;min-width:92px;text-align:center}
+  #meta{flex:1;min-width:0}
+  #name{font-size:17px;font-weight:700;color:#fff;letter-spacing:.5px}
+  #zn{font-size:11px;color:#7ee7ff;letter-spacing:2px;margin-top:2px}
+  #catline{font-size:10px;color:#9fb4d8;margin-top:3px;letter-spacing:.6px}
+  #eraTxt{font-size:9.5px;color:#c9b26a;margin-top:3px;letter-spacing:.6px}
+  #close{position:absolute;top:10px;right:12px;color:#7f97bd;font-size:18px;background:none;border:none;cursor:pointer;pointer-events:auto}
+  #grid{display:grid;grid-template-columns:repeat(2,1fr);gap:5px 14px;margin-top:12px}
+  .kv{display:flex;flex-direction:column;gap:1px;min-width:0}
+  .kv .k{font-size:8px;color:#6f88b0;letter-spacing:1.2px;text-transform:uppercase}
+  .kv .v{font-size:12.5px;color:#e8f3ff;font-variant-numeric:tabular-nums;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .bar{position:relative;height:6px;border-radius:4px;background:rgba(255,255,255,.08);margin-top:3px;overflow:hidden}
+  .bar>span{position:absolute;inset:0;border-radius:4px;background:linear-gradient(90deg,#3f9dff,#7ee7ff);width:40%;}
+  #cfg{font-size:10px;color:#a9c4e8;margin-top:9px;border-top:1px solid rgba(255,255,255,.08);padding-top:7px;letter-spacing:.4px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+
+  #busy{position:fixed;inset:0;display:flex;flex-direction:column;gap:12px;align-items:center;justify-content:center;z-index:99;
+    background:#04050c;color:#7ee7ff;font-size:12px;letter-spacing:2px;text-transform:uppercase;transition:opacity .6s}
+  #busy.done{opacity:0;pointer-events:none}
+  .spin{width:34px;height:34px;border-radius:50%;border:2px solid rgba(126,231,255,.2);border-top-color:#7ee7ff;animation:rot 1s linear infinite}
+  @keyframes rot{to{transform:rotate(360deg)}}
+</style>
+</head>
+<body>
+<div id="app"></div>
+<div id="busy"><div class="spin"></div>folding elements</div>
+
+<div class="ui" id="top">
+  <div id="brand">
+    <h1>Aarkanum&nbsp;Laboratories</h1>
+    <p>the folding periodic table · 118 elements</p>
+    <p id="hint">drag · orbit&nbsp;&nbsp;|&nbsp;&nbsp;pinch · zoom&nbsp;&nbsp;|&nbsp;&nbsp;two-finger drag · pan&nbsp;&nbsp;|&nbsp;&nbsp;tap · element</p>
+    <p id="courtesy">golden-ratio standing waves · origami tessellation shader</p>
+  </div>
+</div>
+
+<div class="ui" id="legend">
+  <div id="legendName">block</div>
+  <div id="legendSub">subshell signature</div>
+  <div id="grad"></div>
+  <div id="ticks"></div>
+  <div id="cat"></div>
+</div>
+
+<div class="ui" id="rail">
+  <button class="btn" id="bAbout" title="About — operator &amp; origin" onclick="location.href='about.html'"><span>❖</span><span class="lbl">about</span></button>
+  <button class="btn" id="bLab" title="Aarkanum Laboratories — table of contents" onclick="location.href='landing.html'" style="background:linear-gradient(160deg,#0a2440,#081224)"><span>⌖</span><span class="lbl">labs</span></button>
+  <button class="btn" id="bMetric" title="cycle data metric"><span>◆</span><span class="lbl">metric</span></button>
+  <button class="btn on" id="bSpin" title="auto spin"><span>⟳</span><span class="lbl">spin</span></button>
+  <button class="btn on" id="bBloom" title="bloom"><span>✦</span><span class="lbl">glow</span></button>
+  <button class="btn" id="bReset" title="reset view"><span>◎</span><span class="lbl">view</span></button>
+  <button class="btn" id="bFull" title="fullscreen"><span>⛶</span><span class="lbl">full</span></button>
+</div>
+
+<div class="ui" id="card">
+  <button id="close">×</button>
+  <div id="cardTop">
+    <div id="sym">—</div>
+    <div id="meta">
+      <div id="name">—</div>
+      <div id="zn">—</div>
+      <div id="catline">—</div>
+      <div id="eraTxt">—</div>
+    </div>
+  </div>
+  <div id="grid"></div>
+  <div id="cfg"></div>
+</div>
+
+<script src="elements.data.js"></script>
+<script type="importmap">
+{"imports":{
+  "three":"/lib/three.module.js",
+  "three/addons/":"/lib/addons/"
+}}
+</script>
+<script type="module">
+import * as THREE from 'three';
+import { EffectComposer } from 'three/addons/postprocessing/EffectComposer.js';
+import { RenderPass } from 'three/addons/postprocessing/RenderPass.js';
+import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js';
+import { ShaderPass } from 'three/addons/postprocessing/ShaderPass.js';
+import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
+
+/* ============================================================ constants */
+const N = 118;
+const PHI = 1.618033988749895;
+const GOLD = 2.3999632297286533;
+const R0 = 1.95, CLIMB = 13.0, SPINMOD = 0.10, WAVEF = 2.6, WAVEA = 0.6;
+const WIDTH = 4.6, FOLD_NX = (N - 1) * 2, FOLD_NY = 7;
+
+const ERA_NAMES = ['\u2014', 'Ancient', 'Alchemy', '1500s', '1600s', '1700s', 'Early 1800s', 'Late 1800s', '1900s', '1950s', 'Modern', '2000s'];
+
+const ELEMENTS = window.ELEMENTS_DATA.filter(Boolean);
+
+/* ============================================================ shared geometry math
+   basePosT / standWave / ringPulse are mirrored in GLSL (ribbon shader) — keep in sync */
+function baseRadiusT(t){ return R0 * Math.sqrt(t * (N - 1) + 1); }
+function basePosT(t){
+  const i = t * (N - 1), ang = GOLD * i;
+  const r = R0 * Math.sqrt(i + 1);
+  const wob = 1.0 + SPINMOD * Math.sin(t * Math.PI * 2 * WAVEF);
+  const cyc = t * CLIMB + WAVEA * Math.sin(t * Math.PI * 3.0);
+  return new THREE.Vector3(r * Math.cos(ang) * wob, r * Math.sin(ang) * wob, cyc);
+}
+function standWave(t, tm){
+  const p1 = t * GOLD * 5.0;
+  const w1 = 0.9, w2 = w1 * PHI, w3 = w2 * PHI;
+  const s1 = Math.sin(tm * w1 + p1);
+  const s2 = Math.sin(tm * w2 - p1 * 1.5);
+  const s3 = Math.sin(tm * w3 + p1 * 0.5);
+  return 0.5 * s1 * s2 + 0.35 * s3 * s1;
+}
+function ringPulse(t, tm){
+  const rr = baseRadiusT(t) / baseRadiusT(1);
+  const tt = (tm * 0.22) % 1.0;
+  const d = (rr - tt);
+  return Math.exp(-d * d * 40.0) * (1.0 - tt);
+}
+const MAXR = baseRadiusT(1);
+
+/* ============================================================ metric engine */
+function hexToRgb(h){
+  const n = h.replace('#', '');
+  return [parseInt(n.slice(0, 2), 16)/255, parseInt(n.slice(2, 4), 16)/255, parseInt(n.slice(4, 6), 16)/255];
+}
+function makePal(stops){          // stops: [[pos,hex],...]
+  const pts = stops.map(s => ({ p: s[0], c: hexToRgb(s[1]), hex: s[1] }));
+  return function(v){
+    v = Math.max(0, Math.min(1, v));
+    if (v <= pts[0].p) return pts[0].c.slice();
+    for (let i = 1; i < pts.length; i++){
+      const a = pts[i - 1], b = pts[i];
+      if (v <= b.p){
+        const f = (v - a.p) / (b.p - a.p);
+        return [a.c[0] + (b.c[0]-a.c[0])*f, a.c[1] + (b.c[1]-a.c[1])*f, a.c[2] + (b.c[2]-a.c[2])*f];
+      }
+    }
+    return pts[pts.length - 1].c.slice();
+  };
+}
+function cssStops(stops){ return 'linear-gradient(90deg,' + stops.map(s => s[1] + ' ' + (s[0]*100).toFixed(0) + '%)').join(',') + ')'; }
+
+const BLKFAM = makePal([[0, '#7ee7ff'], [1, '#7ee7ff']]);
+const CATSTOPS = [
+  [0, '#7ee7ff'],   // s
+  [1, '#ff7ab0'],   // p
+  [2, '#ffd166'],   // d
+  [3, '#66e8b8'],   // f
+];
+
+const METRICS = [
+  { id:'block', name:'block', sub:'subshell signature', categorical:true,
+    val: e => ({ s:0, p:1, d:2, f:3 }[e.blk] || 0) },
+  { id:'mass', name:'mass', sub:'atomic mass (log)', unit:'u',
+    val: e => Math.log10(e.m), dom:[0, Math.log10(300)], pal:[[0,'#140a2e'],[0.35,'#4c1d6e'],[0.62,'#0e6b86'],[0.85,'#43c7c7'],[1,'#f0fff4']] },
+  { id:'en', name:'electronegativity', sub:'Pauling scale', unit:'',
+    val: e => e.en, dom:[0.7, 4.0], pal:[[0,'#1c0705'],[0.22,'#5e1209'],[0.5,'#c84312'],[0.78,'#ffa33d'],[1,'#fff3c4']] },
+  { id:'density', name:'density', sub:'log g/cm\u00b3', unit:' g/cm\u00b3',
+    val: e => Math.log10(Math.max(e.d || 0.001, 0.001)), dom:[Math.log10(0.0001), Math.log10(22.6)],
+    pal:[[0,'#240b3f'],[0.3,'#7c2dff'],[0.55,'#00b3c7'],[0.75,'#a3e635'],[0.9,'#ffd166'],[1,'#ff5d8f']] },
+  { id:'melt', name:'melting point', sub:'log kelvin', unit:' K',
+    val: e => Math.log10(Math.max(e.melt || 1, 1)), dom:[Math.log10(14), Math.log10(3820)],
+    pal:[[0,'#10203f'],[0.4,'#3e7fb4'],[0.65,'#bfe9ff'],[0.85,'#ffd166'],[0.95,'#ff6a00'],[1,'#fff7e0']] },
+  { id:'boil', name:'boiling point', sub:'log kelvin', unit:' K',
+    val: e => Math.log10(Math.max(e.boil || 1, 1)), dom:[Math.log10(4), Math.log10(5930)],
+    pal:[[0,'#0a1240'],[0.45,'#3fa8c8'],[0.7,'#7cf5d4'],[0.88,'#ffcf6b'],[1,'#ff9dcd']] },
+  { id:'ion', name:'ionization', sub:'first ionization (eV)', unit:' eV',
+    val: e => e.ion, dom:[3.9, 24.6], pal:[[0,'#04260f'],[0.42,'#16a34a'],[0.66,'#22d3ee'],[0.85,'#6366f1'],[1,'#e879f9']] },
+  { id:'era', name:'discovery era', sub:'when humanity met the element',
+    val: e => e.era, dom:[1, 10], pal:[[0,'#3a2416'],[0.2,'#9c6b1f'],[0.45,'#c8843f'],[0.65,'#4e8f7f'],[0.85,'#3f7d8f'],[1,'#d9f2ff']] },
+  { id:'crust', name:'crust abundance', sub:'log ppm by mass', unit:' ppm',
+    val: e => e.crust, dom:[-9, 5.7], pal:[[0,'#14160a'],[0.35,'#35421c'],[0.6,'#7f9b3a'],[0.8,'#c9b25a'],[0.93,'#f2e6bd'],[1,'#ffffff']] },
+  { id:'cosmic', name:'cosmic abundance', sub:'log atoms per 10\u00b2 H',
+    val: e => e.cosmic, dom:[-4, 12], pal:[[0,'#0c0620'],[0.3,'#34105c'],[0.55,'#7a1f98'],[0.78,'#e0448c'],[0.92,'#ffb45f'],[1,'#ffecc9']] },
+];
+let METRIC = METRICS[0];
+
+function valAt(metric, e){
+  if (metric.categorical){ return metric.val(e); }
+  let raw = metric.val(e);
+  if (raw == null || !Number.isFinite(raw)) raw = (metric.dom[0] + metric.dom[1]) / 2;
+  let v = (raw - metric.dom[0]) / (metric.dom[1] - metric.dom[0]);
+  return Math.max(0, Math.min(1, v));
+}
+function colorAt(metric, e){
+  if (metric.categorical){ const c = CATSTOPS[valAt(metric, e)]; return hexToRgb(c[1]); }
+  const pal = makePal(metric.pal);
+  return pal(valAt(metric, e));
+}
+
+/* precompute raw value per element per metric (cheap) */
+const METRIC_RAW = METRICS.map(m => ELEMENTS.map(e => valAt(m, e)));
+
+function applyMetric(i){
+  METRIC = METRICS[i % METRICS.length];
+  const cats = METRIC.categorical;
+
+  const colors = new Float32Array(N * 3);
+  for (let k = 0; k < N; k++){
+    const c = colorAt(METRIC, ELEMENTS[k]);
+    colors[k*3] = c[0]; colors[k*3+1] = c[1]; colors[k*3+2] = c[2];
+  }
+  gems.geometry.setAttribute('aColor', new THREE.InstancedBufferAttribute(colors, 3));
+
+  const { t, iformat } = texFmt();
+  for (let k = 0; k < N; k++){ const c = colorAt(METRIC, ELEMENTS[k]); t[k*4] = Math.round(c[0]*255); t[k*4+1] = Math.round(c[1]*255); t[k*4+2] = Math.round(c[2]*255); t[k*4+3] = 255; }
+  valTex.image.data = t; valTex.needsUpdate = true; valTex.format = iformat;
+
+  if (haloGeo){ haloGeo.getAttribute('aColor').array.set(colors); haloGeo.getAttribute('aColor').needsUpdate = true; }
+
+  legendName.textContent = METRIC.name;
+  legendSub.textContent = METRIC.sub;
+  const ticksEl = document.getElementById('ticks'); ticksEl.innerHTML = '';
+  if (cats){
+    gradEl.style.background = 'none';
+    catEl.style.display = 'flex';
+    ['s', 'p', 'd', 'f'].forEach((bl, bi) => {
+      const d = document.createElement('div'); d.className = 'catDot';
+      d.innerHTML = '<i style="background:' + CATSTOPS[bi][1] + ';color:' + CATSTOPS[bi][1] + '"></i>' + bl;
+      catEl.appendChild(d);
+    });
+  } else {
+    gradEl.style.background = cssStops(METRIC.pal);
+    catEl.style.display = 'none';
+    catEl.innerHTML = '';
+  }
+  if (!cats){
+    const lo = fmtMetric(METRIC, METRIC.dom[0]), hi = fmtMetric(METRIC, METRIC.dom[1]);
+    ticksEl.innerHTML = '<span>' + lo + '</span><span>' + hi + '</span>';
+  }
+}
+let texFmt = () => ({ t: new Uint8Array(N * 4), iformat: THREE.RGBAFormat });
+function fmtMetric(m, v){
+  if (m.categorical) return '';
+  if (m.id === 'density') return (Math.pow(10, v)).toFixed(2);
+  if (m.id === 'mass') return Math.round(Math.pow(10, v)) + '';
+  if (m.id === 'melt' || m.id === 'boil') return Math.round(Math.pow(10, v)) + ' K';
+  if (m.id === 'crust') return v.toFixed(1) + ' log';
+  if (m.id === 'cosmic') return v.toFixed(1) + ' log';
+  if (m.id === 'era') return v.toFixed(0) + '';
+  return v.toFixed(2);
+}
+
+/* ============================================================ renderer */
+const app = document.getElementById('app');
+const renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: 'high-performance' });
+renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+renderer.setSize(window.innerWidth, window.innerHeight);
+renderer.setClearColor(0x04050c, 1);
+renderer.toneMapping = THREE.ACESFilmicToneMapping;
+renderer.toneMappingExposure = 1.12;
+app.appendChild(renderer.domElement);
+
+const scene = new THREE.Scene();
+const camera = new THREE.PerspectiveCamera(58, window.innerWidth / window.innerHeight, 0.1, 900);
+const world = new THREE.Group();
+scene.add(world);
+
+/* ============================================================ stage */
+function makeDome(){
+  const geo = new THREE.SphereGeometry(420, 48, 32);
+  const mat = new THREE.ShaderMaterial({
+    side: THREE.BackSide, depthWrite: false, depthTest: false,
+    uniforms: { uTime: { value: 0 } },
+    vertexShader: `
+      varying vec3 vDir;
+      void main(){ vDir = position; gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }
+    `,
+    fragmentShader: `
+      uniform float uTime;
+      varying vec3 vDir;
+      float hash(vec3 p){ return fract(sin(dot(p, vec3(12.9898,78.233,45.164))) * 43758.5453); }
+      float vnoise(vec3 p){
+        vec3 i = floor(p); vec3 f = fract(p);
+        f = f*f*(3.0-2.0*f);
+        float n = mix(mix(mix(hash(i), hash(i+vec3(1,0,0)), f.x),
+                          mix(hash(i+vec3(0,1,0)), hash(i+vec3(1,1,0)), f.x), f.y),
+                      mix(mix(hash(i+vec3(0,0,1)), hash(i+vec3(1,0,1)), f.x),
+                          mix(hash(i+vec3(0,1,1)), hash(i+vec3(1,1,1)), f.x), f.y), f.z);
+        return n*2.0-1.0;
+      }
+      float fbm(vec3 p){
+        float f = 0.0, a = 0.5;
+        for(int i=0;i<4;i++){ f += a*vnoise(p); p = p*2.1 + vec3(1.7,3.2,0.4); a *= 0.5; }
+        return f;
+      }
+      void main(){
+        vec3 d = normalize(vDir);
+        float t = uTime*0.018;
+        vec3 q = d*3.0 + vec3(t, t*0.6, 0.0);
+        float n = fbm(q);
+        float n2 = fbm(q*2.8 + 5.0);
+        float n3 = fbm(d*5.0 + 9.0 + vec3(0.0,t*0.4,0.0));
+        vec3 col = vec3(0.018, 0.024, 0.07);
+        col += vec3(0.09, 0.06, 0.24) * smoothstep(0.2, 0.8, n3*0.5+0.5);
+        col += vec3(0.24, 0.09, 0.34) * smoothstep(0.4, 0.9, n*0.5+0.5);
+        col += vec3(0.09, 0.20, 0.36) * smoothstep(0.5, 0.95, n2*0.5+0.5);
+        float star = step(0.9985, hash(d*173.0 + floor(t*7.0)));
+        col += vec3(0.8, 0.9, 1.0) * star * (0.4 + 0.6*abs(n3));
+        // galactic core glow toward origin
+        float ga = dot(normalize(d), normalize(vec3(-0.2,0.1,1.0)));
+        col += vec3(0.16, 0.12, 0.32) * pow(max(ga,0.0), 4.0);
+        gl_FragColor = vec4(col, 1.0);
+      }
+    `
+  });
+  const mesh = new THREE.Mesh(geo, mat);
+  mesh.frustumCulled = false;
+  scene.add(mesh);
+  return { mat, mesh };
+}
+const dome = makeDome();
+
+function makeStars(){
+  const n = 1400, pos = new Float32Array(n * 3), col = new Float32Array(n * 3), sz = new Float32Array(n);
+  for (let i = 0; i < n; i++){
+    const v = new THREE.Vector3().randomDirection().multiplyScalar(80 + Math.random() * 320);
+    pos[i*3] = v.x; pos[i*3+1] = v.y; pos[i*3+2] = v.z;
+    const t = Math.random();
+    const c = 0.55 + 0.45 * Math.random();
+    col[i*3] = 1.0; col[i*3+1] = (0.85 + 0.15*t); col[i*3+2] = 0.9 + 0.1*(1-t);
+    sz[i] = 0.6 + Math.pow(Math.random(), 3) * 3.2;
+  }
+  const geo = new THREE.BufferGeometry();
+  geo.setAttribute('position', new THREE.BufferAttribute(pos, 3));
+  geo.setAttribute('aSize', new THREE.BufferAttribute(sz, 1));
+  const mat = new THREE.ShaderMaterial({
+    transparent: true, depthWrite: false,
+    uniforms: { uTime: { value: 0 } },
+    vertexShader: `
+      attribute float aSize;
+      uniform float uTime;
+      varying float vTw;
+      void main(){
+        vec4 mv = modelViewMatrix * vec4(position, 1.0);
+        gl_PointSize = aSize * (340.0 / -mv.z);
+        vTw = 0.45 + 0.55*sin(uTime*1.3 + position.x*0.31 + position.y*0.17 + position.z*0.23);
+        gl_Position = projectionMatrix * mv;
+      }
+    `,
+    fragmentShader: `
+      uniform float uTime;
+      varying float vTw;
+      void main(){
+        vec2 c = gl_PointCoord - 0.5;
+        float d = dot(c, c);
+        float a = smoothstep(0.25, 0.0, d) * (0.5 + 0.5*vTw);
+        gl_FragColor = vec4(0.85, 0.93, 1.0, a);
+      }
+    `
+  });
+  const pts = new THREE.Points(geo, mat);
+  scene.add(pts);
+  return { geo, mat, pts };
+}
+const stars = makeStars();
+
+function makeRings(){
+  const g = new THREE.Group();
+  const RINGS = [
+    { r: 34, tilt: 1.25, speed: 4 },
+    { r: 46, tilt: 0.9, speed: -2.6 },
+    { r: 58, tilt: 1.5, speed: 1.9 },
+    { r: 72, tilt: 0.7, speed: -1.4 },
+  ];
+  for (const R of RINGS){
+    const geo = new THREE.TorusGeometry(R.r, 0.05, 6, 260);
+    const mat = new THREE.MeshBasicMaterial({
+      color: new THREE.Color(0.35, 0.55, 0.95), transparent: true, opacity: 0.16,
+      blending: THREE.AdditiveBlending, depthWrite: false
+    });
+    const m = new THREE.Mesh(geo, mat);
+    m.rotation.x = Math.PI / 2 - R.tilt;
+    m.userData.speed = R.speed;
+    g.add(m);
+  }
+  scene.add(g);
+  return g;
+}
+const rings = makeRings();
+
+function makeCore(){
+  const geo = new THREE.IcosahedronGeometry(1.35, 1);
+  const pos = geo.attributes.position;
+  for (let i = 0; i < pos.count; i++){
+    const n = new THREE.Vector3(pos.getX(i), pos.getY(i), pos.getZ(i)).normalize();
+    const s = 1.0 + 0.5 * (Math.sin(n.x*7.0)*Math.cos(n.y*9.0)*Math.sin(n.z*11.0));
+    pos.setXYZ(i, n.x*s, n.y*s, n.z*s);
+  }
+  geo.computeVertexNormals();
+  const mat = new THREE.MeshBasicMaterial({ color: 0x8fe9ff, transparent: true, opacity: 0.85 });
+  const core = new THREE.Mesh(geo, mat);
+  scene.add(core);
+  return core;
+}
+const core = makeCore();
+const coreHalo = (() => {
+  const g = new THREE.RingGeometry(1.5, 2.1, 80);
+  const m = new THREE.MeshBasicMaterial({ color: 0x7ee7ff, transparent: true, opacity: 0.4,
+    side: THREE.DoubleSide, blending: THREE.AdditiveBlending, depthWrite: false });
+  const mesh = new THREE.Mesh(g, m);
+  scene.add(mesh);
+  return mesh;
+})();
+
+/* ============================================================ gems */
+function makeGemGeo(){
+  const base = new THREE.IcosahedronGeometry(1, 2);
+  const p = base.attributes.position;
+  for (let i = 0; i < p.count; i++){
+    const x = p.getX(i), y = p.getY(i), z = p.getZ(i);
+    const n = new THREE.Vector3(x, y, z).normalize();
+    const spike = 1.0 + 0.62 * Math.abs(Math.sin(n.x*6.5)*Math.sin(n.y*8.0)*Math.sin(n.z*7.0))
+                  + 0.22 * Math.sin(n.x*13.0 + n.y*17.0 + n.z*11.0) * 0.5;
+    p.setXYZ(i, n.x*spike, n.y*spike, n.z*spike);
+  }
+  const flat = base.toNonIndexed();
+  const pos = flat.attributes.position, nor = flat.attributes.normal;
+  for (let i = 0; i < pos.count; i += 3){
+    const ax = pos.getX(i), ay = pos.getY(i), az = pos.getZ(i);
+    const bx = pos.getX(i+1), by = pos.getY(i+1), bz = pos.getZ(i+1);
+    const cx = pos.getX(i+2), cy = pos.getY(i+2), cz = pos.getZ(i+2);
+    const ux = bx-ax, uy = by-ay, uz = bz-az;
+    const vx = cx-ax, vy = cy-ay, vz = cz-az;
+    let nx = uy*vz-uz*vy, ny = uz*vx-ux*vz, nz = ux*vy-uy*vx;
+    const l = Math.hypot(nx, ny, nz) || 1; nx/=l; ny/=l; nz/=l;
+    nor.setXYZ(i, nx, ny, nz); nor.setXYZ(i+1, nx, ny, nz); nor.setXYZ(i+2, nx, ny, nz);
+  }
+  return flat;
+}
+const gemBaseGeo = makeGemGeo();
+
+const nodes = [];
+const scratchM = new THREE.Matrix4();
+{
+  const aData = new Float32Array(N * 4);
+  const aColor = new Float32Array(N * 3);
+  const dummyM = new THREE.Matrix4();
+  const q = new THREE.Quaternion();
+  const up0 = new THREE.Vector3(0, 0, 1);
+  const tmpP = new THREE.Vector3();
+
+  for (let k = 0; k < N; k++){
+    const t = k / (N - 1);
+    aData[k*4] = t;
+    aData[k*4+1] = METRIC_RAW[0][k];
+    aData[k*4+2] = ELEMENTS[k].era / 10;
+    aData[k*4+3] = (k % 7) / 6;
+    const c = colorAt(METRIC, ELEMENTS[k]);
+    aColor[k*3] = c[0]; aColor[k*3+1] = c[1]; aColor[k*3+2] = c[2];
+  }
+  const geo = new THREE.InstancedBufferGeometry();
+  geo.setAttribute('position', gemBaseGeo.attributes.position);
+  geo.setAttribute('normal', gemBaseGeo.attributes.normal);
+  geo.setAttribute('aData', new THREE.InstancedBufferAttribute(aData, 4));
+  geo.setAttribute('aColor', new THREE.InstancedBufferAttribute(aColor, 3));
+
+  const mat = new THREE.ShaderMaterial({
+    uniforms: {
+      uTime: { value: 0 },
+      uKey: { value: new THREE.Vector3(0.5, 0.75, 0.35) },
+      uRim: { value: new THREE.Vector3(-0.5, -0.4, 0.8) },
+      uGlow: { value: 1.0 },
+    },
+    vertexShader: `
+      attribute vec4 aData;
+      attribute vec3 aColor;
+      uniform float uTime;
+      varying vec3 vColor;
+      varying vec3 vWNor;
+      varying vec3 vWPos;
+      varying float vPulse;
+      float standWave(float tt, float tm){
+        float p1 = tt * 2.3999632297286533 * 5.0;
+        float w1 = 0.9, w2 = w1 * 1.618033988749895, w3 = w2 * 1.618033988749895;
+        float s1 = sin(tm * w1 + p1);
+        float s2 = sin(tm * w2 - p1 * 1.5);
+        float s3 = sin(tm * w3 + p1 * 0.5);
+        return 0.5 * s1 * s2 + 0.35 * s3 * s1;
+      }
+      float ringPulse(float tt, float tm){
+        float r0 = 1.95 * sqrt(tt * 117.0 + 1.0);
+        float mx = 1.95 * sqrt(118.0);
+        float rr = r0 / mx;
+        float tv = mod(tm * 0.22, 1.0);
+        float d = (rr - tv);
+        return exp(-d * d * 40.0) * (1.0 - tv);
+      }
+      void main(){
+        vColor = aColor;
+        float fire = 0.35 * (0.5 + 0.5 * cos(uTime * 5.1 + aData.w * 40.0));
+        float pulse = 1.0 + standWave(aData.x, uTime) * 0.30 + ringPulse(aData.x, uTime) * (0.7 + 0.5 * fire);
+        vPulse = pulse;
+        vec4 wp = instanceMatrix * vec4(position, 1.0);
+        vWNor = normalize(mat3(instanceMatrix) * normal);
+        vWPos = wp.xyz;
+        gl_Position = projectionMatrix * viewMatrix * wp;
+      }
+    `,
+    fragmentShader: `
+      uniform float uTime;
+      uniform vec3 uKey;
+      uniform vec3 uRim;
+      uniform float uGlow;
+      varying vec3 vColor;
+      varying vec3 vWNor;
+      varying vec3 vWPos;
+      varying float vPulse;
+      vec3 hsl2rgb(vec3 c){
+        vec3 rgb = clamp(abs(mod(c.x*6.0+vec3(0.0,4.0,2.0),6.0)-3.0)-1.0, 0.0, 1.0);
+        return c.z + c.y * (rgb-0.5)*(1.0-abs(2.0*c.z-1.0));
+      }
+      void main(){
+        vec3 N = normalize(vWNor);
+        vec3 V = normalize(cameraPosition - vWPos);
+        float fres = pow(1.0 - clamp(dot(N, V), 0.0, 1.0), 2.2);
+        vec3 irid = hsl2rgb(vec3(fract(0.42 + fres * 1.5 + uTime * 0.012), 0.9, 0.48 + 0.35 * fres));
+        vec3 base = vColor;
+        float iridm = 0.22 + 0.72 * clamp(fres * 1.7, 0.0, 1.0);
+        vec3 col = mix(base, mix(irid, base, 0.30), iridm);
+        vec3 K = normalize(uKey);
+        float l1 = 0.30 + 0.85 * abs(dot(N, K));
+        float l2 = 0.22 * clamp(dot(N, -normalize(uRim)), 0.0, 1.0) * (1.0 - fres);
+        vec3 Rf = reflect(-K, N);
+        float spec = pow(max(dot(Rf, V), 0.0), 28.0);
+        col = col * l1 + base * 0.16;
+        col += l2 * vec3(0.55, 0.45, 0.8);
+        col += vec3(1.0, 0.96, 0.92) * spec * 0.9;
+        col += vec3(0.75, 0.88, 1.0) * pow(fres, 1.6) * 0.6;
+        col += base * (vPulse - 1.0) * 0.55;
+        col *= 0.35 + 0.65 * uGlow;
+        col += base * 0.14 * (0.5 + 0.5 * uGlow);
+        gl_FragColor = vec4(col, 1.0);
+      }
+    `
+  });
+
+  const gemM = new THREE.InstancedMesh(geo, mat, N);
+  gemM.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
+  gemM.frustumCulled = false;
+
+  // initial identity matrices + radial orientation baked per instance
+  const centerA = new THREE.Vector3();
+  for (let k = 0; k < N; k++){
+    const t = k / (N - 1);
+    const p = basePosT(t);
+    centerA.copy(p); centerA.z += 0.0001;
+    q.setFromUnitVectors(up0, centerA.normalize());
+    dummyM.compose(p, q, new THREE.Vector3(1, 1, 1));
+    gemM.setMatrixAt(k, dummyM);
+  }
+  gemM.instanceMatrix.needsUpdate = true;
+  world.add(gemM);
+
+  nodes.push({ mesh: gemM, q, dummyM, tmpP, aData });
+}
+const gems = nodes[0].mesh;
+const gemMeshRef = gems;   // for aColor updates later
+let gemsGeo = gems.geometry;
+let valTex = (() => {
+  const t = new Uint8Array(N * 4);
+  const tex = new THREE.DataTexture(t, N, 1, THREE.RGBAFormat, THREE.UnsignedByteType);
+  tex.magFilter = THREE.NearestFilter; tex.minFilter = THREE.NearestFilter;
+  tex.needsUpdate = true;
+  return tex;
+})();
+
+/* ============================================================ ribbon */
+function makeRibbon(){
+  const LSEG = (N - 1) * 6, WSEG = 22;
+  const vCount = (LSEG + 1) * (WSEG + 1);
+  const u = new Float32Array(vCount), v = new Float32Array(vCount), pos = new Float32Array(vCount * 3);
+  let idx = 0;
+  for (let i = 0; i <= LSEG; i++){
+    for (let j = 0; j <= WSEG; j++){
+      u[idx] = i / LSEG; v[idx] = j / WSEG;
+      idx++;
+    }
+  }
+  const g = new THREE.BufferGeometry();
+  g.setAttribute('position', new THREE.BufferAttribute(pos, 3));
+  g.setAttribute('aU', new THREE.BufferAttribute(u, 1));
+  g.setAttribute('aV', new THREE.BufferAttribute(v, 1));
+  const ind = [];
+  for (let i = 0; i < LSEG; i++){
+    for (let j = 0; j < WSEG; j++){
+      const a = i * (WSEG + 1) + j, b = a + 1, c = a + WSEG + 1, d = c + 1;
+      ind.push(a, c, b, b, c, d);
+    }
+  }
+  g.setIndex(ind);
+  g.computeBoundingSphere();
+  g.boundingSphere.radius = 90;
+  return { g, LSEG, WSEG };
+}
+const ribbonGeo = makeRibbon();
+
+const RIBBON_VERT = `
+  uniform float uTime;
+  uniform sampler2D uValTex;
+  attribute float aU;
+  attribute float aV;
+  varying vec3 vWPos;
+  varying vec3 vWNor;
+  varying vec2 vUV;
+  varying float vGlow;
+  varying vec3 vCol;
+
+  float tri(float x){ return 1.0 - 2.0 * abs(fract(x * 0.5) * 2.0 - 1.0); }
+  float standWave(float tt, float tm){
+    float p1 = tt * 2.3999632297286533 * 5.0;
+    float w1 = 0.9, w2 = w1 * 1.618033988749895, w3 = w2 * 1.618033988749895;
+    float s1 = sin(tm * w1 + p1);
+    float s2 = sin(tm * w2 - p1 * 1.5);
+    float s3 = sin(tm * w3 + p1 * 0.5);
+    return 0.5 * s1 * s2 + 0.35 * s3 * s1;
+  }
+  vec3 basePos(float tt){
+    float i = tt * 117.0;
+    float ang = 2.3999632297286533 * i;
+    float r = 1.95 * sqrt(i + 1.0);
+    float wob = 1.0 + 0.10 * sin(tt * 3.141592653589793 * 2.0 * 2.6);
+    float cyc = tt * 13.0 + 0.6 * sin(tt * 3.141592653589793 * 3.0);
+    return vec3(r * cos(ang) * wob, r * sin(ang) * wob, cyc);
+  }
+  vec3 foldPos(float uq, float vq){
+    vec3 P  = basePos(uq);
+    float e = 0.0020;
+    vec3 Pp = basePos(min(uq + e, 1.0));
+    vec3 Pm = basePos(max(uq - e, 0.0));
+    vec3 T  = normalize(Pp - Pm);
+    vec3 EU = normalize(vec3(0.0, 0.0, 1.0) - T * dot(T, vec3(0.0, 0.0, 1.0)));
+    vec3 L  = normalize(cross(T, EU));
+    vec3 Vn = normalize(cross(T, L));
+    float wave = standWave(uq, uTime);
+    float wswell = 1.0 + 0.26 * wave;
+    float w = (vq - 0.5) * ${WIDTH} * wswell;
+    float ux = uq * float(${FOLD_NX}) + uTime * 0.14;
+    float wy = vq * float(${FOLD_NY}) + uTime * 0.09;
+    float triU = tri(ux);
+    float triV = tri(wy);
+    float triD = tri(ux + wy + uTime * 0.19);
+    float fold = 0.58 * triU + 0.34 * triV + 0.32 * triD + 0.16 * tri(ux*2.0 - wy + uTime*0.08);
+    float taper = smoothstep(0.0, 0.16, vq) * smoothstep(1.0, 0.84, vq);
+    float amp = (0.55 + 0.45 * (0.5 + 0.5 * wave)) * (0.9 + 0.4 * sin(uTime * 0.21 * 1.618033988749895));
+    float disp = fold * amp * taper * 1.35;
+    return P + L * w + Vn * disp;
+  }
+  void main(){
+    float tm = uTime;
+    float ux = aU * float(${FOLD_NX}) + tm * 0.14;
+    float wy = aV * float(${FOLD_NY}) + tm * 0.09;
+    float triU = tri(ux);
+    float triD = tri(ux + wy + tm * 0.19);
+    float triV = tri(wy);
+    float wave = standWave(aU, tm);
+    float taper = smoothstep(0.0, 0.16, aV) * smoothstep(1.0, 0.84, aV);
+
+    vec3 world = foldPos(aU, aV);
+    vec3 Pu = foldPos(min(aU + 0.004, 1.0), aV);
+    vec3 Pv = foldPos(aU, min(aV + 0.004, 1.0));
+    vWNor = normalize(cross((Pv - world), (Pu - world)));
+    vWPos = world;
+    vUV = vec2(aU, aV);
+
+    float crispU = exp(-abs(triU) * 9.0);
+    float crispD = exp(-abs(triD) * 11.0);
+    vGlow = (crispU * 0.55 + crispD * 1.0) * (0.5 + 0.5 * wave) * taper;
+    float tcol = aU * 117.0 / 118.0 + 0.5 / 118.0;
+    vCol = texture2D(uValTex, vec2(tcol, 0.5)).rgb;
+    gl_Position = projectionMatrix * modelViewMatrix * vec4(world, 1.0);
+  }
+`;
+
+const sheetMat = new THREE.ShaderMaterial({
+  uniforms: { uTime: { value: 0 }, uValTex: { value: valTex }, uKey: { value: new THREE.Vector3(0.5, 0.75, 0.35) }, uGlow: { value: 1.0 } },
+  vertexShader: RIBBON_VERT,
+  transparent: true, opacity: 0.98, side: THREE.DoubleSide, depthWrite: false,
+  fragmentShader: `
+    uniform float uTime;
+    uniform vec3 uKey;
+    uniform float uGlow;
+    varying vec3 vWPos;
+    varying vec3 vWNor;
+    varying vec2 vUV;
+    varying float vGlow;
+    varying vec3 vCol;
+    vec3 hsl2rgb(vec3 c){
+      vec3 rgb = clamp(abs(mod(c.x*6.0+vec3(0.0,4.0,2.0),6.0)-3.0)-1.0, 0.0, 1.0);
+      return c.z + c.y * (rgb-0.5)*(1.0-abs(2.0*c.z-1.0));
+    }
+    void main(){
+      vec3 N = normalize(vWNor);
+      vec3 V = normalize(cameraPosition - vWPos);
+      float fres = pow(1.0 - abs(dot(N, V)), 2.0);
+      vec3 irid = hsl2rgb(vec3(fract(0.5 + fres*2.0 + vUV.x*0.7 + uTime*0.008), 0.6, 0.28 + 0.55*fres));
+      vec3 c = mix(vCol, irid, 0.5);
+      c *= (0.5 + 0.55 * abs(dot(N, normalize(uKey)))) * (0.5 + 0.5 * uGlow);
+      c += vec3(0.55, 0.72, 1.0) * pow(1.0 - abs(dot(N, V)), 3.0) * 0.55;
+      c += vec3(0.95, 0.9, 0.75) * vGlow * 0.8;
+      c += vCol * 0.10 * (0.5 + 0.5 * uGlow);
+      float dist = distance(cameraPosition, vWPos);
+      float fog = exp(-pow(dist / 95.0, 2.0));
+      c = mix(vec3(0.018, 0.024, 0.07), c, fog);
+      gl_FragColor = vec4(c, 0.6 + 0.35 * vGlow + 0.15 * (1.0 - fres));
+    }
+  `
+});
+const creaseMat = new THREE.ShaderMaterial({
+  uniforms: { uTime: { value: 0 }, uValTex: { value: valTex } },
+  vertexShader: RIBBON_VERT,
+  transparent: true, depthWrite: false, side: THREE.DoubleSide,
+  blending: THREE.AdditiveBlending,
+  fragmentShader: `
+    uniform float uTime;
+    varying vec2 vUV;
+    varying vec3 vWPos;
+    varying float vGlow;
+    varying vec3 vCol;
+    void main(){
+      float dist = distance(cameraPosition, vWPos);
+      float fog = exp(-pow(dist / 95.0, 2.0));
+      vec3 c = mix(vec3(0.3, 0.3, 0.35), vec3(1.0, 0.86, 0.55), vGlow);
+      float a = vGlow * (0.5 + 0.4 * sin(uTime * 3.0 + vUV.x * 117.0));
+      gl_FragColor = vec4(c * fog * a * 1.6, a);
+    }
+  `
+});
+const ribbonSheet = new THREE.Mesh(ribbonGeo.g, sheetMat);
+ribbonSheet.frustumCulled = false;
+world.add(ribbonSheet);
+const ribbonCrease = new THREE.Mesh(ribbonGeo.g, creaseMat);
+ribbonCrease.frustumCulled = false;
+world.add(ribbonCrease);
+
+/* ============================================================ halo points */
+let haloGeo = null;
+function makeHalo(){
+  const pos = new Float32Array(N * 3);
+  const col = new Float32Array(N * 3);
+  for (let k = 0; k < N; k++){
+    const p = basePosT(k / (N - 1));
+    pos[k*3] = p.x; pos[k*3+1] = p.y; pos[k*3+2] = p.z;
+    const c = colorAt(METRIC, ELEMENTS[k]);
+    col[k*3] = c[0]; col[k*3+1] = c[1]; col[k*3+2] = c[2];
+  }
+  const geo = new THREE.BufferGeometry();
+  geo.setAttribute('position', new THREE.BufferAttribute(pos, 3));
+  geo.setAttribute('aColor', new THREE.BufferAttribute(col, 3));
+  const mat = new THREE.PointsMaterial({
+    size: 2.6, map: glowTex, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending,
+    vertexColors: false
+  });
+  mat.onBeforeCompile = (shader) => {
+    shader.vertexShader = shader.vertexShader
+      .replace('#include <common>', `#include <common>\nattribute vec3 aColor; varying vec3 vGlowC;\n`)
+      .replace('#include <begin_vertex>', `#include <begin_vertex>\nvGlowC = aColor;`);
+    shader.fragmentShader = shader.fragmentShader
+      .replace('#include <common>', `#include <common>\nvarying vec3 vGlowC;\n`)
+      .replace('#include <color_fragment>', `#include <color_fragment>\ndiffuseColor.rgb = vGlowC;`);
+  };
+  const pts = new THREE.Points(geo, mat);
+  pts.frustumCulled = false;
+  world.add(pts);
+  haloGeo = geo;
+  return { geo, mat, pts };
+}
+
+const glowTex = (() => {
+  const c = document.createElement('canvas'); c.width = c.height = 64;
+  const x = c.getContext('2d');
+  const gr = x.createRadialGradient(32, 32, 0, 32, 32, 32);
+  gr.addColorStop(0, 'rgba(255,255,255,0.9)');
+  gr.addColorStop(0.35, 'rgba(255,255,255,0.35)');
+  gr.addColorStop(1, 'rgba(255,255,255,0)');
+  x.fillStyle = gr; x.fillRect(0, 0, 64, 64);
+  const t = new THREE.CanvasTexture(c);
+  return t;
+})();
+const halo = makeHalo();
+
+/* ============================================================ selection ring */
+const selRing = (() => {
+  const geo = new THREE.TorusGeometry(1.05, 0.045, 10, 48);
+  const mat = new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.9,
+    blending: THREE.AdditiveBlending, depthWrite: false });
+  const m = new THREE.Mesh(geo, mat);
+  m.visible = false;
+  world.add(m);
+  return m;
+})();
+
+/* ============================================================ post */
+const composer = new EffectComposer(renderer);
+composer.addPass(new RenderPass(scene, camera));
+const bloom = new UnrealBloomPass(new THREE.Vector2(window.innerWidth, window.innerHeight), 0.85, 0.62, 0.82);
+composer.addPass(bloom);
+const gradePass = new ShaderPass({
+  uniforms: {
+    tDiffuse: { value: null },
+    uTime: { value: 0 },
+    uAspect: { value: window.innerWidth / window.innerHeight },
+  },
+  vertexShader: `
+    varying vec2 vUv;
+    void main(){ vUv = uv; gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }
+  `,
+  fragmentShader: `
+    uniform sampler2D tDiffuse;
+    uniform float uTime;
+    uniform float uAspect;
+    varying vec2 vUv;
+    float hash(vec2 p){ return fract(sin(dot(p, vec2(12.9898, 78.233))) * 43758.5453); }
+    void main(){
+      vec2 uv = vUv;
+      vec2 cc = uv - 0.5;
+      float rad = dot(cc, cc);
+      vec2 off = cc * rad * 0.02 * vec2(1.0, 0.4);
+      float r = texture2D(tDiffuse, uv - off).r;
+      float g = texture2D(tDiffuse, uv).g;
+      float b = texture2D(tDiffuse, uv + off * 0.9).b;
+      vec3 col = vec3(r, g, b);
+      col *= 1.0 - 0.32 * smoothstep(0.2, 0.85, rad * 2.2);
+      col = pow(max(col, 0.0), vec3(1.0 / 1.05));
+      col = col * vec3(1.02, 1.0, 1.04) + vec3(0.004, 0.006, 0.02);
+      col += (hash(uv * 640.0 + vec2(0.0, uTime * 24.0)) - 0.5) * 0.012;
+      gl_FragColor = vec4(col, 1.0);
+    }
+  `
+});
+composer.addPass(gradePass);
+composer.addPass(new OutputPass());
+
+/* glow = the light switch: drives both the post bloom and the shader's own
+   key/ambient levels, with a brightness floor so the table is never pitch dark
+   even when glow is toggled off. Defaults fully ON. */
+let glowOn = true;
+function applyGlow(v){
+  glowOn = v;
+  const gemMat = nodes[0].mesh.material;
+  if (gemMat && gemMat.uniforms && gemMat.uniforms.uGlow) gemMat.uniforms.uGlow.value = v;
+  if (sheetMat && sheetMat.uniforms && sheetMat.uniforms.uGlow) sheetMat.uniforms.uGlow.value = v;
+  bloom.strength = 0.15 + 0.7 * v;
+  document.getElementById('bBloom').classList.toggle('on', v >= 1);
+}
+applyGlow(1);
+
+/* ============================================================ camera rig */
+const cam = { az: -0.65, el: 1.12, dist: 42, target: new THREE.Vector3(0, 0, 3) };
+const camCur = { az: -0.65, el: 1.12, dist: 42, target: new THREE.Vector3(0, 0, 3) };
+let autoSpin = true, spinEnabled = true, idle = 0;
+let vel = { az: 0, el: 0 };
+let interact = false;
+
+function updateCamera(){
+  const k = 1 - Math.pow(0.001, 1 / 60);
+  camCur.az += (cam.az - camCur.az) * k;
+  camCur.el += (cam.el - camCur.el) * k;
+  camCur.dist += (cam.dist - camCur.dist) * k;
+  camCur.target.lerp(cam.target, k);
+  camCur.el = Math.max(0.08, Math.min(Math.PI / 2 - 0.03, camCur.el));
+  const ce = Math.cos(camCur.el), se = Math.sin(camCur.el);
+  const ca = Math.cos(camCur.az), sa = Math.sin(camCur.az);
+  camera.position.set(
+    camCur.target.x + camCur.dist * ce * ca,
+    camCur.target.y + camCur.dist * ce * sa,
+    camCur.target.z + camCur.dist * se
+  );
+  camera.lookAt(camCur.target);
+}
+
+/* touch/mouse controls */
+const ptr = new Map();
+let pinch0 = 0, pinchDist = 0, tapPt = null, tapT = 0, moved = false;
+let lastMid = null;
+const vPan = new THREE.Vector3(), vRight = new THREE.Vector3(), vUpW = new THREE.Vector3();
+
+function camVectors(){
+  vRight.setFromMatrixColumn(camera.matrix, 0);
+  vUpW.setFromMatrixColumn(camera.matrix, 1);
+}
+function onDown(x, y, id){
+  ptr.set(id, { x, y });
+  if (ptr.size === 1){
+    tapPt = [x, y]; tapT = performance.now(); moved = false;
+    vel.az = vel.el = 0; idle = 0;
+  } else if (ptr.size === 2){
+    const a = [...ptr.values()];
+    pinchDist = Math.hypot(a[0].x - a[1].x, a[0].y - a[1].y);
+    lastMid = [(a[0].x + a[1].x) / 2, (a[0].y + a[1].y) / 2];
+  }
+  interact = true;
+}
+function onMove(x, y, id){
+  const p = ptr.get(id); if (!p) return;
+  const dx = x - p.x, dy = y - p.y;
+  p.x = x; p.y = y;
+  if (Math.hypot(x - (tapPt ? tapPt[0] : x), y - (tapPt ? tapPt[1] : y)) > 7) moved = true;
+  if (ptr.size === 1){
+    cam.az -= dx * 0.0065;
+    cam.el = Math.max(0.06, Math.min(Math.PI / 2 - 0.02, cam.el + dy * 0.0065));
+    vel.az = -dx * 0.0065;
+    vel.el = dy * 0.0065;
+    vel.el = Math.max(-0.02, Math.min(0.02, vel.el));
+  } else if (ptr.size === 2){
+    const a = [...ptr.values()];
+    const d = Math.hypot(a[0].x - a[1].x, a[0].y - a[1].y);
+    if (pinchDist > 0) cam.dist = Math.max(6, Math.min(120, cam.dist * (pinchDist / d)));
+    pinchDist = d;
+    const mid = [(a[0].x + a[1].x) / 2, (a[0].y + a[1].y) / 2];
+    if (lastMid){
+      camVectors();
+      const s = camCur.dist * 0.0011;
+      cam.target.addScaledVector(vRight, -(mid[0] - lastMid[0]) * s);
+      cam.target.addScaledVector(vUpW, (mid[1] - lastMid[1]) * s);
+    }
+    lastMid = mid;
+    moved = true;
+  }
+  idle = 0;
+}
+function onUp(x, y, id){
+  if (ptr.has(id)) ptr.delete(id);
+  if (ptr.size <= 1) pinchDist = 0;
+  if (ptr.size <= 1) lastMid = null;
+  if (ptr.size === 0){
+    interact = false;
+    const dt = performance.now() - tapT;
+    if (!moved && dt < 320){ onTap(x, y); }
+  }
+}
+const el = renderer.domElement;
+el.addEventListener('pointerdown', e => { el.setPointerCapture(e.pointerId); e.preventDefault(); onDown(e.clientX, e.clientY, e.pointerId); });
+el.addEventListener('pointermove', e => onMove(e.clientX, e.clientY, e.pointerId));
+el.addEventListener('pointerup', e => onUp(e.clientX, e.clientY, e.pointerId));
+el.addEventListener('pointercancel', e => onUp(e.clientX, e.clientY, e.pointerId));
+el.addEventListener('wheel', e => {
+  e.preventDefault();
+  cam.dist = Math.max(6, Math.min(120, cam.dist * (1 + e.deltaY * 0.0011)));
+}, { passive: false });
+
+const ray = new THREE.Raycaster();
+function onTap(x, y){
+  const px = (x / window.innerWidth) * 2 - 1;
+  const py = -(y / window.innerHeight) * 2 + 1;
+  ray.setFromCamera(new THREE.Vector2(px, py), camera);
+  const hit = ray.intersectObject(gems);
+  if (hit.length){
+    const id = hit[0].instanceId;
+    select(id);
+  } else {
+    deselect();
+  }
+}
+
+/* ============================================================ ui logic */
+const legendName = document.getElementById('legendName');
+const legendSub = document.getElementById('legendSub');
+const gradEl = document.getElementById('grad');
+const catEl = document.getElementById('cat');
+const cardEl = document.getElementById('card');
+const symEl = document.getElementById('sym');
+const nameEl = document.getElementById('name');
+const znEl = document.getElementById('zn');
+const catlineEl = document.getElementById('catline');
+const eraTxtEl = document.getElementById('eraTxt');
+const gridEl = document.getElementById('grid');
+const cfgEl = document.getElementById('cfg');
+const busyEl = document.getElementById('busy');
+const dropBusy = () => busyEl.classList.add('done');
+['pointerdown', 'touchstart', 'keydown', 'wheel'].forEach(ev =>
+  window.addEventListener(ev, dropBusy, { once: true, passive: true }));
+
+let metricIdx = 0;
+let selected = null;
+function select(k){
+  selected = k;
+  const e = ELEMENTS[k];
+  symEl.textContent = e.s;
+  symEl.style.color = 'rgb(' + colorAt(METRIC, e).map(x => Math.round(x * 255)).join(',') + ')';
+  nameEl.textContent = e.n;
+  znEl.textContent = 'atomic number ' + e.z;
+  catlineEl.textContent = e.cat + ' · ' + e.blk + '-block · period ' + e.per + (e.grp != null ? ' · group ' + e.grp : '');
+  const yr = e.year;
+  eraTxtEl.textContent = 'discovered ' + (yr == null ? '\u2014' : (yr < 0 ? (-yr) + ' BCE' : yr)) + ' · ' + ERA_NAMES[e.era] || '';
+  gridEl.innerHTML = '';
+  const rows = [
+    ['mass', e.m != null ? e.m.toFixed(3) + ' u' : '\u2014'],
+    ['density', e.d != null ? e.d.toFixed(2) + ' g/cm\u00b3' : '\u2014'],
+    ['electroneg.', e.en != null ? e.en.toFixed(2) : '\u2014'],
+    ['ionization', e.ion != null ? e.ion.toFixed(2) + ' eV' : '\u2014'],
+    ['melt', e.melt != null ? e.melt.toFixed(0) + ' K' : '\u2014'],
+    ['boil', e.boil != null ? e.boil.toFixed(0) + ' K' : '\u2014'],
+    ['crust (log ppm)', e.crust != null ? e.crust.toFixed(2) : '\u2014'],
+    ['cosmic (log)', e.cosmic != null ? e.cosmic.toFixed(2) : '\u2014'],
+  ];
+  rows.forEach(r => {
+    const d = document.createElement('div'); d.className = 'kv';
+    d.innerHTML = '<span class="k">' + r[0] + '</span><span class="v">' + r[1] + '</span>';
+    gridEl.appendChild(d);
+  });
+  cfgEl.textContent = 'electron configuration · ' + (e.cfg || '\u2014');
+  cardEl.classList.add('open');
+  const t = k / (N - 1);
+  const p = basePosT(t);
+  selRing.position.copy(p);
+  selRing.lookAt(selRing.position.clone().add(new THREE.Vector3(p.x, p.y, p.z + 1)));
+  selRing.visible = true;
+}
+function deselect(){
+  selected = null; cardEl.classList.remove('open'); selRing.visible = false;
+}
+document.getElementById('close').addEventListener('click', deselect);
+
+document.getElementById('bMetric').addEventListener('click', () => {
+  metricIdx = (metricIdx + 1) % METRICS.length;
+  applyMetric(metricIdx);
+  if (selected != null) select(selected);
+});
+document.getElementById('bSpin').addEventListener('click', () => {
+  spinEnabled = !spinEnabled;
+  document.getElementById('bSpin').classList.toggle('on', spinEnabled);
+});
+document.getElementById('bBloom').addEventListener('click', () => {
+  glowOn = !glowOn;
+  applyGlow(glowOn);
+});
+document.getElementById('bReset').addEventListener('click', () => {
+  cam.az = -0.65; cam.el = 1.12; cam.dist = 42;
+  cam.target.set(0, 0, 3);
+  deselect();
+});
+document.getElementById('bFull').addEventListener('click', () => {
+  if (document.fullscreenElement) document.exitFullscreen();
+  else document.documentElement.requestFullscreen().catch(() => {});
+});
+
+applyMetric(0);
+
+/* ============================================================ resize */
+window.addEventListener('resize', () => {
+  const w = window.innerWidth, h = window.innerHeight;
+  camera.aspect = w / h; camera.updateProjectionMatrix();
+  renderer.setSize(w, h);
+  composer.setSize(w, h);
+  bloom.setSize(w, h);
+  gradePass.material.uniforms.uAspect.value = w / h;
+  busyEl.classList.add('done');
+});
+
+/* ============================================================ frame */
+const clock = new THREE.Clock();
+const tmpV = new THREE.Vector3();
+const dirV = new THREE.Vector3();
+const sclV = new THREE.Vector3();
+const tmpQ = new THREE.Quaternion();
+const upZ = new THREE.Vector3(0, 0, 1);
+const ringPt = new THREE.Vector3();
+
+function tickNodes(time){
+  for (let k = 0; k < N; k++){
+    const t = k / (N - 1);
+    const fire = 0.35 * (0.5 + 0.5 * Math.cos(time * 5.1 + (k % 7) / 6 * 40.0));
+    const pulse = 1.0 + standWave(t, time) * 0.30 + ringPulse(t, time) * (0.7 + 0.5 * fire);
+    const p = basePosT(t);
+    const orb = 0.28 * Math.sin(t * GOLD * 2.0 + time * 0.7) * pulse,
+          orb2 = 0.28 * Math.sin(t * GOLD * PHI - time * 0.57) * pulse,
+          orb3 = 0.22 * Math.sin(t * GOLD * PHI + time * 0.83) * pulse;
+    tmpV.set(p.x + orb, p.y + orb2, p.z + orb3);
+    dirV.copy(tmpV).normalize();
+    tmpQ.setFromUnitVectors(upZ, dirV);
+    sclV.set(pulse, pulse, pulse);
+    nodes[0].dummyM.compose(tmpV, tmpQ, sclV);
+    gems.setMatrixAt(k, nodes[0].dummyM);
+  }
+  gems.instanceMatrix.needsUpdate = true;
+  if (selected != null){
+    gems.getMatrixAt(selected, scratchM);
+    ringPt.set(scratchM.elements[12], scratchM.elements[13], scratchM.elements[14]);
+    selRing.position.copy(ringPt);
+  }
+  if (halo){
+    const posA = halo.geo.attributes.position.array;
+    for (let k = 0; k < N; k++){
+      gems.getMatrixAt(k, scratchM);
+      const mArr = scratchM.elements;
+      posA[k*3] = mArr[12]; posA[k*3+1] = mArr[13]; posA[k*3+2] = mArr[14];
+    }
+    halo.geo.attributes.position.needsUpdate = true;
+  }
+}
+
+let _lastF = performance.now(), _slow = 0;
+function qualityThrottle(){
+  const now = performance.now();
+  const dt = now - _lastF; _lastF = now;
+  const pr = renderer.getPixelRatio();
+  if (dt > 62 && pr > 1){
+    _slow++;
+    if (_slow >= 30){
+      const np = Math.max(1, pr - 0.35);
+      renderer.setPixelRatio(np);
+      composer.setPixelRatio(np);
+      composer.setSize(window.innerWidth, window.innerHeight);
+      bloom.setResolution(new THREE.Vector2(window.innerWidth, window.innerHeight));
+      _slow = 0;
+    }
+  } else if (dt < 26 || pr <= 1){
+    _slow = 0;
+  }
+}
+function loop(){
+  const t = clock.getElapsedTime();
+  const time = t;
+
+  qualityThrottle();
+
+  dome.mat.uniforms.uTime.value = time;
+  stars.mat.uniforms.uTime.value = time;
+  sheetMat.uniforms.uTime.value = time;
+  creaseMat.uniforms.uTime.value = time;
+  gems.material.uniforms.uTime.value = time;
+  gradePass.material.uniforms.uTime.value = time;
+
+  tickNodes(time);
+
+  if (spinEnabled && !interact) cam.az += 0.00055;
+  if (!interact){
+    cam.az += vel.az;
+    cam.el += vel.el;
+    const damp = Math.pow(0.02, 1 / 60);
+    vel.az *= damp;
+    vel.el *= damp;
+  }
+
+  core.rotation.x = time * 0.3; core.rotation.y = time * 0.23;
+  coreHalo.rotation.x = time * 0.6;
+  coreHalo.rotation.y = time * 0.42;
+  coreHalo.scale.setScalar(1 + 0.05 * Math.sin(time * 1.3));
+
+  rings.rotation.y = time * 0.02;
+
+  updateCamera();
+  dome.mesh.position.copy(camera.position);
+  composer.render();
+  requestAnimationFrame(loop);
+}
+requestAnimationFrame(loop);
+
+setTimeout(() => busyEl.classList.add('done'), 500);
+</script>
+</body>
+</html>

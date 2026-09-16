@@ -1,0 +1,20 @@
+import { boot, runFrames, allHandlers } from './ui-harness.mjs';
+const app = (await boot()).app;
+const fire = (id, ev='click', arg) => { const t = allHandlers().find(([e, , el]) => e===ev && el && el._id===id); t[1](arg); };
+await runFrames(40);
+for (let i=0;i<100;i++) fire('ratePlus');
+fire('btnRun');
+await runFrames(200);
+const data = app.exportData();
+console.log('export says atoms', data.atoms.length, 'bonds', data.bonds.length);
+const snap = document.getElementById('snapFile');
+snap.files = [{ text: async () => JSON.stringify(data) }];
+// instrument event ordering
+fire('snapFile', 'change', {});
+await new Promise(r => setImmediate(r));
+await new Promise(r => setImmediate(r));
+await new Promise(r => setImmediate(r));
+const ch = app.ch;
+console.log('post-import atoms', ch.atoms.length, 'bonds', ch.bonds.length, 'events tail:', ch.events.slice(-3).map(e=>e.msg).join(' | '));
+const s0 = data.atoms[0];
+console.log('sample atom:', JSON.stringify(s0));

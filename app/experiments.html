@@ -1,0 +1,976 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Aarkanum Laboratories · Experiments</title>
+<style>
+:root{
+  --bg:#05070f; --panel:#0b1120cc; --line:#223052; --txt:#dbe6ff; --dim:#7c8db3;
+  --amber:#ffb020; --cyan:#37c8ff; --blue:#3d6bff; --good:#59ff9c;
+  --glass:rgba(11,17,32,.78); --danger:#ff5b5b; --hud-scale:1;
+}
+*{ box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
+html,body{ height:100%; margin:0; overflow:hidden; background:var(--bg); color:var(--txt);
+  font:14px/1.45 system-ui,-apple-system,Segoe UI,Roboto,sans-serif; }
+canvas{ display:block; }
+#labWrap{ position:fixed; inset:0; }
+#lab{ position:absolute; inset:0; width:100%; height:100%; }
+
+/* ---------- glass panels ---------- */
+.panel{ background:var(--glass); border:1px solid var(--line); border-radius:3px;
+  backdrop-filter:blur(10px); box-shadow:0 8px 30px #0008; }
+
+/* ---------- top bar ---------- */
+#topbar{ position:absolute; top:calc(6px + env(safe-area-inset-top,0px)); left:0; right:0; display:flex; align-items:center; gap:8px;
+  padding:6px 10px; z-index:20; flex-wrap:wrap; }
+#topbar .brand{ display:flex; align-items:center; gap:8px; background:var(--glass);
+  border:1px solid var(--line); border-radius:5px; padding:5px 12px; }
+#topbar .brand .logo{ font-weight:800; letter-spacing:1px; font-size:14px; color:var(--amber); }
+#topbar .brand small{ color:var(--dim); font-size:11px; }
+#expEndorse{ position:absolute; left:50%; top:100%; transform:translate(-50%,4px); z-index:1;
+  text-align:center; max-width:min(60vw, 520px); min-width:0; padding:4px 16px; pointer-events:none; }
+#expTitle{ font-weight:800; font-size:15px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+#expTag{ color:var(--dim); font-size:11px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.speedPill{ margin-left:auto; }
+.iconBtn{ width:38px; height:38px; border-radius:3px; border:1px solid var(--line);
+  background:var(--glass); color:var(--txt); font-size:15px; cursor:pointer; flex:none; }
+.iconBtn.active{ color:#061; border-color:var(--amber); background:var(--amber); }
+#btnRun{ font-size:13px; }
+#btnReset .sp{ transform:scaleX(-1); }
+#btnTrack{ font-size:13px; }
+#btnTrack.active{ color:var(--amber); border-color:var(--amber); }
+
+/* ---------- cluster tracking overlay ---------- */
+#trackOverlay{ position:absolute; inset:0; z-index:13; pointer-events:none; overflow:hidden; }
+.tbox{ position:absolute; display:none; pointer-events:auto; cursor:pointer; touch-action:none; }
+.tc{ position:absolute; width:11px; height:11px; }
+.tc.nw{ left:-7px; top:-7px; border-left:2px solid var(--tc,var(--cyan)); border-top:2px solid var(--tc,var(--cyan)); }
+.tc.ne{ right:-7px; top:-7px; border-right:2px solid var(--tc,var(--cyan)); border-top:2px solid var(--tc,var(--cyan)); }
+.tc.sw{ left:-7px; bottom:-7px; border-left:2px solid var(--tc,var(--cyan)); border-bottom:2px solid var(--tc,var(--cyan)); }
+.tc.se{ right:-7px; bottom:-7px; border-right:2px solid var(--tc,var(--cyan)); border-bottom:2px solid var(--tc,var(--cyan)); }
+.tlab{ position:absolute; left:-2px; top:-24px; font-size:10px; font-weight:800; letter-spacing:.5px;
+  color:#061; background:var(--tc,var(--cyan)); border-radius:2px; padding:1px 7px; white-space:nowrap; }
+#trackPopup{ position:absolute; z-index:14; width:220px; padding:8px 10px; display:none; pointer-events:none; }
+#trackPopup.show{ display:block; }
+#trackPopup b{ color:var(--amber); font-size:12px; }
+#trackPopup .tp-row{ font-size:11px; color:var(--dim); margin-top:3px; line-height:1.5; }
+#trackPopup .tp-row b{ color:var(--txt); }
+
+/* ---------- HUD stats strip (frames the page at the very top) ---------- */
+#hud{ position:absolute; top:calc(104px + env(safe-area-inset-top,0px)); left:0; right:0; z-index:22; display:flex; align-items:center; justify-content:center;
+  gap:calc(6px * var(--hud-scale,1)); height:calc((30px + env(safe-area-inset-top,0px)) * var(--hud-scale,1));
+  padding:0 calc(48px * var(--hud-scale,1)); border-bottom:1px solid #1d2c4e; --hud-scale:1;
+  background:linear-gradient(180deg, rgba(12,19,40,.96), rgba(7,11,22,.9)), rgba(11,17,32,.78); }
+#hud .stat{ display:flex; align-items:baseline; gap:calc(5px * var(--hud-scale,1)); padding:0 calc(14px * var(--hud-scale,1)); border-right:1px solid #23305a; }
+#hud .stat:last-child{ border-right:0; }
+#hud .k{ font-size:calc(9px * var(--hud-scale,1)); color:var(--dim); text-transform:uppercase; letter-spacing:calc(1.6px * var(--hud-scale,1)); }
+#hud .v{ font-size:calc(13px * var(--hud-scale,1)); font-weight:700; font-variant-numeric:tabular-nums; white-space:nowrap; }
+#hud .iconBtn{ position:absolute; right:calc(6px * var(--hud-scale,1)); top:50%; transform:translateY(-50%);
+  width:calc(27px * var(--hud-scale,1)); height:calc(100% - 6px); flex:none; border-radius:2px;
+  font-size:calc(13px * var(--hud-scale,1)); line-height:1; }
+#hud .iconBtn:hover{ color:var(--amber); border-color:var(--amber); }
+#hud .iconBtn:active{ background:var(--amber); color:#061; }
+#hud .ui-grip{ left:calc(6px * var(--hud-scale,1)); right:auto; top:50%; transform:translateY(-50%);
+  width:calc(22px * var(--hud-scale,1)); height:calc(16px * var(--hud-scale,1)); }
+
+/* ---------- moveable modules: drag grip + settings toggles ---------- */
+.ui-grip{ position:absolute; z-index:12; top:3px; right:3px; width:34px; height:34px; display:flex; align-items:center; justify-content:center;
+  font-size:16px; line-height:1; color:var(--dim); cursor:grab; user-select:none; touch-action:none;
+  background:rgba(13,20,40,.85); border:1px solid var(--line); opacity:.9; }
+.ui-grip:hover, .dragging .ui-grip{ opacity:1; color:var(--amber); border-color:var(--amber); cursor:grabbing; }
+/* a module being dragged must sit above everything (top bar, HUD, other cards)
+   so a grabbed card can never slip underneath them mid-drag */
+.dragging{ z-index:1200 !important; }
+#scanFooter .sf-head{ position:relative; }
+#scanFooter .ui-grip{ right:4px; top:4px; left:auto; bottom:auto; scale:1; }
+#eventFeed .ui-grip{ pointer-events:auto; }
+#minimapWrap .ui-grip{ pointer-events:auto; }
+.mod-togs{ display:flex; flex-wrap:wrap; gap:6px; align-items:center; }
+.mod-tog{ display:flex; align-items:center; gap:5px; font-size:11px; color:var(--txt);
+  border:1px solid var(--line); background:#0a0f1f; padding:3px 8px; cursor:pointer; }
+.mod-tog input{ accent-color:var(--amber); margin:0; }
+
+/* ---------- instruments drawer ---------- */
+#toolsPanel{ position:absolute; top:calc((140px + env(safe-area-inset-top,0px)) * var(--hud-scale,1)); right:10px; z-index:21; width:min(320px, 88vw); max-height:calc(100vh - 158px);
+  overflow-y:auto; overflow-x:hidden; padding:10px 12px; display:none; }
+#toolsPanel.open{ display:block; }
+#toolsPanel .sidePanel{ position:static; width:auto; min-width:0; max-height:none; overflow:visible;
+  padding:0 0 12px; margin-bottom:12px; border-bottom:1px dashed var(--line); }
+#toolsPanel .sidePanel:last-child{ border-bottom:0; padding-bottom:0; margin-bottom:0; }
+#toolsPanel .sidePanel h3{ margin:2px 2px 8px; font-size:12px; color:var(--dim); text-transform:uppercase; letter-spacing:1px; }
+#elementsPanel{ position:absolute; left:10px; right:10px; bottom:10px; top:auto; z-index:22; width:auto; min-width:0;
+  max-height:64vh; overflow-y:auto; padding:10px 12px; display:none; }
+#elementsPanel.open{ display:block; }
+#chladniPanel.disabled{ opacity:0.85; }
+#shapeList .chip{ font-size:11px; display:flex; align-items:center; gap:5px; }
+#modeList .chip{ font-size:10px; }
+#scopePanel .row{ display:flex; align-items:center; gap:6px; font-size:11px; color:var(--dim); margin-bottom:8px; }
+#scopePanel select{ flex:1; background:#0a0f1f; color:var(--txt); border:1px solid var(--line); border-radius:2px; padding:4px 6px; font-size:11px; }
+#scopeCanvas{ width:100%; height:150px; background:#04060e; border:1px solid var(--line); border-radius:3px; display:block; }
+#sidePanel h3{ margin:2px 2px 8px; font-size:12px; color:var(--dim); text-transform:uppercase; letter-spacing:1px; }
+
+/* chips */
+.chipWrap{ display:flex; flex-wrap:wrap; gap:6px; margin-bottom:10px; }
+.chip{ border:1px solid var(--line); background:#0a0f1f; color:var(--txt); border-radius:5px;
+  padding:6px 11px; font-size:11px; cursor:pointer; }
+.chip.on{ background:var(--amber); border-color:var(--amber); color:#081; font-weight:700; }
+
+/* beam-bank rig buttons: live armed count + spinning conic fraction */
+.lrig{ position:relative; }
+.lrig .rc{ font-variant-numeric:tabular-nums; font-weight:600; color:var(--amber); }
+.lrig .spin{ display:inline-block; width:9px; height:9px; margin-left:5px; vertical-align:-1px;
+  border-radius:50%; background:conic-gradient(var(--good) var(--p,0%), var(--line) 0); }
+.lrig.spinny .spin{ animation:ocspin 2.6s linear infinite; }
+@keyframes ocspin{ from{transform:rotate(0)} to{transform:rotate(1turn)} }
+
+/* element grid */
+#perioScroll{ overflow-x:auto; -webkit-overflow-scrolling:touch; margin-bottom:10px; }
+#perioGrid{ display:grid; grid-template-columns:repeat(18,1fr); gap:2px; min-width:486px; }
+#perioGrid .cell{ font-size:10px; padding:4px 1px; border-radius:3px; border:1px solid #1a2444;
+  background:#060a15; color:var(--txt); cursor:pointer; position:relative; }
+#perioGrid .cell.on{ background:var(--amber); color:#081; font-weight:700; border-color:var(--amber); }
+#rows{ display:flex; gap:6px; flex-wrap:wrap; }
+#rows .act{ flex:1; min-width:88px; border:1px solid var(--line); background:#0a0f1f; color:var(--txt);
+  border-radius:3px; padding:8px; cursor:pointer; font-size:12px; }
+
+/* cross lab */
+.shortrow{ display:flex; align-items:center; gap:6px; margin-top:8px; }
+button.mini{ border:1px solid var(--line); background:none; color:var(--txt); border-radius:2px; padding:3px 8px; font-size:11px; cursor:pointer; }
+button.mini.active{ color:var(--amber); border-color:var(--amber); background:rgba(255,176,32,.06); }
+.krow{ display:flex; align-items:center; gap:6px; font-size:11px; color:var(--dim); margin:3px 0; }
+.krow input{ flex:1; }
+/* machine panel + timed feeder */
+.mrow{ display:flex; align-items:center; gap:8px; font-size:11px; color:var(--dim); margin:6px 0; }
+.mrow .lbl{ width:54px; flex:none; }
+.mrow input[type=range]{ flex:1; accent-color:var(--cyan); }
+.mrow .val{ width:56px; text-align:right; font-variant-numeric:tabular-nums; }
+#machDesc{ font-size:11px; color:var(--dim); margin-bottom:8px; line-height:1.5; }
+#machRead{ font-size:10px; color:var(--cyan); margin-top:6px; font-variant-numeric:tabular-nums; }
+#machCountRead{ font-size:10px; color:var(--dim); margin-top:4px; font-variant-numeric:tabular-nums; }
+/* laser / ray module */
+#laserDesc{ line-height:1.5; }
+.laxis{ border:1px solid var(--line); background:#0a0f1f; color:var(--dim); border-radius:2px;
+  padding:4px 8px; font-size:11px; cursor:pointer; text-align:center; flex:1; min-width:38px; }
+.laxis.on{ background:var(--good); color:#063; border-color:var(--good); }
+.pgrid{ display:grid; grid-template-columns:auto 1fr auto 1fr; gap:2px 10px; align-items:center; font-size:11px; }
+.pgrid span{ color:var(--dim); }
+.pgrid b{ color:var(--txt); font-weight:600; font-variant-numeric:tabular-nums; text-align:right; }
+.pgrid.small{ grid-template-columns:1fr; font-size:10px; color:var(--dim); }
+.pgrid.small span{ color:var(--dim); }
+.mrow button.act{ flex:1; min-width:88px; border:1px solid var(--line); background:#0a0f1f; color:var(--txt);
+  border-radius:3px; padding:8px; cursor:pointer; font-size:12px; margin-top:4px; }
+.frow{ display:flex; align-items:center; gap:4px; margin:4px 0; font-size:10px; }
+.frow input{ background:#0a0f1f; color:var(--txt); border:1px solid var(--line); border-radius:2px;
+  padding:3px 5px; font-size:11px; min-width:0; }
+.frow .fsym{ width:44px; text-transform:uppercase; }
+.frow .fn{ width:38px; }
+.frow .fev{ width:64px; }
+.frow .fst{ width:56px; }
+.frow .fact{ cursor:pointer; flex:none; color:var(--dim); font-size:13px; padding:2px 4px; }
+.frow .fact.on{ color:var(--good); }
+.frow .fact.del{ color:var(--danger); }
+.frow.bad{ opacity:0.5; }
+.fhead{ display:flex; align-items:center; gap:4px; margin:4px 0 -2px; font-size:8px; letter-spacing:.4px;
+  color:var(--dim); text-transform:uppercase; }
+.fhead span{ flex:none; text-align:center; }
+.fhead .hsym{ width:44px; }
+.fhead .hn{ width:38px; }
+.fhead .hev{ width:64px; }
+.fhead .hst{ width:56px; }
+.fhead .hgap{ width:38px; }
+#crossReadout{ font-size:10px; color:var(--good); margin-top:6px; font-variant-numeric:tabular-nums; }
+#crosslabFrame{ display:none; width:100%; height:180px; border:1px solid var(--line); border-radius:3px; margin-top:6px; background:#000; }
+
+/* ------------- MRI scanner (slice tomography) ------------- */
+#scanPanel select{ background:#0a0f1f; color:var(--txt); border:1px solid var(--line); border-radius:2px; padding:4px 6px; font-size:11px; flex:1; min-width:0; }
+#scanCanvas{ width:100%; aspect-ratio:1; background:#04060e; border:1px solid var(--line); border-radius:3px; display:block; margin-top:4px; }
+#scanStats{ font-size:10px; color:var(--dim); margin-top:4px; }
+#scanRead{ font-size:10px; color:var(--cyan); margin-top:2px; font-variant-numeric:tabular-nums; }
+#scanArm.active{ color:var(--amber); border-color:var(--amber); }
+#scanAxis{ margin-bottom:6px; }
+#scanAxis .chip{ flex:1; text-align:center; }
+
+/* ------------- cross wall (tiled side-by-side) ------------- */
+#crossWall{ position:fixed; inset:0; z-index:55; display:none; pointer-events:auto; overflow:hidden;
+  background-color:#04060d;
+  background-image:radial-gradient(120% 85% at 50% 0%, rgba(42,56,112,.30), transparent 55%),
+                   linear-gradient(168deg, #06080f 0%, #030510 62%, #05070d 100%); }
+body.crossWallMode #crossWall{ display:block; }
+/* hard isolation: while the wall is up, not a single other panel may peek through,
+   and the shared 3D buffer behind the tiles is hidden too (#labWrap). wallFocus is
+   the only thing allowed above the wall, and only once it's actually .on. */
+body.crossWallMode #labWrap, body.crossWallMode #hud, body.crossWallMode #trackOverlay,
+body.crossWallMode #trackPopup, body.crossWallMode #gridLayer, body.crossWallMode #spark,
+body.crossWallMode #toolsPanel, body.crossWallMode #goalPanel, body.crossWallMode #elementsPanel,
+body.crossWallMode #topbar, body.crossWallMode #minimapWrap, body.crossWallMode #scanFooter,
+body.crossWallMode #atomModal, body.crossWallMode #expDetail, body.crossWallMode #expEndorse,
+body.crossWallMode #eventFeed, body.crossWallMode #launch, body.crossWallMode #envWiz,
+body.crossWallMode #settings, body.crossWallMode #wallPick{ display:none !important; }
+body.crossWallMode #wallFocus{ display:none !important; }
+body.crossWallMode #wallFocus.on{ display:flex !important; }
+.cw-top{ position:absolute; top:0; left:0; right:0; height:52px; z-index:5; display:flex;
+  align-items:center; gap:10px; padding:0 14px; border-bottom:1px solid #22304f;
+  background:#06090f; pointer-events:none; }
+.cw-top .cw-title{ display:flex; flex-direction:column; gap:2px; min-width:0; }
+.cw-top .cw-title b{ font-size:13px; letter-spacing:.8px; color:var(--amber); text-transform:uppercase; }
+.cw-top .cw-title small{ font-size:10px; color:var(--dim); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.cw-top .cw-x{ margin-left:auto; flex:none; width:34px; height:34px; border:1px solid var(--line);
+  background:rgba(10,14,28,.92); color:var(--txt); border-radius:4px; font-size:14px; line-height:1;
+  cursor:pointer; pointer-events:auto; }
+.cw-top .cw-x:hover{ border-color:var(--amber); color:var(--amber); }
+.cw-grid{ position:absolute; inset:0; }
+.cw-tile{ position:absolute; cursor:pointer; border-radius:4px; border:1px solid #26325e;
+  background:#04060d; overflow:hidden; }
+.cw-tile:hover{ border-color:var(--amber); box-shadow:0 0 18px rgba(255,190,60,.28); }
+.cw-canvas{ position:absolute; inset:0; width:100%; height:100%; display:block; z-index:1; }
+.cw-name{ position:absolute; left:6px; top:5px; z-index:2; font-size:10px; font-weight:800;
+  letter-spacing:.3px; color:#081; background:var(--cyan); border-radius:2px; padding:1px 7px; }
+.cw-name span{ margin-right:3px; }
+.cw-stat{ position:absolute; right:6px; bottom:4px; z-index:2; font-size:9px; color:var(--dim); }
+
+/* ---------- cross wall experiment picker ---------- */
+.wp-filter{ display:flex; align-items:center; gap:8px; margin-top:10px; }
+.wp-filter .lbl{ color:var(--dim); font-size:10px; text-transform:uppercase; letter-spacing:1px; flex:none; }
+.wp-filter input{ flex:1; min-width:0; background:#0a0f1f; color:var(--txt); border:1px solid var(--line); border-radius:2px; padding:5px 8px; font-size:12px; }
+.wgrid{ display:grid; grid-template-columns:repeat(auto-fill, minmax(148px,1fr)); gap:8px;
+  max-height:min(52vh,420px); overflow-y:auto; overscroll-behavior:contain; margin:10px 0 8px; padding-right:2px; }
+.wcard{ position:relative; border:1px solid var(--line); border-radius:3px; cursor:pointer; text-align:left;
+  display:flex; flex-direction:column; gap:3px; min-height:66px; padding:9px 10px;
+  background:linear-gradient(165deg, #0c1226, #070b18); color:var(--txt); }
+.wcard .wi{ font-size:20px; color:var(--cyan); line-height:1; }
+.wcard b{ font-size:12px; letter-spacing:.3px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.wcard i{ font-size:10px; color:var(--dim); font-style:normal; line-height:1.4;
+  display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden; }
+.wcard:active{ transform:scale(.98); }
+.wcard.on{ border-color:var(--amber); box-shadow:0 0 0 1px var(--amber), 0 0 16px rgba(255,190,60,.25); }
+.wcard.on b{ color:var(--amber); }
+.wcard.on::after{ content:'✓'; position:absolute; right:6px; top:4px; color:var(--amber); font-weight:800; }
+.wp-bar{ display:flex; align-items:center; gap:8px; font-size:11px; color:var(--dim); }
+.wp-bar .read{ flex:1; min-width:0; }
+#wpRun[disabled]{ opacity:.4; }
+
+/* ---------- custom-experiment save dialog ---------- */
+#saveDlg .save-head{ font-size:10px; color:var(--dim); text-transform:uppercase; letter-spacing:1px; margin:14px 0 4px; }
+.save-list{ display:flex; flex-direction:column; gap:6px; margin-top:8px; }
+.save-item{ display:flex; align-items:center; gap:8px; background:#0a0f1f; border:1px solid var(--line);
+  border-radius:3px; padding:6px 9px; font-size:11px; min-height:30px; }
+.save-item .wi{ color:var(--amber); font-size:13px; line-height:1; flex:none; }
+.save-item b{ color:var(--txt); font-weight:800; letter-spacing:.3px; overflow:hidden;
+  text-overflow:ellipsis; white-space:nowrap; max-width:170px; }
+.save-item .si-tag{ color:var(--dim); font-size:10px; flex:1; min-width:0; overflow:hidden;
+  text-overflow:ellipsis; white-space:nowrap; }
+.save-item .si-x{ border:1px solid var(--line); background:none; color:var(--danger); font-size:12px;
+  line-height:1; padding:3px 6px; cursor:pointer; border-radius:2px; flex:none; }
+.save-item .si-x:hover{ border-color:var(--danger); }
+
+/* ---------- cross wall focus modal (tap a tile → peek, then return) ---------- */
+#wallFocus .wf-inner{ width:min(440px, 92vw); margin:auto 0; padding:16px 18px 14px; }
+#wallFocus .wf-head{ display:flex; align-items:center; gap:10px; margin-bottom:10px; }
+#wallFocus .wf-ico{ font-size:26px; color:var(--amber); flex:none; }
+#wallFocus .wf-title{ flex:1; min-width:0; }
+#wallFocus .wf-title b{ font-size:15px; letter-spacing:.4px; display:block; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+#wallFocus .wf-tag{ font-size:11px; color:var(--dim); }
+#wallFocus #wfClose{ flex:none; border:1px solid var(--line); background:none; color:var(--dim); border-radius:2px; width:30px; height:30px; cursor:pointer; }
+#wallFocus #wfCanvas{ width:100%; aspect-ratio:6/5; background:#04060d; border:1px solid var(--line); border-radius:3px; display:block; }
+#wallFocus .wf-stat{ font-size:10px; color:var(--cyan); margin-top:6px; font-variant-numeric:tabular-nums; }
+#wallFocus .wf-goal{ font-size:11px; color:var(--amber); margin:8px 0 2px; }
+#wallFocus .wf-desc{ font-size:11px; color:var(--dim); line-height:1.5; }
+#wallFocus .wf-acts{ display:flex; gap:8px; margin-top:12px; align-items:center; }
+#wallFocus .wf-acts .mini{ flex:1; border:1px solid var(--line); background:none; color:var(--txt); border-radius:3px; padding:9px 10px; cursor:pointer; font-size:12px; }
+#wallFocus .wf-acts .act{ flex:1; border:1px solid var(--amber); background:var(--amber); color:#081; border-radius:3px; padding:9px 10px; font-weight:800; cursor:pointer; font-size:12px; }
+#wallFocus .wf-acts .act:hover{ filter:brightness(1.08); }
+
+#btnGrid.active{ color:var(--amber); border-color:var(--amber); }
+/* ---------- RTS command center (centered card, SC-style) ---------- */
+#gridLayer{ position:absolute; left:50%; top:50%; bottom:auto; transform:translate(-50%,-50%); z-index:24;
+  width:min(760px, 96vw); max-height:min(76vh, 640px); display:none; flex-direction:column;
+  border:1px solid #31507f; border-radius:3px; overflow:hidden;
+  background:linear-gradient(180deg, rgba(10,16,34,.94), rgba(5,8,16,.94));
+  box-shadow:0 18px 50px #000c, inset 0 1px 0 rgba(120,200,255,.12); }
+#gridLayer.open{ display:flex; }
+#gridLayer .menuTitle{ position:relative; z-index:3; padding:10px 14px 6px; display:flex; align-items:baseline; gap:10px;
+  background:linear-gradient(90deg, rgba(255,176,32,.05), transparent); border-bottom:1px solid #1d2c4e; }
+#gridLayer .menuTitle b{ font-size:calc(13px * var(--hud-scale,1)); color:var(--amber); letter-spacing:2px; white-space:nowrap; }
+#gridLayer .menuTitle small{ display:inline; color:var(--dim); font-size:calc(10px * var(--hud-scale,1)); overflow:hidden; text-overflow:ellipsis; }
+#gridClose{ margin-left:auto; flex:none; border:1px solid var(--line); background:none; color:var(--dim);
+  border-radius:2px; width:26px; height:26px; cursor:pointer; align-self:center; }
+#gridClose:active{ color:var(--amber); border-color:var(--amber); }
+#menuHeat{ position:relative; z-index:3; display:grid; grid-template-columns:1fr 1fr auto; gap:2px 16px;
+  padding:7px 14px; font-size:calc(11px * var(--hud-scale,1)); color:var(--dim); border-bottom:1px solid #1d2c4e;
+  background:rgba(13,20,40,.55); }
+#menuHeat .mhRow{ display:flex; align-items:center; gap:8px; }
+#menuHeat .mhRow .lbl{ width:auto; flex:none; }
+#menuHeat .mhRow input[type=range]{ flex:1; accent-color:var(--amber); height:3px; }
+#menuHeat .mhRow .val{ width:56px; text-align:right; font-variant-numeric:tabular-nums; }
+#gridBars{ position:relative; overflow-y:auto; -webkit-overflow-scrolling:touch; overscroll-behavior:contain;
+  padding:10px 12px 12px;
+  display:grid; grid-template-columns:repeat(auto-fill, minmax(200px, 1fr)); gap:10px; }
+.gbar{ position:relative; pointer-events:auto; display:flex; flex-direction:column; gap:5px;
+  border:1px solid #2c4068; border-radius:3px; background:linear-gradient(165deg, #0d1530, #080d1c);
+  color:var(--txt); cursor:pointer; user-select:none; padding:12px 13px; min-height:88px;
+  box-shadow:0 3px 10px rgba(0,0,0,.4), inset 0 1px 0 rgba(120,200,255,.08); text-align:left; overflow:hidden; }
+#gridBars .gnr{ grid-column:1 / -1; display:flex; align-items:baseline; gap:8px; padding:14px 2px 2px;
+  border-top:1px dashed #223052; margin-top:8px; font-size:calc(11px * var(--hud-scale,1)); letter-spacing:1.5px; color:var(--dim); }
+#gridBars .gnr:first-child{ border-top:0; padding-top:2px; }
+#gridBars .gnr .gnr-ico{ font-size:12px; color:var(--cyan); }
+#gridBars .gnr b{ font-weight:800; letter-spacing:1.5px; color:var(--txt); }
+#gridBars .gnr i{ font-size:calc(9px * var(--hud-scale,1)); letter-spacing:.5px; font-style:normal; opacity:.75; }
+.gbar::before{ content:''; position:absolute; left:0; top:0; bottom:0; width:3px;
+  background:linear-gradient(180deg, var(--amber), transparent); opacity:.7; }
+.gbar .gbody{ display:flex; flex-direction:column; gap:1px; min-width:0; }
+.gbar .ghead{ display:flex; align-items:center; gap:8px; }
+.gbar .gi{ font-size:17px; flex:none; color:var(--cyan); }
+.gbar .gn{ font-size:calc(12px * var(--hud-scale,1)); font-weight:800; letter-spacing:.3px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.gbar .gd{ font-size:calc(10px * var(--hud-scale,1)); color:var(--dim);
+  display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden; white-space:normal; }
+.gbar .gtag{ font-size:calc(9px * var(--hud-scale,1)); color:var(--cyan); opacity:.85; letter-spacing:.3px;
+  overflow:hidden; text-overflow:ellipsis; white-space:nowrap; margin-top:2px; }
+.gbar .ggo{ position:absolute; right:9px; top:9px; font-size:calc(12px * var(--hud-scale,1)); color:var(--dim); }
+.gbar .gkey{ position:absolute; right:6px; bottom:5px; font-size:calc(8px * var(--hud-scale,1)); letter-spacing:1px; color:#3a4f7d; }
+.gbar .glive{ flex:none; position:absolute; right:9px; top:30px; font-size:calc(8px * var(--hud-scale,1)); letter-spacing:.5px;
+  color:#063; background:var(--good); padding:1px 6px; border-radius:2px; }
+.gbar:active{ transform:scale(.97); border-color:var(--amber); box-shadow:0 0 0 1px var(--amber), 0 0 16px rgba(255,190,60,.35); }
+.gbar.focus{ border-color:var(--amber); box-shadow:0 0 0 1px var(--amber), 0 0 20px rgba(255,190,60,.28); }
+.gbar.focus .gn{ color:var(--amber); }
+body.gridMode .panel:not(#gridLayer):not(#atomModal):not(#expDetail):not(#launch):not(#envWiz):not(#settings):not(#trackPopup){ opacity:0.28; pointer-events:none; }
+body.gridMode #eventFeed, body.gridMode #goalPanel{ display:none; }
+body.gridMode #hud, body.gridMode #eduCard{ display:none; }
+
+/* ---------- experiment dossier (tap → LOD high) ---------- */
+.ocdetail{ position:fixed; left:50%; top:50%; transform:translate(-50%,-50%); z-index:46; width:min(430px,94vw);
+  max-height:calc(100vh - 24px); padding:0 18px 16px; display:none; animation:pop .16s ease;
+  overflow-y:auto; overscroll-behavior:contain; -webkit-overflow-scrolling:touch; }
+.ocdetail.on{ display:block; }
+.ocdetail .ed-head{ position:sticky; top:0; z-index:2; display:flex; align-items:center; gap:10px;
+  margin:0 -18px 8px; padding:12px 18px; background:linear-gradient(180deg,#0d1430,#0a0f22);
+  border-bottom:1px solid #1d2c4e; }
+.ocdetail .ed-head .ed-ico{ font-size:28px; color:var(--amber); }
+.ocdetail .ed-head b{ font-size:16px; letter-spacing:.4px; display:block; }
+.ocdetail .ed-head .ed-tag{ font-size:11px; color:var(--dim); }
+.ocdetail .ed-head button{ margin-left:auto; border:1px solid var(--line); background:none; color:var(--dim);
+  border-radius:2px; width:30px; height:30px; cursor:pointer; flex:none; }
+.ocdetail .ed-desc{ font-size:12px; color:var(--txt); line-height:1.6; margin-bottom:8px; }
+.ocdetail .ed-goal{ font-size:11px; display:flex; gap:8px; align-items:baseline; padding:7px 10px;
+  border:1px solid #2c4068; border-radius:3px; background:rgba(13,20,40,.55); margin-bottom:8px; }
+.ocdetail .ed-goal span{ color:var(--dim); text-transform:uppercase; letter-spacing:1px; font-size:10px; flex:none; }
+.ocdetail .ed-goal b{ color:var(--amber); font-weight:700; }
+.ocdetail .ed-steps{ display:flex; flex-direction:column; gap:5px; margin-bottom:10px; }
+.ocdetail .ed-step{ font-size:11px; color:var(--dim); display:flex; gap:7px; }
+.ocdetail .ed-step b{ color:var(--fg); font-weight:600; flex:none; }
+.ocdetail .ed-step span{ flex:1; }
+.ocdetail .ed-step i{ font-style:normal; flex:none; color:var(--cyan); }
+.ocdetail .ed-env{ font-size:10px; color:var(--dim); margin-bottom:10px; }
+.ocdetail .ed-vars{ display:flex; flex-direction:column; gap:9px; margin-bottom:12px;
+  border-top:1px dashed var(--line); padding-top:10px; }
+.ocdetail .ed-var{ display:flex; flex-direction:column; gap:5px; }
+.ocdetail .edv-lbl{ font-size:9px; color:var(--dim); text-transform:uppercase; letter-spacing:1.2px; }
+.ocdetail .ed-vars .chip{ font-size:10px; padding:4px 8px; border-radius:2px; border:1px solid var(--line);
+  background:none; color:var(--dim); cursor:pointer; }
+.ocdetail .ed-vars .chip.on{ color:#061; background:var(--amber); border-color:var(--amber); font-weight:700; }
+.ocdetail .edWhy{ font-size:10px; color:var(--dim); font-style:italic; line-height:1.45; min-height:12px; }
+.ocdetail .ed-vars .chipWrap{ display:flex; flex-wrap:wrap; gap:5px; }
+.ocdetail .act{ width:100%; border:1px solid var(--amber); background:var(--amber); color:#081; border-radius:3px;
+  padding:11px; font-weight:800; cursor:pointer; font-size:13px; letter-spacing:1.2px; }
+
+/* ---------- topbar speed stepper ---------- */
+.speedPill{ display:flex; align-items:center; gap:4px; background:var(--glass);
+  border:1px solid var(--line); border-radius:3px; padding:3px 5px; flex:none; }
+.speedPill .mini{ width:30px; height:30px; border-radius:2px; border:1px solid var(--line);
+  background:none; color:var(--txt); cursor:pointer; font-size:15px; flex:none; line-height:1; }
+.speedPill .mini:active{ border-color:var(--amber); color:var(--amber); }
+#ratePill{ min-width:104px; text-align:center; font-size:11px; color:var(--good);
+  font-variant-numeric:tabular-nums; white-space:nowrap; }
+
+/* ---------- edu / events / spark / status ---------- */
+#eduCard{ position:absolute; left:50%; bottom:208px; transform:translateX(-50%) translateY(16px);
+  width:min(440px, 90vw); z-index:18; padding:10px 14px; opacity:0; pointer-events:none;
+  transition:opacity .3s, transform .3s; }
+#eduCard.show{ opacity:1; transform:translateX(-50%) translateY(0); }
+.educ-title{ font-size:13px; color:var(--amber); font-weight:800; margin-bottom:3px; }
+.educ-body{ font-size:12px; color:var(--txt); }
+
+#eventFeed{ position:absolute; left:10px; bottom:160px; z-index:18; width:min(300px,84vw);
+  display:flex; flex-direction:column; gap:5px; pointer-events:none; }
+.evt{ background:var(--glass); border-left:3px solid var(--line); border-radius:2px;
+  padding:5px 9px; font-size:11px; color:var(--txt); display:flex; gap:6px; }
+.evt-bond{ border-left-color:var(--cyan); }
+.evt-react{ border-left-color:var(--good); }
+.evt-decay{ border-left-color:var(--amber); }
+.evt-break{ border-left-color:var(--danger); }
+.evt-t{ color:var(--dim); font-size:10px; flex:none; font-variant-numeric:tabular-nums; }
+
+#goalPanel{ position:absolute; right:10px; bottom:12px; z-index:18; width:min(250px,70vw);
+  padding:10px 12px; }
+#goalPanel h4{ margin:0 0 6px; font-size:11px; color:var(--dim); text-transform:uppercase; letter-spacing:1px; }
+#expGoal{ font-size:11px; color:var(--amber); margin-bottom:8px; }
+#expDesc{ font-size:11px; color:var(--dim); margin-bottom:8px; line-height:1.5; }
+.gstep{ display:flex; align-items:center; gap:7px; padding:3px 0; font-size:12px; }
+.gdot{ width:9px; height:9px; border-radius:50%; border:2px solid var(--dim); flex:none; }
+.gdot.done{ background:var(--good); border-color:var(--good); }
+.gtxt{ color:var(--dim); }
+.gtxt.done{ color:var(--good); }
+
+#spark{ position:absolute; top:46%; left:50%; transform:translate(-50%,-50%); z-index:50;
+  background:var(--amber); color:#081; font-weight:800; padding:10px 20px; border-radius:5px;
+  font-size:14px; opacity:0; pointer-events:none; transition:opacity .25s;
+  box-shadow:0 10px 40px #000c, 0 0 0 1px rgba(255,176,32,.4); text-align:center; max-width:86vw; }
+#spark.show{ opacity:1; }
+
+/* ---------- atom modal ---------- */
+#atomModal{ position:fixed; z-index:40; width:250px; padding:0 14px 12px; display:none; animation:pop .18s ease;
+  max-height:calc(100vh - 24px); overflow-y:auto; overscroll-behavior:contain; -webkit-overflow-scrolling:touch; }
+#atomModal .m-head{ position:sticky; top:0; z-index:2; display:flex; align-items:center; gap:6px;
+  margin:0 -14px 8px; padding:12px 14px; background:linear-gradient(180deg,#0d1430,#0a0f22);
+  border-bottom:1px solid #1d2c4e; }
+#atomModal.open{ display:block; }
+@keyframes pop{ from{ transform:translate(-50%,-50%) scale(.92); opacity:0; } to{ transform:translate(-50%,-50%) scale(1); opacity:1; } }
+.m-head{ display:flex; align-items:center; gap:8px; margin-bottom:6px; }
+.m-head .mz{ font-size:22px; font-weight:900; color:var(--amber); }
+.m-head .mn{ font-size:13px; font-weight:700; }
+.m-head .ms{ font-size:11px; color:var(--dim); }
+.m-facts{ display:grid; grid-template-columns:1fr 1fr; gap:3px 8px; font-size:11px; color:var(--dim); padding:6px 0; border-top:1px dashed var(--line); border-bottom:1px dashed var(--line); margin-bottom:8px; }
+.m-facts b{ color:var(--txt); font-weight:600; float:right; }
+.m-row{ display:flex; align-items:center; gap:6px; font-size:11px; margin:5px 0; }
+.m-row label{ width:62px; color:var(--dim); }
+.m-row input[type=text], .m-row input[type=number]{ flex:1; min-width:0; background:#0a0f1f; color:var(--txt);
+  border:1px solid var(--line); border-radius:2px; padding:4px 7px; font-size:12px; }
+.m-row .ck{ width:auto; }
+.m-bonds{ margin-top:6px; font-size:11px; }
+.mbond{ display:flex; align-items:center; justify-content:space-between; gap:6px; padding:3px 0; color:var(--dim); }
+.mbond button{ border:1px solid var(--danger); background:none; color:var(--danger); border-radius:2px; font-size:10px; padding:1px 6px; cursor:pointer; }
+
+@media (max-width:560px){
+  #goalPanel{ display:none; }
+  #eventFeed{ display:none; }
+  #topbar{ gap:6px; padding:8px 8px; }
+  .brand .logoName{ display:none; }
+  .brand small{ display:none; }
+  #expTag{ display:none; }
+  #topbar .iconBtn{ width:34px; height:34px; }
+  .speedPill .mini{ width:26px; height:26px; }
+  #ratePill{ min-width:0; font-size:10px; }
+  #hud{ height:calc((30px + env(safe-area-inset-top,0px)) * var(--hud-scale,1)); }
+  #hud .stat{ padding:0 9px; gap:3px; }
+}
+@media (orientation:landscape){
+  #expEndorse{ transform:translate(-50%,-30px); }
+}
+@media (max-width:400px){
+  #expEndorse{ display:none; }
+}
+
+/* ---------- launch / wizard / settings overlays ---------- */
+.oc{ position:fixed; inset:0; z-index:60; display:none; align-items:flex-start; justify-content:center;
+  overflow-y:auto; -webkit-overflow-scrolling:touch; overscroll-behavior:contain;
+  padding:calc(14px + env(safe-area-inset-top,0px)) 12px 26px;
+  background:radial-gradient(90% 80% at 50% 0%, rgba(63,157,255,.18), transparent 65%), var(--bg); }
+.oc.on{ display:flex; }
+.oc .launch-inner{ width:min(560px, 92vw); margin:auto 0; padding:22px 24px; }
+.oc h2{ margin:0 0 4px; font-size:16px; color:var(--amber); letter-spacing:.6px; }
+.oc h2 small{ display:block; font-size:11px; color:var(--dim); font-weight:400; letter-spacing:0; margin-top:3px; }
+.launch-brand{ display:flex; align-items:center; justify-content:center; gap:10px; margin-bottom:14px; }
+.launch-brand .ico{ font-size:30px; color:var(--amber); }
+.launch-brand b{ font-size:20px; letter-spacing:2px; }
+.launch-brand small{ font-size:10px; color:var(--dim); letter-spacing:3px; text-transform:uppercase; display:block; }
+.lgrid{ display:grid; grid-template-columns:1fr 1fr; gap:10px; margin:4px 0 14px; }
+.lcard{ border:1px solid var(--line); border-radius:3px; background:#070c1ack; background:linear-gradient(165deg, #0c1226, #070b18);
+  color:var(--txt); cursor:pointer; padding:14px; text-align:left; display:flex; flex-direction:column; gap:4px; }
+.lcard:active{ transform:scale(.98); border-color:var(--amber); }
+.lcard .ic{ font-size:20px; color:var(--cyan); }
+.lcard b{ font-size:13px; color:var(--amber); letter-spacing:.5px; }
+.lcard i{ font-size:11px; color:var(--dim); font-style:normal; line-height:1.5; }
+.envbar{ display:flex; align-items:center; justify-content:space-between; gap:8px; font-size:11px; color:var(--dim); }
+.envbar button{ border:1px solid var(--amber); color:var(--amber); background:none; border-radius:3px; padding:7px 12px; cursor:pointer; font-size:12px; }
+.envchip{ display:flex; align-items:center; gap:6px; font-size:12px; flex-wrap:wrap; }
+.envchip small{ color:var(--dim); font-size:10px; }
+.ew-params{ margin-top:12px; display:flex; flex-direction:column; gap:9px; }
+.ew-row{ display:flex; align-items:center; gap:8px; font-size:12px; color:var(--dim); }
+.ew-row .lbl{ width:86px; flex:none; text-transform:uppercase; font-size:10px; letter-spacing:.6px; }
+.ew-row input[type=range]{ flex:1; accent-color:var(--amber); }
+.ew-row .val{ width:110px; text-align:right; font-variant-numeric:tabular-nums; }
+.ew-row input[type=text]{ flex:1; background:#0a0f1f; color:var(--txt); border:1px solid var(--line); border-radius:2px; padding:6px 8px; font-size:12px; min-width:0; }
+.oc .act{ border:1px solid var(--amber); background:var(--amber); color:#081; border-radius:3px; padding:10px 14px;
+  font-weight:800; cursor:pointer; font-size:13px; }
+.oc .mini{ border:1px solid var(--line); background:none; color:var(--txt); border-radius:3px; padding:8px 12px; cursor:pointer; font-size:12px; }
+.setting-block{ display:flex; flex-direction:column; gap:12px; margin-top:12px; }
+.setting-row{ display:flex; align-items:center; gap:8px; font-size:12px; color:var(--dim); flex-wrap:wrap; }
+.setting-row .lbl{ width:96px; flex:none; text-transform:uppercase; font-size:10px; letter-spacing:.6px; }
+.setting-row input[type=text], .setting-row input[type=number]{ flex:1; min-width:140px; background:#0a0f1f; color:var(--txt);
+  border:1px solid var(--line); border-radius:2px; padding:6px 8px; font-size:12px; }
+.setting-row button{ border:1px solid var(--line); background:#0a0f1f; color:var(--txt); border-radius:2px; padding:6px 11px; cursor:pointer; font-size:12px; }
+.setting-row .read{ color:var(--good); font-size:11px; min-width:130px; }
+
+/* ---------- RTS minimap (live density; chamber-scan module spawns mid screen) ---------- */
+#minimapWrap{ position:absolute; left:50%; top:calc(50% + 80px); transform:translate(-50%,-50%); z-index:18; display:none; pointer-events:none;
+  border:1px solid #223052; border-radius:3px; padding:4px; background:rgba(5,8,16,.7); }
+#minimapWrap.on{ display:block; }
+#minimap{ display:block; width:120px; height:120px; border-radius:2px; background:#04060e; }
+#minimapCap{ font-size:8px; letter-spacing:1.2px; color:var(--dim); text-align:center; padding:3px 0 1px; }
+
+/* ---------- RTS frame skin (StarCraft-ish): brace panels, resource strip, scanlines ---------- */
+#topbar{ border-radius:3px; box-shadow:var(--glass), 0 6px 20px rgba(0,0,0,.5), inset 0 0 18px rgba(60,140,255,.05),
+  0 0 0 1px rgba(255,176,32,.05); animation:skinGlow 6s ease-in-out infinite; }
+@keyframes skinGlow{ 0%,100%{ box-shadow:var(--glass), 0 0 0 1px rgba(255,176,32,.05), inset 0 0 18px rgba(60,140,255,.05); } 50%{ box-shadow:var(--glass), 0 0 0 1px rgba(255,176,32,.14), inset 0 0 22px rgba(60,140,255,.09); } }
+#hud{ border-bottom:1px solid #1d2c4e; overflow:hidden; }
+#hud::before{ content:''; position:absolute; inset:0; pointer-events:none;
+  background:repeating-linear-gradient(100deg, rgba(255,176,32,.035) 0 2px, transparent 2px 5px);
+  border-left:2px solid rgba(255,176,32,.5); }
+#hud::after{ content:''; position:absolute; inset:0; pointer-events:none;
+  background:linear-gradient(95deg, rgba(255,176,32,.06), transparent 30%, transparent 70%, rgba(55,200,255,.05)); }
+#hud .k{ letter-spacing:1.6px; }
+#goalPanel, #toolsPanel, #eduCard, #trackPopup, #gridLayer, #scanFooter{
+  position:relative;
+  }
+#topbar::before, #hud::before, #goalPanel::before, #toolsPanel::before, #eduCard::before, #minimapWrap::before,
+#trackPopup::before, #gridLayer::before{ pointer-events:none; }
+#goalPanel::after, #toolsPanel::after, #eduCard::after{ content:''; position:absolute; inset:0; pointer-events:none;
+  background:repeating-linear-gradient(0deg, rgba(120,200,255,.03) 0 1px, transparent 1px 4px); }
+.tc{ z-index:30; }
+#gridLayer .menuTitle b::after{ content:'▮'; margin-left:8px; color:var(--cyan); font-size:9px; }
+button:focus-visible{ outline:2px solid var(--amber); outline-offset:1px; }
+
+/* ---------- docked bottom bar: MRI chamber scanner ---------- */
+#scanFooter{ position:absolute; left:8px; top:calc(env(safe-area-inset-top,0px) + 134px); bottom:auto; transform:none; z-index:23;
+   width:min(560px, 92vw); max-height:38vh; display:flex; flex-direction:column;
+   border:1px solid #31507f;
+   background:linear-gradient(180deg, rgba(10,16,34,.94), rgba(5,8,16,.94));
+   box-shadow:0 14px 40px #000c, inset 0 1px 0 rgba(120,200,255,.12); }
+#scanFooter.collapsed .sf-mid, #scanFooter.collapsed .sf-acts{ display:none; }
+#scanFooter .sf-head{ display:flex; align-items:center; gap:8px; padding:7px 44px 7px 10px; flex-wrap:wrap;
+  border-bottom:1px solid #1d2c4e; background:rgba(13,20,40,.55); }
+#scanFooter .sf-head .chipWrap{ margin:0; }
+#scanFooter .sf-head .chip{ padding:4px 9px; font-size:10px; }
+#scanFooter select{ background:#0a0f1f; color:var(--txt); border:1px solid var(--line); border-radius:2px; padding:4px 6px; font-size:11px; }
+#scanFooter .sf-mid{ display:flex; align-items:center; gap:10px; padding:7px 10px; flex-wrap:nowrap; }
+#scanFooter .sf-slice{ display:flex; align-items:center; gap:6px; font-size:11px; color:var(--dim); flex:1; min-width:120px; }
+#scanFooter .sf-slice input[type=range]{ flex:1; accent-color:var(--amber); }
+#scanFooter .sf-slice .val{ width:44px; text-align:right; font-variant-numeric:tabular-nums; }
+#scanFooter .sf-prev{ display:flex; align-items:center; gap:10px; flex:none; }
+#scanFooter canvas{ height:80px; width:auto; border-radius:2px; background:#04060e; border:1px solid var(--line); }
+#scanFooter .sf-meta{ display:flex; flex-direction:column; gap:2px; font-size:10px; color:var(--dim); min-width:0; }
+#scanFooter .sf-acts{ display:flex; gap:6px; padding:6px 10px 8px; flex-wrap:wrap; border-top:1px solid #1d2c4e; }
+
+/* overlay-/display-density toggles (presentational, no logic) */
+body.calm #scanFooter, body.calm #minimapWrap{ display:none; }
+body.feed-min #trackOverlay, body.feed-min #trackPopup{ display:none; }
+body.hud-min #hud{ display:none; }
+body.hud-min #topbar, body.crossWallMode #topbar, body.gridMode #topbar{ top:calc(4px + env(safe-area-inset-top,0px)); }
+
+@media (max-width:560px){
+  #topbar{ top:calc(4px + env(safe-area-inset-top,0px)); padding:6px; gap:6px; border-radius:0 0 3px 3px; }
+  #topbar .brand small{ display:none; }
+  #expEndorse{ max-width:34vw; }
+  #gridBars{ grid-template-columns:repeat(auto-fill, minmax(150px, 1fr)); }
+  #minimapWrap, body.calm #minimapWrap{ display:none; }
+  #scanFooter{ width:98vw; bottom:70px; }
+  #scanFooter .sf-mid{ flex-wrap:wrap; }
+  #scanFooter .sf-slice{ flex-basis:100%; }
+  #scanFooter .sf-prev{ flex:1; justify-content:center; }
+  #scanFooter canvas{ height:72px; width:auto; }
+  #scanFooter .sf-head{ gap:5px; }
+  #toolsPanel{ top:auto; bottom:0; left:0; right:0; width:auto; max-height:55vh; border-radius:3px 3px 0 0; }
+  #elementsPanel{ max-height:55vh; bottom:10px; }
+  #gridLayer{ bottom:12px; width:97vw; }
+  #expDetail{ max-height:78vh; }
+  #eduCard{ bottom:284px; }
+}
+</style>
+</head>
+<body>
+<div id="labWrap"><canvas id="lab"></canvas></div>
+
+<div id="trackOverlay"></div>
+<div id="trackPopup" class="panel"></div>
+<div id="crossWall"></div>
+<div id="minimapWrap"><div id="minimapCap">CHAMBER SCAN</div><canvas id="minimap" width="120" height="120"></canvas></div>
+
+<div id="scanFooter" class="sfbar">
+  <div class="sf-head">
+    <button class="mini" id="scanArm" title="arm/pause the MRI live preview">◧ MRI</button>
+    <div class="chipWrap" id="scanAxis">
+      <button class="chip on" data-a="all">ALL</button>
+      <button class="chip" data-a="y">Y</button>
+      <button class="chip" data-a="x">X</button>
+      <button class="chip" data-a="z">Z</button>
+    </div>
+    <select id="scanChan">
+      <option value="density">density</option>
+      <option value="therm">therm</option>
+      <option value="charge">charge</option>
+      <option value="bonds">bonds</option>
+    </select>
+    <select id="scanColor">
+      <option value="gray">gray</option>
+      <option value="hot">hot</option>
+    </select>
+  </div>
+  <div class="sf-mid">
+    <div class="sf-slice"><span class="lbl">slice</span><input id="scanPos" type="range" min="-100" max="100" step="1" value="0"><span class="val" id="scanPosRead">0%</span></div>
+    <div class="sf-prev"><canvas id="scanCanvas" width="220" height="220"></canvas><span id="scanStats"></span></div>
+    <div class="sf-meta">
+      <span id="scanRead"></span>
+      <span id="scanTip">scanner idle — arm to start</span>
+    </div>
+  </div>
+  <div class="sf-acts">
+    <button class="mini" id="scanSnap" title="render full-res frame of the current view">◈ snap</button>
+    <button class="mini" id="scanExport" title="download PNG of the current view — or, in clip mode, the filmstrip PNG + anim player">⬆ PNG</button>
+    <button class="mini" id="mriClip" title="clip mode: hold the last 16 sweep frames for the anim export">◉ clip</button>
+    <button class="mini" id="multiBtn" title="export an x/y/z sweep sheet (3×8 slices)">⇶ axes</button>
+    <button class="mini" id="orbitBtn" title="export the 36-angle 360° orbital sheet">◎ orbit</button>
+  </div>
+</div>
+
+<div id="hud" class="hudbar">
+  <div class="stat"><span class="k">time</span><span class="v" id="timeRead">0 fs</span></div>
+  <div class="stat"><span class="k">atoms</span><span class="v" id="atomRead">0</span></div>
+  <div class="stat"><span class="k">bonds</span><span class="v" id="bondRead">0</span></div>
+  <div class="stat"><span class="k">temp</span><span class="v" id="tempReadMeasure">0 K</span></div>
+  <button class="iconBtn" id="btnSettings" title="settings · display & save paths">⚙</button>
+</div>
+<header id="topbar">
+  <div class="brand" onclick="location.href='landing.html'">
+    <span class="logo"><span class="logoIco">⬡</span><span class="logoName">&nbsp;Aarkanum&nbsp;Laboratories</span></span><small>lab</small>
+  </div>
+  <div id="expEndorse" class="panel">
+    <div id="expTitle">Salt from Nothing</div>
+    <div id="expTag">Na + Cl → NaCl</div>
+  </div>
+  <div class="speedPill">
+    <button class="mini" id="rateMinus" title="slower step">−</button>
+    <span id="ratePill">auto</span>
+    <button class="mini" id="ratePlus" title="faster step">+</button>
+  </div>
+  <button class="iconBtn" id="btnElemToggle" title="add elements">＋</button>
+  <button class="iconBtn" id="btnToolsToggle" title="instruments: geometry, sound, scope, laser, machines, cross-lab">⚙</button>
+  <button class="iconBtn" id="btnRun" title="run/pause">⏸</button>
+  <button class="iconBtn" id="btnReset" title="reset"><span class="sp">↻</span></button>
+  <button class="iconBtn" id="btnRefresh" title="refresh · rebuild the 3D view without reseeding">⟲</button>
+  <button class="iconBtn" id="btnTrack" title="track bonded clusters">◎</button>
+  <button class="iconBtn" id="btnGrid" title="tile overview">▦</button>
+  <button class="iconBtn" id="btnEnv" title="environment: open wizard">☾</button>
+</header>
+
+<div id="gridLayer">
+  <div class="menuTitle"><b>COMMAND CENTER</b><small>mission catalogue · tap a target for its dossier, then deploy</small><button id="gridClose" title="close command center">✕</button></div>
+  <div id="menuHeat">
+    <div class="mhRow"><span class="lbl">heat</span><input id="heat" type="range" min="0" max="1" step="0.05" value="0.5"><span class="val" id="heatRead">50%</span></div>
+    <div class="mhRow"><span class="lbl">temp</span><input id="temp" type="range" min="1.6" max="11.5" step="0.02" value="6.04"><span class="val" id="tempRead">420 K</span></div>
+    <div class="mhRow"><span class="lbl"></span><button class="mini" id="saveBtn" title="save this chamber as a custom experiment — it joins the command centre and the cross-wall picker">★ save custom</button><button class="mini" id="exportBtn" title="download the current experiment as JSON">⬇ export data</button></div>
+  </div>
+  <div id="gridBars"></div>
+</div>
+
+<div id="expDetail" class="panel ocdetail">
+  <div class="ed-head"><span class="ed-ico" id="edIco">⌬</span><div><b class="ed-name" id="edName">—</b><span class="ed-tag" id="edTag"></span></div><button id="edClose" title="back to catalogue">✕</button></div>
+  <div class="ed-desc" id="edDesc"></div>
+  <div class="ed-goal"><span>mission</span><b id="edGoal"></b></div>
+  <div class="ed-steps" id="edSteps"></div>
+  <div class="ed-env" id="edEnv"></div>
+  <div class="ed-vars">
+    <div class="ed-var"><span class="edv-lbl">geometry</span><div class="chipWrap" id="edGeoSel"></div></div>
+    <div class="ed-var"><span class="edv-lbl">time</span><div class="chipWrap" id="edTimeSel"></div><div class="edWhy" id="edTimeWhy"></div></div>
+    <div class="ed-var"><span class="edv-lbl">cross-lab</span><div class="chipWrap" id="edPresetSel"></div><div class="edWhy" id="edPresetWhy"></div></div>
+    <div class="ed-var"><span class="edv-lbl">feeder</span><div class="chipWrap" id="edFeedSel"></div><div class="edWhy" id="edFeedWhy"></div></div>
+  </div>
+  <button class="act" id="edGo">▶ DEPLOY EXPERIMENT</button>
+</div>
+
+<div id="toolsPanel" class="panel">
+  <div id="shapePanel" class="sidePanel">
+    <h3>Chamber geometry</h3>
+    <div class="chipWrap" id="shapeList"></div>
+    <div id="shapeDesc" style="font-size:11px;color:var(--dim);margin-bottom:6px">The classic box.</div>
+    <div id="shapeLock" style="display:none;font-size:11px;color:#eaa">♬ Chladni sand rides the plate — shape is fixed.</div>
+  </div>
+
+  <div id="chladniPanel" class="sidePanel">
+    <h3>Sound &amp; plates</h3>
+    <div class="chipWrap" id="modeList"></div>
+    <div class="row"><span class="lbl">frequency</span><input id="freqIn" type="range" min="40" max="5000" step="10" value="960"><span class="val" id="freqRead">960 Hz</span></div>
+    <div class="row"><span class="lbl">drive</span><input id="driveIn" type="range" min="0" max="1" step="0.02" value="0.6"><span class="val" id="driveRead">60%</span></div>
+    <div class="row" style="margin-top:8px"><button class="act" id="sandReset">⌘ respread sand</button></div>
+  </div>
+
+  <div id="scopePanel" class="sidePanel">
+    <h3>Oscilloscope</h3>
+    <div class="row"><span class="lbl">signal</span><select id="scopeMode"></select></div>
+    <canvas id="scopeCanvas" width="340" height="150"></canvas>
+  </div>
+
+  <div id="laserPanel" class="sidePanel">
+    <h3>Beam bank</h3>
+    <div class="chipWrap" id="beamList"></div>
+    <div class="mrow" style="margin-top:4px">
+      <button class="mini" id="beamAddBtn" title="add another beam from a new direction">＋ add beam</button>
+      <button class="mini" id="beamRemoveBtn" title="remove the selected beam">✕ remove</button>
+    </div>
+    <div class="chipWrap" id="laserTypeList" style="margin:6px 0 8px"></div>
+    <div class="mrow"><span class="lbl">beam</span><button class="mini" id="laserArm" title="arm / disarm the selected beam">off ○</button></div>
+    <div class="row"><span class="lbl">power</span><input id="laserPower" type="range" min="0" max="1" step="0.01"><span class="val" id="laserPRead">0%</span></div>
+    <div class="row"><span class="lbl">spot</span><input id="laserSpotIn" type="range" min="5" max="50" step="1"><span class="val" id="laserSpotRead">16%</span></div>
+    <div class="row" id="laserPulseRow" style="display:none"><span class="lbl">pulse</span><input id="laserRateIn" type="range" min="1" max="1000" step="1"><span class="val" id="laserRateRead">10 Hz</span></div>
+    <div class="row" id="laserGripRow" style="display:none"><span class="lbl">grip</span><input id="laserGripIn" type="range" min="0" max="1" step="0.05"><span class="val" id="laserGripRead">50%</span></div>
+    <div class="row"><span class="lbl" title="spectral tuning — photon energy eV = 1240/λ (nm); neutral atoms photoionize past their ionization threshold">λ nm</span><input id="laserWavIn" type="range" min="150" max="2500" step="5"><span class="val" id="laserWavRead">532</span></div>
+    <div class="row" title="pump-probe — shift this beam's burst window in phase; two beams with different delay probe the same packet at a time offset"><span class="lbl">delay</span><input id="laserDelIn" type="range" min="0" max="100" step="1"><span class="val" id="laserDelRead">0%</span></div>
+    <div class="mrow"><span class="lbl" style="flex:0 0 auto">detector</span><span class="val" id="laserDetRead" style="flex:1;text-align:right">—</span><button class="mini" id="detResetBtn" title="clear the far-mount detector board">✕</button></div>
+    <div class="row"><span class="lbl">axis</span><span style="display:flex;gap:4px" id="laserAxisChips"></span></div>
+    <div class="mrow" style="margin-top:4px">
+      <span class="lbl">mount</span><div class="chipWrap" style="flex:1" id="laserMountChips"></div>
+    </div>
+    <div class="row"><span class="lbl" title="slide the beam line sideways within its aiming plane — off-U runs along the traverse U axis">off U</span><input id="laserOffU" type="range" min="-100" max="100" step="1" value="0"><span class="val" id="laserOffURead">0%</span></div>
+    <div class="row"><span class="lbl" title="slide the beam line sideways within its aiming plane — off-V runs along the traverse V axis (⊥ U)">off V</span><input id="laserOffV" type="range" min="-100" max="100" step="1" value="0"><span class="val" id="laserOffVRead">0%</span></div>
+    <div class="chipWrap" style="margin:4px 0" id="laserRigs"></div>
+    <div id="laserDesc" style="font-size:11px;color:var(--dim)"></div>
+  </div>
+
+  <div id="chartPanel" class="sidePanel">
+    <h3>Chart recorder</h3>
+    <canvas id="chartCanvas" width="320" height="130"></canvas>
+    <div class="chipWrap" id="chartSrcChips" style="margin:4px 0"></div>
+    <div class="mrow"><button class="act" id="chartCsvBtn" title="download the stripchart as CSV (workspace copy too)">⬇ CSV log</button></div>
+  </div>
+
+  <div id="specPanel" class="sidePanel">
+    <h3>Mass spec + manometer</h3>
+    <canvas id="specCanvas" width="320" height="110"></canvas>
+    <div class="chipWrap" id="specModes" style="margin:4px 0"></div>
+    <div id="pressRead" class="pgrid" style="margin-bottom:2px"></div>
+  </div>
+
+  <div id="methodPanel" class="sidePanel">
+    <h3>Recipe sequencer</h3>
+    <div class="chipWrap" id="methodAdds">
+      <button class="chip" data-m="ramp">ramp °K</button>
+      <button class="chip" data-m="hold">hold</button>
+      <button class="chip" data-m="feed">feed</button>
+      <button class="chip" data-m="pulse">pulse ⚡</button>
+    </div>
+    <div id="methodList" style="display:flex;flex-direction:column;gap:3px;margin:6px 0"></div>
+    <div class="mrow">
+      <button class="mini" id="methodRunBtn" title="run / pause the recipe — ramps are interpolated by the PID tracker">▶ run</button>
+      <button class="mini" id="methodResetBtn" title="clear all steps">✕ reset</button>
+      <span class="val" id="methodRead" style="flex:1;text-align:right"></span>
+    </div>
+  </div>
+
+  <div id="stagePanel" class="sidePanel">
+    <h3>Sample stage</h3>
+    <div class="mrow">
+      <input id="stageEl" class="fsym" style="width:54px;text-transform:uppercase" value="Fe" placeholder="el">
+      <button class="mini" id="stageArmBtn" title="mount a seed crystal of this element on the stage">⛰ load</button>
+      <span class="val" id="stageRead" style="flex:1;text-align:right">stage empty</span>
+    </div>
+    <div style="font-size:10px;color:var(--dim);margin-top:4px">A small ordered cluster — a growth template for condensates.</div>
+  </div>
+
+  <div id="bookPanel" class="sidePanel">
+    <h3>Lab book</h3>
+    <div class="mrow"><span class="lbl">RNG seed</span><input id="seedIn" value="" placeholder="string or number"><button class="mini" id="seedBtn" title="set the deterministic RNG seed for reproducible runs">set</button></div>
+    <div id="seedRead" style="font-size:10px;color:var(--dim)"></div>
+    <div class="mrow" style="margin-top:6px"><span class="lbl">note</span><input id="noteIn" placeholder="mark the run…"><button class="mini" id="noteAddBtn" title="stamp a sim-time annotation into the event log">✎</button></div>
+    <div class="mrow" style="margin-top:6px"><span class="lbl">snapshot</span><button class="mini" id="snapImportBtn" title="restore a full Aarkanum snapshot JSON (atoms, bonds, run, beams, feed)">⏏ import</button></div>
+    <input id="snapFile" type="file" accept="application/json,.json" style="display:none">
+  </div>
+
+  <div id="machPanel" class="sidePanel">
+    <h3>Machine + feeder</h3>
+    <div class="chipWrap" id="machList"></div>
+    <div id="machDesc"></div>
+    <div class="mrow"><span class="lbl">B-field</span><input id="machB" type="range" min="0" max="2.5" step="0.05"><span class="val" id="machBRead">0</span></div>
+    <div class="mrow"><span class="lbl">E-field</span><input id="machE" type="range" min="0" max="2.5" step="0.05"><span class="val" id="machERead">0</span></div>
+    <div class="mrow"><span class="lbl">power</span><input id="machP" type="range" min="0" max="1" step="0.01"><span class="val" id="machPRead">0</span></div>
+    <div class="mrow"><span class="lbl">mode</span><button class="mini" id="feedArmToggle" title="auto mode — fire every enabled slot on its schedule">auto ○</button>
+      <button class="mini" id="feedNowBtn" title="inject one shot of every enabled slot now">⇢ now</button></div>
+    <div id="feedSlots"></div>
+    <div class="mrow"><button class="act" id="feedAdd">＋ add feed slot</button></div>
+    <div id="machCountRead"></div>
+    <div id="machRead"></div>
+  </div>
+
+  <div id="crossPanel" class="sidePanel">
+    <h3>Cross-Lab · physicsSim</h3>
+    <div class="chipWrap" id="crossModeChips" style="margin-bottom:6px">
+      <button class="chip on" data-m="single">single</button>
+      <button class="chip" data-m="stack">stack</button>
+    </div>
+    <div class="chipWrap" id="crossList"></div>
+    <div id="crossStackWrap" style="display:none">
+      <div class="chipWrap" id="crossStack"></div>
+      <div id="crossStackRead" style="font-size:10px;color:var(--good);margin:4px 0 8px"></div>
+    </div>
+    <div id="crossDesc" style="font-size:11px;color:var(--dim);margin-bottom:6px"></div>
+    <div id="crossKnobs"></div>
+    <iframe id="crosslabFrame" title="physicsSim cross-lab"></iframe>
+    <div class="mrow" style="margin-top:6px"><button class="act" id="crossWallBtn">⬛ run cross wall</button></div>
+    <div id="crossReadout"></div>
+  </div>
+</div>
+
+<div id="elementsPanel" class="panel sidePanel">
+  <h3>Add elements</h3>
+  <div class="chipWrap" id="famList"></div>
+  <div id="perioScroll"><div id="perioGrid"></div></div>
+  <div id="rows">
+    <button class="act" id="btnAddSel">＋ spawn selected</button>
+    <button class="act" id="btnAddAll">☰ whole table</button>
+  </div>
+  <div id="rows">
+    <button class="act" id="btnEveryday">🍽 everyday mix</button>
+    <button class="act" id="btnClear">🧹 clear</button>
+  </div>
+</div>
+
+<div id="goalPanel" class="panel">
+  <h4>Mission</h4>
+  <div id="expGoal">Goal …</div>
+  <div id="expDesc"></div>
+  <div class="goalList"></div>
+</div>
+
+<div id="eventFeed"></div>
+
+<div id="eduCard" class="panel">
+  <div class="educ-title"></div>
+  <div class="educ-body"></div>
+</div>
+
+<div id="spark"></div>
+
+<div id="atomModal" class="panel">
+  <div class="m-head"><span class="mz" data-f="z">?</span><div><div class="mn" data-f="name">—</div><div class="ms" data-f="grp">—</div></div></div>
+  <div class="m-facts">
+    <div>melt <b data-f="melt">—</b></div><div>boil <b data-f="boil">—</b></div>
+    <div>EN <b data-f="en">—</b></div><div>valence <b data-f="vals">—</b></div>
+    <div>state <b data-f="state">—</b></div><div>bonds <b data-f="bonds">0/4</b></div>
+    <div>e⁻ <b data-f="cfg">—</b></div><div>shells <b data-f="shells">—</b></div>
+    <div>found <b data-f="year">—</b></div><div>era <b data-f="era">—</b></div>
+  </div>
+  <div class="m-row"><label>mass (amu)</label><input id="mMass" type="number" step="0.01"></div>
+  <div class="m-row"><label>radius (pm)</label><input id="mRadius" type="number" step="5"></div>
+  <div class="m-row"><label>charge</label><input id="mCharge" type="number" step="1"></div>
+  <div class="m-row"><label>bond cap</label><input id="mCap" type="number" step="1"></div>
+  <div class="m-row"><label>pinned</label><input id="mFixed" type="checkbox" class="ck"></div>
+  <div class="m-row"><label>label</label><input id="mLabel" type="text" placeholder="optional"></div>
+  <div class="m-bonds"><b>bonds</b><div id="mBonds"></div></div>
+  <div style="display:flex;gap:6px;margin-top:8px">
+    <button id="mClose" class="mini" style="flex:1">done</button>
+  </div>
+</div>
+
+<div id="launch" class="oc">
+  <div class="launch-inner panel">
+    <div class="launch-brand">
+      <span class="ico">⬡</span>
+      <span><b>Aarkanum Laboratories</b><small>simulation division · est. 2026</small></span>
+    </div>
+    <div class="lgrid">
+      <button class="lcard" id="lnNew"><span class="ic">＋</span><b>New Experiment</b><i>pick an environment, then a mission</i></button>
+      <button class="lcard" id="lnLoad"><span class="ic">▦</span><b>Load Experiment</b><i>browse the full mission catalogue</i></button>
+      <button class="lcard" id="lnEnv"><span class="ic">☾</span><b>Environment</b><i>re-run the environment wizard</i></button>
+      <button class="lcard" id="lnSettings"><span class="ic">⚙</span><b>Settings</b><i>save paths, agent identity, minimap</i></button>
+    </div>
+    <div class="envbar"><span id="launchEnv">environment: unset</span><button id="lnClose">resume lab →</button></div>
+  </div>
+</div>
+
+<div id="envWiz" class="oc">
+  <div class="launch-inner panel">
+    <h2>Environment Wizard<small>The chamber is born with a climate. Presets are Earth biomes, deep space and our neighbours; Custom leaves every dial free.</small></h2>
+    <div class="chipWrap" id="envPresets"></div>
+    <div class="ew-params">
+      <div class="ew-row"><span class="lbl">gravity</span><input id="ewG" type="range" min="0" max="2" step="0.01" value="0.5"><span class="val" id="ewGRead">0.50 g</span></div>
+      <div class="ew-row"><span class="lbl">temp</span><input id="ewT" type="range" min="1" max="1500" step="5" value="300"><span class="val" id="ewTRead">300 K</span></div>
+      <div class="ew-row"><span class="lbl">atmosphere</span><input id="ewA" type="range" min="0" max="3" step="0.05" value="0.5"><span class="val" id="ewARead">0.50 atm</span></div>
+      <div class="ew-row"><span class="lbl">gas</span><span class="val" id="ewGasRead" style="width:auto;flex:1;text-align:left">N₂/O₂ 78/21</span><button class="mini" id="ewGasCycle">cycle</button></div>
+      <div class="ew-row"><span class="lbl">stars</span><input id="ewS" type="checkbox" class="ck"><span class="val" style="width:auto;color:var(--dim);font-size:11px">deep-space starfield</span></div>
+      <div class="ew-row"><span class="lbl">name</span><input id="ewName" type="text" placeholder="Custom"></div>
+    </div>
+    <div style="display:flex;gap:8px;margin-top:16px">
+      <button class="act" id="ewRun" style="flex:1">apply &amp; enter lab</button>
+      <button class="mini" id="ewCancel">back</button>
+    </div>
+  </div>
+</div>
+
+<div id="wallPick" class="oc">
+  <div class="launch-inner panel">
+    <h2>Cross wall<small>Tile any two or more experiments side-by-side in the same chamber. Every tile wears the main chamber's geometry and shares the main rate; tap a tile to open it and peek at its own plate — then return to the wall anytime.</small></h2>
+    <div class="wp-filter"><span class="lbl">filter</span><input id="wpFam" type="text" placeholder="search experiments…" autocomplete="off"></div>
+    <div class="wgrid" id="wpGrid"></div>
+    <div class="wp-bar"><span class="read" id="wpRead">pick at least 2 experiments</span><button class="mini" id="wpClear">clear</button></div>
+    <div style="display:flex;gap:8px;margin-top:14px">
+      <button class="act" id="wpRun" disabled>◧ run cross wall (0)</button>
+      <button class="mini" id="wpClose">cancel</button>
+    </div>
+  </div>
+</div>
+
+<div id="saveDlg" class="oc">
+  <div class="launch-inner panel">
+    <h2>Save experiment<small>Pin this chamber as a custom mission. It appears in the command centre and the cross-wall picker, and is remembered on this device. Saving again under the same name updates that save.</small></h2>
+    <div class="setting-block">
+      <div class="setting-row"><span class="lbl">name</span><input id="saveName" type="text" placeholder="name your experiment" autocomplete="off"></div>
+      <div class="setting-row"><span class="lbl"></span>
+        <button class="act" id="saveConfirm">★ save to command centre</button>
+        <button class="mini" id="saveClose">cancel</button>
+      </div>
+    </div>
+    <div id="saveList"></div>
+  </div>
+</div>
+
+<div id="wallFocus" class="oc">
+  <div class="panel wf-inner">
+    <div class="wf-head">
+      <span class="wf-ico" id="wfIco">⬡</span>
+      <div class="wf-title"><b id="wfName">—</b><span class="wf-tag" id="wfTag"></span></div>
+      <button id="wfClose" class="mini" title="return to the cross wall">✕</button>
+    </div>
+    <canvas id="wfCanvas" width="360" height="300"></canvas>
+    <div class="wf-stat" id="wfStat">—</div>
+    <div class="wf-goal" id="wfGoal"></div>
+    <div class="wf-desc" id="wfDesc"></div>
+    <div class="wf-acts">
+      <button class="mini" id="wfBack">⇽ return to cross wall</button>
+      <button class="act" id="wfDeploy">▶ deploy in main lab</button>
+    </div>
+  </div>
+</div>
+
+<div id="settings" class="oc">
+  <div class="launch-inner panel">
+    <h2>Settings<small>Permanent save paths, identity and defaults. Exports land under agents/&lt;you&gt;/… inside your chosen folder, so AIs can read them back.</small></h2>
+    <div class="setting-block">
+      <div class="setting-row"><span class="lbl">agent</span><input id="setAgent" type="text" placeholder="you">
+        <span class="read" style="min-width:0">exports → agents/&lt;this&gt;/</span></div>
+      <div class="setting-row"><span class="lbl">save root</span><span class="read" id="setPathRead">downloads fallback</span></div>
+      <div class="setting-row"><span class="lbl"></span>
+        <button id="setPathBtn">choose folder…</button>
+        <button id="setPathClear">forget</button>
+      </div>
+      <div class="setting-row"><span class="lbl">minimap</span><input id="setMinimap" type="checkbox" class="ck" checked><span class="read" style="min-width:0">live chamber density, bottom-left</span></div>
+      <div class="setting-row"><span class="lbl">beam wireframe</span><input id="setBeamWire" type="checkbox" class="ck" checked><span class="read" style="min-width:0">3D wireframe laser-head at each beam source</span></div>
+      <div class="setting-row"><span class="lbl">tap-inspect</span><input id="setInspect" type="checkbox" class="ck" checked><span class="read" style="min-width:0">tap atoms / bonds / plates / scan for their stats modal</span></div>
+      <div class="setting-row"><span class="lbl">overlays</span><select id="setOverlay"><option value="full">full</option><option value="calm">calm (hide footer + minimap)</option><option value="min">min (stats only)</option></select><span class="read" style="min-width:0">screen clutter</span></div>
+      <div class="setting-row"><span class="lbl">hud size</span><input id="setHud" type="range" min="0.6" max="1.8" step="0.05" value="1"><span class="read" id="setHudRead" style="min-width:0">100%</span></div>
+      <div class="setting-row"><span class="lbl">fullscreen</span><input id="setFull" type="checkbox" class="ck"><span class="read" style="min-width:0">expand the lab across the whole display · Esc exits</span></div>
+      <div class="setting-row"><span class="lbl">modules</span><span class="mod-togs" id="modList"></span></div>
+      <div class="setting-row" style="justify-content:flex-end"><button class="act" id="setClose">done</button></div>
+    </div>
+  </div>
+</div>
+
+<script src="elements.data.js"></script>
+<script type="importmap">
+{
+  "imports": {
+    "three": "/lib/three.module.js",
+    "three/addons/": "/lib/addons/"
+  }
+}
+</script>
+<script type="module" src="exp-app.js"></script>
+</body>
+</html>

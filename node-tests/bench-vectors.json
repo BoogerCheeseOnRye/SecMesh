@@ -1,0 +1,160 @@
+{
+  "tool": "bench-vectors.mjs",
+  "at": "2026-09-10T00:36:14.861Z",
+  "count": 300,
+  "rate": 30,
+  "reps": 3,
+  "hold_ms": 6500,
+  "timeout_ms": 7500,
+  "vectors": [
+    "syn-slew",
+    "linger",
+    "snaplag",
+    "udp-amp",
+    "pscan"
+  ],
+  "guard": {
+    "vecs": {
+      "syn-slew": {
+        "attempted": 900,
+        "accepted": 521,
+        "reject": [
+          41,
+          43.33,
+          42
+        ],
+        "latency": [],
+        "rejectMean": 42.11,
+        "rejectMin": 41,
+        "rejectMax": 43.33,
+        "latMs": null,
+        "rejectPct": 42.11
+      },
+      "linger": {
+        "attempted": 900,
+        "accepted": 0,
+        "reject": [
+          100,
+          100,
+          100
+        ],
+        "latency": [],
+        "rejectMean": 100,
+        "rejectMin": 100,
+        "rejectMax": 100,
+        "latMs": null,
+        "rejectPct": 100
+      },
+      "snaplag": {
+        "attempted": 900,
+        "accepted": 825,
+        "reject": [
+          9.67,
+          8.33,
+          7
+        ],
+        "latency": [
+          4,
+          4,
+          4
+        ],
+        "rejectMean": 8.33,
+        "rejectMin": 7,
+        "rejectMax": 9.67,
+        "latMs": 4,
+        "rejectPct": 8.33
+      },
+      "udp-amp": {
+        "attempted": 900,
+        "accepted": 449,
+        "reject": [
+          50,
+          50.33,
+          50
+        ],
+        "latency": [],
+        "rejectMean": 50.11,
+        "rejectMin": 50,
+        "rejectMax": 50.33,
+        "latMs": null,
+        "rejectPct": 50.11
+      }
+    },
+    "total": {
+      "accepted": 1795,
+      "total": 3600
+    }
+  },
+  "control": {
+    "vecs": {
+      "syn-slew": {
+        "attempted": 900,
+        "accepted": 900,
+        "reject": [
+          0,
+          0,
+          0
+        ],
+        "latency": [],
+        "rejectMean": 0,
+        "rejectMin": 0,
+        "rejectMax": 0,
+        "latMs": null,
+        "rejectPct": 0
+      },
+      "linger": {
+        "attempted": 900,
+        "accepted": 900,
+        "reject": [
+          0,
+          0,
+          0
+        ],
+        "latency": [],
+        "rejectMean": 0,
+        "rejectMin": 0,
+        "rejectMax": 0,
+        "latMs": null,
+        "rejectPct": 0
+      },
+      "snaplag": {
+        "attempted": 900,
+        "accepted": 900,
+        "reject": [
+          0,
+          0,
+          0
+        ],
+        "latency": [
+          4,
+          5,
+          4
+        ],
+        "rejectMean": 0,
+        "rejectMin": 0,
+        "rejectMax": 0,
+        "latMs": 4,
+        "rejectPct": 0
+      },
+      "udp-amp": {
+        "attempted": 900,
+        "accepted": 900,
+        "reject": [
+          0,
+          0,
+          0
+        ],
+        "latency": [],
+        "rejectMean": 0,
+        "rejectMin": 0,
+        "rejectMax": 0,
+        "latMs": null,
+        "rejectPct": 0
+      }
+    },
+    "total": {
+      "accepted": 3600,
+      "total": 3600
+    }
+  }
+}

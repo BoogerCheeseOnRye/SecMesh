@@ -1,0 +1,2250 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Quantum→Universe | Theoretical Physics Engine</title>
+<style>
+* { box-sizing: border-box; }
+body { margin: 0; overflow: hidden; background: #000; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
+canvas { display: block; }
+
+#ui {
+  position: absolute; top: 10px; left: 10px; color: #0ff;
+  font-size: 11px; background: rgba(0,0,0,0.8); padding: 10px 14px;
+  border-radius: 8px; border: 1px solid rgba(0,255,255,0.25);
+  font-family: monospace; pointer-events: none; z-index: 10;
+  min-width: 180px; backdrop-filter: blur(4px);
+}
+#ui .label { color: #888; }
+#ui .value { color: #0ff; }
+#ui .scale { font-size: 16px; color: #fff; margin-bottom: 4px; }
+#ui .row { display: flex; justify-content: space-between; gap: 12px; }
+
+#controls-bar {
+  position: absolute; bottom: 20px; left: 50%; transform: translateX(-50%);
+  color: #0ff; font-size: 10px; background: rgba(0,0,0,0.65);
+  padding: 6px 14px; border-radius: 8px; border: 1px solid rgba(0,255,255,0.2);
+  font-family: monospace; z-index: 10; text-align: center;
+  pointer-events: none; backdrop-filter: blur(4px);
+}
+#controls-bar kbd {
+  background: rgba(0,255,255,0.12); padding: 1px 5px; border-radius: 3px;
+  border: 1px solid rgba(0,255,255,0.25); color: #0ff;
+}
+
+#ui .ui-btn {
+  pointer-events: auto; margin-top: 8px; width: 100%;
+  background: rgba(0,255,255,0.12); border: 1px solid rgba(0,255,255,0.35);
+  color: #0ff; font-family: monospace; font-size: 10px; padding: 4px 8px;
+  border-radius: 4px; cursor: pointer;
+}
+#ui .ui-btn:hover { background: rgba(0,255,255,0.22); }
+
+#scrim {
+  display: none; position: fixed; inset: 0; z-index: 18;
+  background: rgba(0,0,0,0.55);
+}
+#scrim.on { display: block; }
+
+#panel {
+  display: none; position: fixed; z-index: 19;
+  width: min(92vw, 420px); max-height: 80vh; overflow-y: auto;
+  background: rgba(0,0,0,0.92); border-radius: 12px;
+  border: 1px solid rgba(0,255,255,0.25); padding: 14px 16px;
+  font-family: monospace; font-size: 11px; color: #0ff;
+  backdrop-filter: blur(4px); box-shadow: 0 20px 60px rgba(0,0,0,0.6);
+}
+#panel.open { display: block; top: 50%; left: 50%; transform: translate(-50%, -50%); }
+#panel::-webkit-scrollbar { width: 3px; }
+#panel::-webkit-scrollbar-track { background: transparent; }
+#panel::-webkit-scrollbar-thumb { background: rgba(0,255,255,0.3); border-radius: 2px; }
+#panel .section { margin-bottom: 10px; padding-bottom: 8px; border-bottom: 1px solid rgba(0,255,255,0.1); }
+#panel .section:last-child { border-bottom: none; margin-bottom: 0; padding-bottom: 0; }
+#panel .section-title { font-size: 10px; color: #888; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 6px; cursor: pointer; user-select: none; }
+#panel .section-title:hover { color: #0ff; }
+#panel label { display: flex; justify-content: space-between; align-items: center; margin-bottom: 3px; font-size: 10px; color: #aaa; }
+#panel input[type="range"] {
+  -webkit-appearance: none; appearance: none; flex: 1; height: 3px;
+  background: rgba(0,255,255,0.2); border-radius: 2px; outline: none; cursor: pointer; min-width: 0;
+}
+#panel input[type="range"]::-webkit-slider-thumb {
+  -webkit-appearance: none; width: 10px; height: 10px;
+  background: #0ff; border-radius: 50%; cursor: pointer; box-shadow: 0 0 6px rgba(0,255,255,0.4);
+}
+#panel input[type="range"]::-moz-range-thumb {
+  width: 10px; height: 10px; background: #0ff; border-radius: 50%; cursor: pointer; border: none;
+}
+#panel .val { color: #0ff; font-size: 10px; min-width: 32px; text-align: right; }
+#panel .slider-row { display: flex; align-items: center; gap: 4px; flex: 1; }
+#panel .slider-row input[type="range"] { flex: 1; }
+#panel .num-input { width: 42px; background: rgba(0,255,255,0.05); border: 1px solid rgba(0,255,255,0.2); color: #0ff; font-family: monospace; font-size: 9px; padding: 1px 3px; border-radius: 2px; text-align: right; outline: none; }
+#panel .num-input:focus { border-color: #0ff; }
+#panel input[type="text"], #panel textarea, #panel select {
+  background: rgba(0,255,255,0.05); border: 1px solid rgba(0,255,255,0.2);
+  color: #0ff; font-family: monospace; font-size: 10px; padding: 3px 5px;
+  border-radius: 3px; width: 100%; outline: none;
+}
+#panel select { cursor: pointer; }
+#panel select option { background: #000; color: #0ff; }
+#panel input[type="text"]:focus, #panel textarea:focus, #panel select:focus { border-color: #0ff; }
+#panel textarea { resize: vertical; min-height: 28px; }
+#panel input[type="color"] { width: 24px; height: 18px; padding: 0; border: 1px solid rgba(0,255,255,0.2); border-radius: 2px; background: transparent; cursor: pointer; }
+#panel .btn {
+  background: rgba(0,255,255,0.1); border: 1px solid rgba(0,255,255,0.3);
+  color: #0ff; font-family: monospace; font-size: 10px; padding: 3px 8px;
+  border-radius: 3px; cursor: pointer; transition: all 0.15s;
+}
+#panel .btn:hover { background: rgba(0,255,255,0.2); border-color: #0ff; }
+#panel .btn.danger { border-color: rgba(255,0,100,0.4); color: #f06; }
+#panel .btn.danger:hover { border-color: #f06; background: rgba(255,0,100,0.15); }
+#panel .node-select { font-size: 9px; color: #888; margin-bottom: 2px; cursor: pointer; padding: 2px 4px; border-radius: 2px; }
+#panel .node-select:hover { background: rgba(0,255,255,0.05); color: #0ff; }
+#panel .node-select.active { color: #fff; background: rgba(0,255,255,0.1); }
+#panel .check-row { display: flex; align-items: center; gap: 6px; margin-bottom: 3px; }
+#panel .check-row input { accent-color: #0ff; }
+#panel .flex-row { display: flex; gap: 4px; align-items: center; }
+#panel .subsection { margin-left: 6px; margin-bottom: 4px; padding-left: 6px; border-left: 1px solid rgba(0,255,255,0.08); }
+
+#runbar {
+  display: flex; align-items: center; gap: 8px; justify-content: center;
+  margin-top: 8px; pointer-events: auto; flex-wrap: wrap;
+}
+#runbar .btn {
+  background: rgba(0,255,255,0.12); border: 1px solid rgba(0,255,255,0.35);
+  color: #0ff; font-family: monospace; font-size: 11px; padding: 5px 14px;
+  border-radius: 4px; cursor: pointer; transition: all 0.15s;
+}
+#runbar .btn:hover { background: rgba(0,255,255,0.22); }
+#runbar .btn.run { background: rgba(0,255,255,0.28); border-color: #0ff; color: #000; font-weight: bold; }
+#runbar .run-ctl { display: flex; align-items: center; gap: 6px; color: #0ff; font-size: 10px; }
+#runbar input[type="range"] {
+  width: 90px; -webkit-appearance: none; appearance: none; height: 3px;
+  background: rgba(0,255,255,0.2); border-radius: 2px; outline: none; cursor: pointer;
+}
+#runbar input[type="range"]::-webkit-slider-thumb { -webkit-appearance: none; width: 9px; height: 9px; background: #0ff; border-radius: 50%; cursor: pointer; }
+
+#exportCard {
+  position: absolute; top: 20px; left: 50%; transform: translateX(-50%);
+  width: min(94vw, 880px); max-height: calc(100vh - 40px); overflow: auto;
+  background: #0b1120; border: 1px solid #223052; border-radius: 14px;
+  padding: 16px 20px 22px; z-index: 20; color: #dbe6ff;
+  font: 13px/1.5 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  box-shadow: 0 24px 70px #000d;
+}
+#exportCard h1 { margin: 0; font-size: 16px; color: #ffb020; letter-spacing: .5px; }
+#exportCard .sub { color: #7c8db3; font-size: 11px; margin: 2px 0 10px; }
+#exportCard .btns { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 4px; }
+#exportCard .btns button {
+  background: #0a0f1f; color: #37c8ff; border: 1px solid #223052;
+  border-radius: 8px; padding: 6px 12px; font: 12px system-ui; cursor: pointer;
+}
+#exportCard p.prose { font-size: 13px; line-height: 1.58; }
+#exportCard p.prose b { color: #ffb020; }
+#exportCard ul.facts { list-style: none; margin: 8px 0; padding: 0; display: grid; grid-template-columns: 1fr 1fr; gap: 6px 10px; }
+#exportCard ul.facts li { background: #0a0f1fcc; border: 1px solid #223052; border-radius: 8px; padding: 8px 11px; font-size: 12px; }
+#exportCard ul.facts li b { color: #37c8ff; display: block; font-size: 9px; letter-spacing: 1.1px; text-transform: uppercase; margin-bottom: 2px; }
+#exportCard .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 10px; margin: 12px 0; }
+#exportCard .cell { border: 1px solid #223052; background: #0a0f1fcc; border-radius: 8px; padding: 9px 11px; font-size: 12px; }
+#exportCard .cell h4 { margin: 0 0 5px; color: #37c8ff; font-size: 10px; letter-spacing: 1.2px; text-transform: uppercase; }
+#exportCard .kv { display: grid; grid-template-columns: auto 1fr; gap: 2px 12px; }
+#exportCard .kv b { font-weight: 600; }
+#exportCard .kv span { color: #7c8db3; text-align: right; font-variant-numeric: tabular-nums; word-break: break-all; }
+#exportCard table { border-collapse: collapse; width: 100%; font-size: 11px; margin: 6px 0; }
+#exportCard th, #exportCard td { text-align: left; padding: 3px 6px; border-bottom: 1px solid #16233f; }
+#exportCard th { color: #7c8db3; font-weight: 600; }
+#exportCard h3 { color: #ffb020; font-size: 12px; letter-spacing: 1px; text-transform: uppercase; margin: 16px 0 6px; }
+#exportCard pre { white-space: pre-wrap; word-break: break-all; font: 10px/1.5 ui-monospace, monospace; color: #9fb4dd; background: #070b16; border: 1px solid #223052; border-radius: 8px; padding: 10px; max-height: 34vh; overflow: auto; }
+#exportCard summary { cursor: pointer; color: #37c8ff; font-size: 12px; }
+#exportCard .off { color: #7c8db3; }
+#exportCard .cur { background: rgba(255,176,32,0.08); font-weight: bold; }
+@media (max-width: 760px) {
+  #exportCard { left: 0; right: 0; transform: none; width: 100%; top: auto; bottom: 0; max-height: 95vh; border-radius: 16px 16px 0 0; }
+  #exportCard ul.facts { grid-template-columns: 1fr; }
+}
+@media print { #exportCard { position: static; transform: none; width: 100%; max-height: none; overflow: visible; } body { overflow: auto; background: #fff; } #exportCard * { color: #000 !important; background: transparent !important; border-color: #999 !important; } }
+
+#trackLayer {
+  position: fixed; inset: 0; pointer-events: none; z-index: 15; overflow: hidden;
+}
+.tk-box { position: absolute; width: 14px; height: 14px; border: 1.5px solid #0ff; border-radius: 50%; box-shadow: 0 0 8px rgba(0,255,255,0.5); transform: translate(-50%,-50%); }
+.tk-box .tk-lb {
+  position: absolute; left: 8px; top: 12px; font: 9px monospace;
+  background: rgba(0,0,0,0.72); padding: 1px 4px; border-radius: 3px;
+  color: #0ff; white-space: nowrap;
+}
+.tk-box.tk-att .tk-lb, .tk-box.tk-att { border-color: #f55; color: #f55; box-shadow: 0 0 8px rgba(255,80,80,.5); }
+#tapPopup {
+  position: absolute; transform: translate(-50%, -110%); font: 10px/1.45 monospace;
+  min-width: 160px; max-width: 240px; background: rgba(0,0,0,0.9);
+  border: 1px solid rgba(0,255,255,0.35); border-radius: 8px;
+  padding: 8px 10px; color: #0ff; box-shadow: 0 6px 24px rgba(0,0,0,0.6); pointer-events: none;
+}
+#tapPopup b { color: #fff; }
+#tapPopup .tp-c { color: #3ff; }
+#tapPopup .tp-warn { color: #f66; }
+#tapPopup .tp-head { border-bottom: 1px solid rgba(0,255,255,0.2); padding-bottom: 4px; margin-bottom: 5px; font-size: 11px; color: #fff; }
+
+#scale-indicator {
+  position: absolute; right: 302px; top: 50%; transform: translateY(-50%);
+  width: 3px; height: 260px; background: rgba(255,255,255,0.08); border-radius: 2px; z-index: 10;
+}
+#scale-indicator .fill {
+  position: absolute; bottom: 0; width: 100%;
+  background: linear-gradient(to top, #f0f, #0ff); border-radius: 2px; transition: height 0.05s;
+}
+#scale-indicator .dot {
+  position: absolute; left: -3px; width: 9px; height: 9px;
+  background: #fff; border-radius: 50%; transition: bottom 0.05s; box-shadow: 0 0 8px rgba(255,255,255,0.4);
+}
+</style>
+</head>
+<body>
+
+<div id="ui">
+  <div class="scale"><span id="scaleName">NUCLEAR</span> SCALE</div>
+  <div class="row"><span class="label">Scale</span><span class="value" id="scaleValue">1.0e-15</span></div>
+  <div class="row"><span class="label">Nodes</span><span class="value" id="nodeCount">0</span></div>
+  <div class="row"><span class="label">Agents</span><span class="value" id="agentCount">0</span></div>
+  <div class="row"><span class="label">Links</span><span class="value" id="connectionCount">0</span></div>
+  <div class="row"><span class="label">FPS</span><span class="value" id="fpsDisplay">60</span></div>
+  <div class="row"><span class="label">Energy</span><span class="value" id="energyDisplay">0.00</span></div>
+  <div class="row"><span class="label">Entropy</span><span class="value" id="entropyDisplay">0.00</span></div>
+  <button id="openPanel" class="ui-btn">⚙ Controls · parameters</button>
+  <a class="ui-btn" style="display:block;text-align:center;text-decoration:none" href="../landing.html">◂ Return to hub</a>
+</div>
+
+<div id="scale-indicator">
+  <div class="fill" id="scaleFill" style="height:50%"></div>
+  <div class="dot" id="scaleDot" style="bottom:50%"></div>
+</div>
+
+<div id="scrim"></div>
+<div id="panel"></div>
+
+<div id="controls-bar">
+  <kbd>Scroll</kbd> Scale &nbsp;<kbd>Drag</kbd> Rotate &nbsp;<kbd>R</kbd> Reset &nbsp;<kbd>Space</kbd> +50 agents
+  <div id="runbar">
+    <button class="btn" id="runBtn">▶ Run experiment</button>
+    <button class="btn" id="stepBtn">⏭ Step</button>
+    <label class="run-ctl">Time <input type="range" id="runRate" min="1" max="100" step="1" value="25"><span id="runRateVal">0.25</span></label>
+    <span class="run-ctl" id="stepCount">steps 0</span>
+    <button class="btn" id="barExport">⚒ Export</button>
+  </div>
+</div>
+
+<script type="importmap">
+{
+  "imports": {
+    "three": "../lib/three.module.js",
+    "three/addons/": "../lib/addons/"
+  }
+}
+</script>
+
+<script type="module">
+import * as THREE from 'three';
+import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+
+// ─── CONFIG ─────────────────────────────────────────────────────────────
+const CFG = {
+  numAgents: 200, numNodes: 180, agentSpeed: 0.15,
+  evaporation: 0.985, diffusion: 0.1,
+  sensorAngle: 0.628, rotationAngle: 0.524, sensorDistance: 2.0,
+  alignStrength: 0.008, repulsionStrength: 0.04,
+  damping: 0.94, maxConnections: 4, connectionThreshold: 1.2,
+  trailRes: 32, trailIntensity: 0.12,
+  gravity: 0.18, quantum: 0.15, entangle: 0.3,
+  tunnel: 0.1, curvature: 0.25, energyShells: 4,
+  darkEnergy: 0.05, inflation: 0.0, fineStructure: 1.0,
+  strongForce: 0.06, weakForce: 0.05, higgsField: 0.3,
+  decoherence: 0.02, vacuumEnergy: 0.01, planckScale: 0.0,
+  // harmony hooks: gentle orbital revolution + short-range separation keep an
+  // orderly multi-cluster ensemble instead of one collapsing giant blob
+  orbital: 0.15, separation: 0.12,
+  // mesh shells: pin nodes to concentric shell walls so the ensemble reads as a
+  // stable world/cluster of devices instead of collapsing to a single point.
+  // The spring backs off when gravity is high so web-forming presets survive.
+  meshShell: true,
+  // security-system demo knobs
+  security: false, threatLevel: 0.2, firewall: 0.7,
+  defenderCount: 6, attackerBatch: 40, attackTrails: true,
+  // moving-target auto-defense: rotates defense strategies that steer defenders
+  // along wholly unique per-agent paths through the data lattice
+  autoDefense: false, autoDefRotate: 60,
+  // camera-focus tracking
+  trackFocus: false, trackCount: 5,
+  runSpeed: 0.25,   // physics steps advanced per animation frame while running
+  entropyVis: false, waveFunc: false, gravLens: false,
+  showGrid: true, showAgents: true, showConnections: true,
+  autoRotate: false, trailHeatmap: false,
+  nodeColor: '#00ffff', agentColor: '#00ffff', connectColor: '#00ffff', bgColor: '#000000',
+  colorOffset: 0.3, colorIntensity: 0.7,
+  renderStyle: 'points', preset: 'custom',
+  nodeOpacity: 0.9, glowSize: 1.0,
+};
+
+const SCALE_LEVELS = [
+  { name: 'PLANCK',     v: 1.6e-35, c: 0xff00ff },
+  { name: 'QUARK',      v: 1.0e-18, c: 0xaa00ff },
+  { name: 'NUCLEAR',    v: 1.0e-15, c: 0x6600ff },
+  { name: 'ATOMIC',     v: 1.0e-10, c: 0x0044ff },
+  { name: 'MOLECULAR',  v: 1.0e-9,  c: 0x00aaff },
+  { name: 'NANOSCALE',  v: 1.0e-7,  c: 0x00ffcc },
+  { name: 'MICROSCOPIC',v: 1.0e-5,  c: 0x00ff66 },
+  { name: 'HUMAN',      v: 1.0,     c: 0x44ff44 },
+  { name: 'MACRO',      v: 1.0e3,   c: 0x88ff22 },
+  { name: 'CITY',       v: 1.0e4,   c: 0xccff00 },
+  { name: 'PLANETARY',  v: 1.0e7,   c: 0xffcc00 },
+  { name: 'STELLAR',    v: 1.0e9,   c: 0xff8800 },
+  { name: 'SOLAR',      v: 1.0e13,  c: 0xff4400 },
+  { name: 'GALACTIC',   v: 1.0e20,  c: 0xff2200 },
+  { name: 'CLUSTER',    v: 1.0e23,  c: 0xcc0000 },
+  { name: 'UNIVERSAL',  v: 1.0e26,  c: 0x880000 },
+];
+
+const PRESETS = {
+  custom: { label: 'Custom' },
+  quantumFoam: { label: 'Quantum Foam', quantum: 0.8, tunnel: 0.5, entangle: 0.7, decoherence: 0.01, planckScale: 0.5 },
+  atomic: { label: 'Atomic Lattice', energyShells: 7, strongForce: 0.4, quantum: 0.1, gravity: 0.01 },
+  galactic: { label: 'Galactic Web', gravity: 0.8, darkEnergy: 0.3, curvature: 0.7, inflation: 0.1, alignStrength: 0.01 },
+  slimeMold: { label: 'Slime Mold', tunnel: 0, quantum: 0, gravity: 0, evaporation: 0.99, diffusion: 0.15, sensorAngle: 0.7 },
+  neuralNet: { label: 'Neural Net', alignStrength: 0.08, repulsionStrength: 0.01, damping: 0.92, maxConnections: 8 },
+  chaos: { label: 'Chaos', quantum: 0.9, gravity: 0.6, entangle: 0.8, tunnel: 0.7, curvature: 0.8, darkEnergy: 0.9 },
+};
+
+// ─── THREE.JS ───────────────────────────────────────────────────────────
+const scene = new THREE.Scene();
+const camera = new THREE.PerspectiveCamera(60, innerWidth / innerHeight, 1e-34, 1e30);
+camera.position.set(5, 3, 8);
+
+const renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: 'high-performance' });
+renderer.setSize(innerWidth, innerHeight);
+renderer.setPixelRatio(1);
+renderer.setClearColor(0x000000);
+document.body.prepend(renderer.domElement);
+
+const controls = new OrbitControls(camera, renderer.domElement);
+controls.enableDamping = true;
+controls.dampingFactor = 0.08;
+controls.zoomSpeed = 0.4;
+controls.target.set(0, 0, 0);
+controls.maxDistance = 1e28;
+controls.minDistance = 1e-34;
+
+addEventListener('resize', () => {
+  camera.aspect = innerWidth / innerHeight;
+  camera.updateProjectionMatrix();
+  renderer.setSize(innerWidth, innerHeight);
+});
+
+// ─── STARS ──────────────────────────────────────────────────────────────
+const starPos = new Float32Array(3000 * 3);
+for (let i = 0; i < 3000 * 3; i++) starPos[i] = (Math.random() - 0.5) * 1000;
+const starsGeo = new THREE.BufferGeometry();
+starsGeo.setAttribute('position', new THREE.BufferAttribute(starPos, 3));
+const starsMat = new THREE.PointsMaterial({ color: 0xffffff, size: 0.3, transparent: true, opacity: 0.5 });
+const stars = new THREE.Points(starsGeo, starsMat);
+scene.add(stars);
+
+// ─── GRID ───────────────────────────────────────────────────────────────
+const gridGroup = new THREE.Group();
+scene.add(gridGroup);
+let gridCache = { size: -1, div: -1 };
+
+function updateGrid(scale, visible) {
+  gridGroup.visible = visible;
+  if (!visible) return;
+  const size = Math.max(1, Math.log10(scale + 1) * 3);
+  const div = Math.min(16, Math.max(4, Math.round(size * 2)));
+  if (gridCache.size === size && gridCache.div === div) return;
+  gridCache = { size, div };
+  while (gridGroup.children.length) gridGroup.remove(gridGroup.children[0]);
+  const g = new THREE.GridHelper(size, div, 0x00ffff, 0x004466);
+  g.material.transparent = true;
+  g.material.opacity = 0.08;
+  gridGroup.add(g);
+}
+
+// ─── SPATIAL INDEX ──────────────────────────────────────────────────────
+class SpatialMap {
+  constructor(cellSize = 2) {
+    this.cellSize = cellSize;
+    this.map = new Map();
+  }
+  clear() { this.map.clear(); }
+  key(x, y, z) { return `${Math.floor(x/this.cellSize)},${Math.floor(y/this.cellSize)},${Math.floor(z/this.cellSize)}`; }
+  insert(idx, x, y, z) {
+    const k = this.key(x, y, z);
+    if (!this.map.has(k)) this.map.set(k, []);
+    this.map.get(k).push(idx);
+  }
+  query(x, y, z, radius) {
+    const result = [];
+    const r = Math.ceil(radius / this.cellSize);
+    const cx = Math.floor(x / this.cellSize), cy = Math.floor(y / this.cellSize), cz = Math.floor(z / this.cellSize);
+    for (let dx = -r; dx <= r; dx++) for (let dy = -r; dy <= r; dy++) for (let dz = -r; dz <= r; dz++) {
+      const k = `${cx+dx},${cy+dy},${cz+dz}`;
+      if (this.map.has(k)) result.push(...this.map.get(k));
+    }
+    return result;
+  }
+}
+
+// Auto-defense unique-path lattice: defenders sweep an 8³ volumetric grid of
+// the field data, each on its own low-discrepancy trajectory (no two share a
+// route). Kept above `class Sim` (and after SpatialMap) so the headless harness
+// slice — from `class SpatialMap` to the RENDERER banner — captures them too.
+const PAC = 8;
+const AUTO_STRATS = ['sweep', 'perimeter', 'rash', 'pursuit'];
+
+// ─── SIMULATION ─────────────────────────────────────────────────────────
+class Sim {
+  constructor() {
+    this.agents = [];
+    this.nodePos = new Float32Array(0);
+    this.nodeVel = new Float32Array(0);
+    this.nodeWeight = new Float32Array(0);
+    this.nodeBias = new Float32Array(0);
+    this.nodeAct = new Float32Array(0);
+    this.nodeMass = new Float32Array(0);
+    this.nodeCharge = new Float32Array(0);
+    this.nodeSpin = new Float32Array(0);
+    this.nodeWaveReal = new Float32Array(0);
+    this.nodeWaveImag = new Float32Array(0);
+    this.nodeShell = new Float32Array(0);
+    this.nodeHomeR = new Float32Array(0);
+    this.nodeEntangle = [];
+    this.nodeData = [];
+    this.connections = [];
+    this.spatial = new SpatialMap(2.5);
+    this.entropy = 0;
+    this.totalEnergy = 0;
+    this.history = [];
+    this.blocked = 0;
+    this.intrusions = 0;
+    this.peakStress = 0;
+    this.events = [];
+    this.pulses = [];
+    this.compromised = new Set();
+    this.secTick = 0;
+    this.step = 0;
+    this.auto = {
+      on: false, prepped: false, index: 0, strategy: 'pursuit', rotation: 0,
+      seed: 1234567, ticks: 0, coverCount: 0, intercepts: 0,
+      coverSeen: new Uint8Array(PAC * PAC * PAC), stratTicks: {},
+    };
+    // Defense console working state: quarantined nodes are electronically
+    // isolated from the ensemble, deployed defenders are manual reinforcements,
+    // and attackers carry sanitized source telemetry for the inspection UI.
+    this.quarantined = new Set();
+    this.deployedDefenders = 0;
+    this.attackerSeq = 0;
+    this.defenseLedger = [];
+    this.resize(CFG.numNodes, CFG.numAgents);
+  }
+
+  simHash(str){
+    let h = 2166136261 >>> 0;
+    for (let i = 0; i < str.length; i++){ h ^= str.charCodeAt(i); h = Math.imul(h, 16777619); }
+    return (h >>> 0).toString(16).padStart(8, '0');
+  }
+  attackerSource(a){
+    if (!a || a.role !== 'attacker' || !a.src) return null;
+    const n = this.nearestNode(a.px, a.py, a.pz);
+    const s = a.src;
+    return {
+      id: s.id, hash: s.hash, ip: s.ip, port: s.port, proto: s.proto,
+      hops: s.hops, ttl: s.ttl, vector: s.vector, risk: s.risk,
+      firstSeen: s.since, live: this.step - s.since,
+      target: n >= 0 ? n : -1, targetLabel: n >= 0 ? this.nodeData[n].label : '—',
+      pos: [a.px, a.py, a.pz], speed: +a.spd.toFixed(3), quarantine: this.quarantined.has(n),
+    };
+  }
+  // ── defense console primitives ─────────────────────────────────────────
+  quarantineNode(i){
+    if (i < 0 || i >= CFG.numNodes || this.quarantined.has(i)) return false;
+    this.quarantined.add(i);
+    this.nodeWeight[i] = Math.max(0.05, this.nodeWeight[i] - 0.15);
+    this.defenseLedger.push({ step: this.step, kind: 'quarantine', node: i, label: this.nodeData[i].label });
+    this.logSec('quarantine', 'node ' + this.nodeData[i].label + ' isolated from the ensemble');
+    return true;
+  }
+  releaseNode(i){
+    if (!this.quarantined.has(i)) return false;
+    this.quarantined.delete(i);
+    this.defenseLedger.push({ step: this.step, kind: 'release', node: i, label: this.nodeData[i].label });
+    this.logSec('release', 'node ' + this.nodeData[i].label + ' re-linked');
+    return true;
+  }
+  deployDefender(x, y, z){
+    if (this.agents.length >= 1024) return false;
+    this.agents.push({
+      px: x, py: y, pz: z, dx: Math.random() - 0.5, dy: Math.random() - 0.5, dz: Math.random() - 0.5,
+      spd: 0.35, phase: Math.random() * Math.PI * 2, tunnelCD: 0, role: 'defender', removed: false, manual: true,
+    });
+    this.deployedDefenders++;
+    this.defenseLedger.push({ step: this.step, kind: 'deploy', at: [x, y, z] });
+    this.logSec('deploy', 'manual defender air-dropped at ' + Math.round(x*10)/10 + ',' + Math.round(y*10)/10);
+    return true;
+  }
+
+  resize(numNodes, numAgents) {
+    const R = CFG.trailRes;
+    this.trail = new Float32Array(R * R * R);
+    this.trail2 = new Float32Array(R * R * R);
+    this.curvatureMap = new Float32Array(R * R * R);
+    this.stress = new Float32Array(numNodes);
+    this.nodePos = new Float32Array(numNodes * 3);
+    this.nodeVel = new Float32Array(numNodes * 3);
+    this.nodeWeight = new Float32Array(numNodes);
+    this.nodeBias = new Float32Array(numNodes);
+    this.nodeAct = new Float32Array(numNodes);
+    this.nodeMass = new Float32Array(numNodes);
+    this.nodeCharge = new Float32Array(numNodes);
+    this.nodeSpin = new Float32Array(numNodes);
+    this.nodeWaveReal = new Float32Array(numNodes);
+    this.nodeWaveImag = new Float32Array(numNodes);
+    this.nodeShell = new Float32Array(numNodes);
+    this.nodeHomeR = new Float32Array(numNodes);
+    this.nodeEntangle = new Array(numNodes);
+    this.nodeData = [];
+    this.connections = new Array(numNodes);
+    for (let i = 0; i < numNodes; i++) { this.connections[i] = []; this.nodeEntangle[i] = []; }
+    const n = numNodes;
+    for (let i = 0; i < n; i++) {
+      let px, py, pz, homeR;
+      const useShells = CFG.meshShell && n > 24;
+      if (useShells) {
+        // Concentric shell walls — a layered "world / cluster of devices" that
+        // reads as a stable mesh wall instead of a collapsing point.
+        const SHELLS = [3.2, 5.4];
+        const sk = i % SHELLS.length;
+        const R = SHELLS[sk];
+        const local = Math.floor(i / SHELLS.length);
+        const count = Math.max(2, Math.ceil(n / SHELLS.length));
+        const g = (Math.PI * (3 - Math.sqrt(5))) * (local + 0.5);
+        const y = 1 - ((local % count) / count) * 2;
+        const r = Math.sqrt(Math.max(0, 1 - y * y));
+        px = R * Math.cos(g) * r;
+        py = R * y;
+        pz = R * Math.sin(g) * r;
+        homeR = R;
+      } else {
+        const theta = Math.random() * Math.PI * 2, phi = Math.acos(2 * Math.random() - 1);
+        const r = Math.pow(Math.random(), 1.5) * 6;
+        px = r * Math.sin(phi) * Math.cos(theta);
+        py = r * Math.sin(phi) * Math.sin(theta);
+        pz = r * Math.cos(phi);
+        homeR = r;
+      }
+      this.nodePos[i*3] = px;
+      this.nodePos[i*3+1] = py;
+      this.nodePos[i*3+2] = pz;
+      this.nodeHomeR[i] = homeR;
+      this.nodeWeight[i] = Math.random();
+      this.nodeBias[i] = Math.random() * 0.5;
+      this.nodeMass[i] = 0.5 + Math.random();
+      this.nodeCharge[i] = (Math.random() - 0.5) * 2;
+      this.nodeSpin[i] = (Math.random() > 0.5 ? 1 : -1) * (0.5 + Math.random() * 0.5);
+      this.nodeWaveReal[i] = Math.random() * 0.5;
+      this.nodeWaveImag[i] = Math.random() * 0.5;
+      this.nodeShell[i] = Math.floor(Math.random() * (CFG.energyShells + 1));
+      this.nodeData.push({ label: `n${i}`, data: '' });
+    }
+    for (let i = 0; i < n; i++) {
+      if (this.nodeEntangle[i].length === 0 && Math.random() < 0.15) {
+        let j = Math.floor(Math.random() * n);
+        if (j !== i && this.nodeEntangle[j].length === 0) { this.nodeEntangle[i].push(j); this.nodeEntangle[j].push(i); }
+      }
+    }
+    this.agents = [];
+    for (let i = 0; i < numAgents; i++) {
+      this.agents.push({
+        px: (Math.random() - 0.5) * 10, py: (Math.random() - 0.5) * 10, pz: (Math.random() - 0.5) * 10,
+        dx: Math.random() - 0.5, dy: Math.random() - 0.5, dz: Math.random() - 0.5,
+        spd: 0.15 + Math.random() * 0.1, phase: Math.random() * Math.PI * 2, tunnelCD: 0,
+        role: 'legit', removed: false,
+      });
+      const a = this.agents[i]; const len = Math.sqrt(a.dx*a.dx + a.dy*a.dy + a.dz*a.dz) || 1;
+      a.dx /= len; a.dy /= len; a.dz /= len;
+    }
+  }
+
+  logSec(type, msg){
+    this.events.push({ step: this.step, type, msg });
+    if (this.events.length > 40) this.events.shift();
+  }
+  countRole(role){ let c = 0; for (const a of this.agents) if (a.role === role) c++; return c; }
+  nearestNode(px, py, pz){
+    let best = -1, bd = Infinity;
+    for (let i = 0; i < CFG.numNodes; i++){
+      const dx = this.nodePos[i*3] - px, dy = this.nodePos[i*3+1] - py, dz = this.nodePos[i*3+2] - pz;
+      const d2 = dx*dx + dy*dy + dz*dz;
+      if (d2 < bd){ bd = d2; best = i; }
+    }
+    return best;
+  }
+  applyShellLayout(){
+    const n = CFG.numNodes;
+    if (CFG.meshShell && n > 24){
+      const SHELLS = [3.2, 5.4];
+      for (let i = 0; i < n; i++){
+        const sk = i % SHELLS.length;
+        const R = SHELLS[sk];
+        const local = Math.floor(i / SHELLS.length);
+        const count = Math.max(2, Math.ceil(n / SHELLS.length));
+        const g = (Math.PI * (3 - Math.sqrt(5))) * (local + 0.5);
+        const y = 1 - ((local % count) / count) * 2;
+        const r = Math.sqrt(Math.max(0, 1 - y * y));
+        this.nodePos[i*3] = R * Math.cos(g) * r;
+        this.nodePos[i*3+1] = R * y;
+        this.nodePos[i*3+2] = R * Math.sin(g) * r;
+        this.nodeHomeR[i] = R;
+        this.nodeVel[i*3] = 0; this.nodeVel[i*3+1] = 0; this.nodeVel[i*3+2] = 0;
+      }
+    }
+  }
+  spawnAttackers(n){
+    for (let i = 0; i < n && this.agents.length < 1024; i++){
+      const proto = i % 3 === 0 ? 'syn-flood' : i % 3 === 1 ? 'dns-amp' : 'tls-reneg';
+      const hops = 2 + Math.floor(Math.random() * 9);
+      const ip = '192.0.2.' + (1 + Math.floor(Math.random() * 253));
+      const sig = ip + ':' + (80 + Math.floor(Math.random() * 65500)) + ':' + proto + ':' + this.attackerSeq;
+      this.attackerSeq++;
+      this.agents.push({
+        px: (Math.random() - 0.5) * 14, py: (Math.random() - 0.5) * 14, pz: (Math.random() - 0.5) * 14,
+        dx: Math.random() - 0.5, dy: Math.random() - 0.5, dz: Math.random() - 0.5,
+        spd: 0.4, phase: Math.random() * Math.PI * 2, tunnelCD: 0, role: 'attacker', removed: false,
+        src: {
+          id: 'ATK-' + String(this.attackerSeq).padStart(3, '0'),
+          ip, port: 80 + Math.floor(Math.random() * 65500),
+          proto, hops, ttl: 64 - hops,
+          risk: +(0.4 + Math.random() * 0.6).toFixed(2),
+          since: this.step, hash: this.simHash(sig),
+        },
+      });
+    }
+  }
+  spawnDefenders(n){
+    for (let i = 0; i < n; i++){
+      this.agents.push({
+        px: (Math.random() - 0.5) * 2, py: (Math.random() - 0.5) * 2, pz: (Math.random() - 0.5) * 2,
+        dx: Math.random() - 0.5, dy: Math.random() - 0.5, dz: Math.random() - 0.5,
+        spd: 0.35, phase: Math.random() * Math.PI * 2, tunnelCD: 0, role: 'defender', removed: false,
+      });
+    }
+  }
+  launchBurst(n){
+    this.spawnAttackers(n);
+    this.logSec('burst', 'DDoS burst inbound — ' + n + ' agents');
+  }
+  // ── moving-target auto-defense ──────────────────────────────────────────
+  // The controller re-arms its counters and immediately rotates to a strategy;
+  // thereafter it rotates on every autoDefRotate ticks. Sweep defenders move on
+  // unique per-agent paths through the volumetric data (see adCell/adPatrolDir).
+  autoPrepH(){
+    const ad = this.auto;
+    ad.on = true; ad.prepped = true; ad.index = 0; ad.rotation = 0;
+    ad.ticks = 0; ad.coverCount = 0; ad.intercepts = 0;
+    ad.strategy = 'pursuit'; ad.stratTicks = {};
+    ad.coverSeen.fill(0);
+    ad.seed = (((Math.floor(Math.sin(CFG.threatLevel * 11.7 + this.step) * 100000)) % 2147483647) + 2147483647) % 2147483647 || 1234567;
+    this.autoRotate();
+  }
+  autoRotate(){
+    const ad = this.auto;
+    ad.rotation++;
+    // Every rotation re-seeds the path lattice deterministically (linear mix of
+    // the prior seed + step + rotation) — each strategy pass sweeps a fresh route
+    // field, so defenders never retrace a rotation and it stays reproducible
+    // (no basic Math.random anywhere in the path planner).
+    ad.seed = ((ad.seed * 1103515245 + this.step + ad.rotation * 7919) & 0x7fffffff) || 1234567;
+    ad.index = (ad.index + 1) % AUTO_STRATS.length;
+    ad.strategy = AUTO_STRATS[ad.index];
+    ad.stratTicks[ad.strategy] = 0;
+    // defender phase offsets derive from the rotation seed too — deterministic per defender
+    let di = 0;
+    for (const a of this.agents) if (a.role === 'defender'){ a.pathStep = this._hs(ad.seed + di * 13, 5) % 40; di++; }
+    this.logSec('auto', 'moving-target rotation ' + ad.rotation + ' → ' + ad.strategy + ' · path seed ' + ad.seed);
+  }
+  manualRotate(){ if (!this.auto.prepped) this.autoPrepH(); else this.autoRotate(); }
+  _hs(v, salt){
+    v = (v + salt * 0x9e3779b9) >>> 0;
+    v = (v ^ (v >>> 16)) * 0x7feb352d >>> 0;
+    v = (v ^ (v >>> 15)) * 0x846ca68b >>> 0;
+    return (v ^ (v >>> 16)) >>> 0;
+  }
+  adCell(di, step, seed){
+    const R = PAC;
+    const x = this._hs(di * 7919 + step * 1013 + seed, 1) % R;
+    const y = this._hs(di * 104729 + step * 1777 + seed, 2) % R;
+    const z = this._hs(di * 16127 + step * 1423 + seed, 3) % R;
+    return (x * R + y) * R + z;
+  }
+  adPatrolDir(d, did){
+    const R = PAC, RANGE = 8;
+    const sp = d.pathStep || 0;
+    d.pathStep = sp + 1;
+    const cell = this.adCell(did, sp, this.auto.seed);
+    const wx = ((Math.floor(cell / (R * R)) % R) + 0.5) / R * 2 * RANGE - RANGE;
+    const wy = ((Math.floor(cell / R) % R) + 0.5) / R * 2 * RANGE - RANGE;
+    const wz = ((cell % R) + 0.5) / R * 2 * RANGE - RANGE;
+    if (!this.auto.coverSeen[cell]){ this.auto.coverSeen[cell] = 1; this.auto.coverCount++; }
+    const dx = wx - d.px, dy = wy - d.py, dz = wz - d.pz;
+    const dist = Math.sqrt(dx*dx + dy*dy + dz*dz) || 1;
+    if (dist < 0.55) d.pathStep = sp + 40;
+    return { x: dx / dist, y: dy / dist, z: dz / dist };
+  }
+  // One pass of the security-system simulation: defenders hunt and neutralize
+  // attackers, attackers seek nodes and stress them, firewall heals degraded
+  // nodes back to a harmonious baseline.
+  secStep(){
+    if (!CFG.security){ this.pulses.length = 0; return; }
+    this.agents = this.agents.filter(a => !(a.role === 'attacker' && a.removed));
+
+    // moving-target controller: advance the rotation timer and keep the active
+    // strategy live while the auto-defense switch is on
+    this.auto.on = CFG.autoDefense && CFG.security;
+    if (this.auto.on){
+      if (!this.auto.prepped) this.autoPrepH();
+      this.auto.ticks++;
+      if (this.auto.ticks >= Math.max(20, Math.round(CFG.autoDefRotate))){ this.autoRotate(); this.auto.ticks = 0; }
+      this.auto.stratTicks[this.auto.strategy] = (this.auto.stratTicks[this.auto.strategy] || 0) + 1;
+    }
+
+    // defenders pursue attackers — or run the active moving-target strategy.
+    // Each strategy changes target selection, kill rate and dash speed; 'sweep'
+    // instead patrols on wholly unique per-defender paths through the volumetric
+    // lattice and intercepts only at close range.
+    let di = 0;
+    for (const d of this.agents){
+      if (d.role !== 'defender') continue;
+      const did = di++;
+      const strat = this.auto.on ? this.auto.strategy : 'pursuit';
+      let best = null, bd = Infinity, kill = CFG.firewall * 0.35, spd = 0.35;
+      // Defenders guard quarantined nodes in priority: any attacker inside the
+      // quarantine ring around an isolated node is the first target.
+      let guard = null, guardD = Infinity;
+      for (const q of this.quarantined){
+        const nx = this.nodePos[q*3], ny = this.nodePos[q*3+1], nz = this.nodePos[q*3+2];
+        const ddx = d.px - nx, ddy = d.py - ny, ddz = d.pz - nz;
+        const dg = ddx*ddx + ddy*ddy + ddz*ddz;
+        if (dg < guardD){ guardD = dg; guard = q; }
+      }
+      if (guard != null) for (const a of this.agents){
+        if (a.role !== 'attacker') continue;
+        const gx = this.nodePos[guard*3] - a.px, gy = this.nodePos[guard*3+1] - a.py, gz = this.nodePos[guard*3+2] - a.pz;
+        const gr = gx*gx + gy*gy + gz*gz;
+        if (gr < 16 && gr < bd){ bd = gr; best = a; }
+      }
+      for (const a of this.agents){
+        if (a.role !== 'attacker') continue;
+        const dx = a.px - d.px, dy = a.py - d.py, dz = a.pz - d.pz;
+        const d2 = dx*dx + dy*dy + dz*dz;
+        if (strat === 'sweep'){
+          if (d2 < 6.25 && d2 < bd){ bd = d2; best = a; }
+          kill = CFG.firewall * 0.42;
+        } else if (strat === 'perimeter'){
+          const aCore = a.px*a.px + a.py*a.py + a.pz*a.pz;
+          if (d2 < 64 && aCore < 36 && d2 < bd){ bd = d2; best = a; }
+          kill = CFG.firewall * 0.30;
+        } else if (strat === 'rash'){
+          if (d2 < 120 && d2 < bd){ bd = d2; best = a; }
+          spd = 0.48; kill = CFG.firewall * 0.60;
+        } else if (d2 < 100 && d2 < bd){ bd = d2; best = a; }
+      }
+      let tx = 0, ty = 0, tz = 0;
+      if (best){
+        const nbx = best.px - d.px, nby = best.py - d.py, nbz = best.pz - d.pz;
+        const nd = Math.sqrt(nbx*nbx + nby*nby + nbz*nbz) || 1;
+        tx = nbx/nd; ty = nby/nd; tz = nbz/nd;
+      } else if (strat === 'sweep'){
+        const p = this.adPatrolDir(d, did);
+        tx = p.x; ty = p.y; tz = p.z;
+      } else {
+        continue;
+      }
+      d.dx = -tx; d.dy = -ty; d.dz = -tz; d.spd = spd;
+      if (best){
+        const dx = best.px - d.px, dy = best.py - d.py, dz = best.pz - d.pz;
+        const dist = Math.sqrt(dx*dx + dy*dy + dz*dz) || 1;
+        if (dist < 1.5 && Math.random() < kill){
+          best.removed = true;
+          this.blocked++;
+          if (strat === 'sweep' || strat === 'perimeter') this.auto.intercepts++;
+          this.logSec('blocked', 'firewall neutralized attacker at ' + Math.round(best.px*10)/10 + ',' + Math.round(best.py*10)/10);
+        }
+      }
+    }
+    this.agents = this.agents.filter(a => !(a.role === 'attacker' && a.removed));
+
+    // attackers hunt the node that hurts the ensemble most
+    for (const a of this.agents){
+      if (a.role !== 'attacker') continue;
+      const n = this.nearestNode(a.px, a.py, a.pz);
+      if (n < 0) continue;
+      const isolated = this.quarantined.has(n);
+      const nx = this.nodePos[n*3], ny = this.nodePos[n*3+1], nz = this.nodePos[n*3+2];
+      const dx = nx - a.px, dy = ny - a.py, dz = nz - a.pz;
+      const dist = Math.sqrt(dx*dx + dy*dy + dz*dz) || 1;
+      // Quarantined nodes are electrically isolated: attacks punch no farther than
+      // the quarantine ring around them and cannot compromise the node itself.
+      a.dx = dx / dist; a.dy = dy / dist; a.dz = dz / dist; a.spd = 0.4;
+      const ring = isolated ? 1.9 : 0.9;
+      if (dist < ring){
+        const ef = 0.03 * (CFG.threatLevel + 0.2) * (1.5 - CFG.firewall);
+        if (isolated){
+          this.blocked++;
+          a.removed = true;
+          this.auto.intercepts++;
+          this.logSec('deferred', 'branch routed ' + a.src.id + ' away from quarantined ' + this.nodeData[n].label);
+          continue;
+        }
+        this.stress[n] += ef;
+        this.peakStress = Math.max(this.peakStress, this.stress[n]);
+        this.nodeWeight[n] = Math.max(0.05, this.nodeWeight[n] - ef);
+        if (this.nodeWeight[n] < 0.3 && !this.compromised.has(n)){
+          this.compromised.add(n);
+          this.intrusions++;
+          this.logSec('intrusion', 'node ' + this.nodeData[n].label + ' compromised');
+        }
+        if (CFG.attackTrails && this.pulses.length < 60)
+          this.pulses.push([a.px, a.py, a.pz, nx, ny, nz]);
+      }
+    }
+    if (this.pulses.length > 60) this.pulses = this.pulses.slice(-60);
+
+    // firewall healing + stress decay keeps the system harmonious
+    for (let i = 0; i < CFG.numNodes; i++) this.stress[i] *= 0.995;
+    const toUnset = [];
+    for (const i of this.compromised){
+      if (CFG.firewall > 0.1 && Math.random() < CFG.firewall * 0.05)
+        this.nodeWeight[i] = Math.min(1, this.nodeWeight[i] + 0.03);
+      if (this.nodeWeight[i] > 0.55){ toUnset.push(i); this.logSec('secured', 'node ' + this.nodeData[i].label + ' restored'); }
+    }
+    for (const i of toUnset) this.compromised.delete(i);
+
+    // population balance: refresh defenders, hold ambient attackers, DDoS waves
+    this.secTick++;
+    if (this.secTick % 20 === 0){
+      const wantA = Math.round(CFG.threatLevel * 30);
+      const nowA = this.countRole('attacker');
+      if (nowA < wantA) this.spawnAttackers(wantA - nowA);
+      if (nowA > wantA + 10) {
+        let excess = nowA - wantA;
+        for (const a of this.agents) if (a.role === 'attacker' && excess-- > 0) a.removed = true;
+        this.agents = this.agents.filter(a => !(a.role === 'attacker' && a.removed));
+      }
+      const wantD = CFG.defenderCount;
+      const nowD = this.countRole('defender');
+      if (nowD < wantD) this.spawnDefenders(wantD - nowD);
+    }
+    if (this.secTick % 100 === 0 && CFG.threatLevel > 0) this.launchBurst(CFG.attackerBatch);
+  }
+
+  idx(x, y, z) {
+    const R = CFG.trailRes;
+    const ix = ((Math.floor(((x + 100) % 1) * R)) % R + R) % R;
+    const iy = ((Math.floor(((y + 100) % 1) * R)) % R + R) % R;
+    const iz = ((Math.floor(((z + 100) % 1) * R)) % R + R) % R;
+    return (ix * R + iy) * R + iz;
+  }
+  getTrail(x, y, z) { return this.trail[this.idx(x, y, z)]; }
+  getCurvature(x, y, z) { return this.curvatureMap[this.idx(x, y, z)]; }
+  deposit(x, y, z, amt) { this.trail[this.idx(x, y, z)] = Math.min(1, this.trail[this.idx(x, y, z)] + amt); }
+
+  sense(px, py, pz, dx, dy, dz, angle) {
+    const sa = Math.sin(angle), ca = Math.cos(angle);
+    const rx = dx * ca - dy * sa, ry = dx * sa + dy * ca, rz = dz;
+    const sd = CFG.curvature > 0.01 ? CFG.sensorDistance + this.getCurvature((px+rx*CFG.sensorDistance)/5, (py+ry*CFG.sensorDistance)/5, (pz+rz*CFG.sensorDistance)/5) * 2 : CFG.sensorDistance;
+    return this.getTrail((px + rx * sd) / 5, (py + ry * sd) / 5, (pz + rz * sd) / 5);
+  }
+
+  update(scaleIdx) {
+    this.step++;
+    const sf = Math.max(0.05, Math.min(2, (scaleIdx + 1) / 8));
+    const R = CFG.trailRes, R2 = R * R;
+    const evap = CFG.evaporation, diff = CFG.diffusion;
+
+    // Trail diffuse
+    if (Math.random() < 0.5) {
+      for (let i = 0; i < R ** 3; i++) {
+        const x = Math.floor(i / R2) % R, y = Math.floor(i / R) % R, z = i % R;
+        let sum = this.trail[((x+1)%R)*R2 + y*R + z] + this.trail[((x-1+R)%R)*R2 + y*R + z];
+        sum += this.trail[x*R2 + ((y+1)%R)*R + z] + this.trail[x*R2 + ((y-1+R)%R)*R + z];
+        sum += this.trail[x*R2 + y*R + (z+1)%R] + this.trail[x*R2 + y*R + (z-1+R)%R];
+        this.trail2[i] = this.trail[i] * evap + (sum/6 - this.trail[i]) * diff;
+      }
+      [this.trail, this.trail2] = [this.trail2, this.trail];
+    }
+
+    // Curvature
+    if (CFG.curvature > 0.01) {
+      for (let i = 0; i < R ** 3; i++) this.curvatureMap[i] *= 0.97;
+      const N = CFG.numNodes;
+      for (let i = 0; i < N; i++) {
+        const cx = this.nodePos[i*3]/5, cy = this.nodePos[i*3+1]/5, cz = this.nodePos[i*3+2]/5;
+        const mass = this.nodeMass[i] * CFG.curvature;
+        const icx = Math.floor(((cx+100)%1)*R), icy = Math.floor(((cy+100)%1)*R), icz = Math.floor(((cz+100)%1)*R);
+        const range = 3;
+        for (let dx = -Math.ceil(range); dx <= Math.ceil(range); dx++)
+          for (let dy = -Math.ceil(range); dy <= Math.ceil(range); dy++)
+            for (let dz = -Math.ceil(range); dz <= Math.ceil(range); dz++) {
+              const ix = (icx + dx + 100*R)%R, iy = (icy + dy + 100*R)%R, iz = (icz + dz + 100*R)%R;
+              const gx = ix/R - 0.5 + cx, gy = iy/R - 0.5 + cy, gz = iz/R - 0.5 + cz;
+              const d2 = gx*gx + gy*gy + gz*gz;
+              if (d2 < 4 && d2 > 0.001) this.curvatureMap[(ix*R+iy)*R+iz] += mass / (d2 + 0.1);
+            }
+      }
+    }
+
+    // Agents
+    for (const a of this.agents) {
+      if (a.tunnelCD > 0) a.tunnelCD--;
+      const left = this.sense(a.px, a.py, a.pz, a.dx, a.dy, a.dz, -CFG.sensorAngle);
+      const fwd = this.sense(a.px, a.py, a.pz, a.dx, a.dy, a.dz, 0);
+      const right = this.sense(a.px, a.py, a.pz, a.dx, a.dy, a.dz, CFG.sensorAngle);
+      const noise = (Math.random() - 0.5) * 0.3;
+      let ang = noise * 0.2;
+      if (fwd <= left || fwd <= right) ang = (left > right ? -1 : 1) * (CFG.rotationAngle + noise);
+
+      // Tunneling
+      if (CFG.tunnel > 0.01 && a.tunnelCD === 0 && Math.random() < CFG.tunnel * 0.02) {
+        const curveHere = this.getCurvature(a.px/5, a.py/5, a.pz/5);
+        if (curveHere > 0.5) {
+          const ti = Math.floor(Math.random() * this.agents.length);
+          const t = this.agents[ti];
+          a.px = t.px + (Math.random() - 0.5) * 2; a.py = t.py + (Math.random() - 0.5) * 2; a.pz = t.pz + (Math.random() - 0.5) * 2;
+          a.tunnelCD = 30; continue;
+        }
+      }
+
+      const ca = Math.cos(ang), sa = Math.sin(ang);
+      let ndx = a.dx * ca - a.dy * sa, ndy = a.dx * sa + a.dy * ca, ndz = a.dz + (Math.random() - 0.5) * 0.1;
+
+      // Curvature bending
+      if (CFG.curvature > 0.01) {
+        const curve = this.getCurvature(a.px/5, a.py/5, a.pz/5);
+        if (curve > 0.1) {
+          const pullStr = curve * CFG.curvature * 0.1;
+          let nnx=0, nny=0, nnz=0, nnw=0;
+          for (let i = 0; i < CFG.numNodes; i++) {
+            const dx = this.nodePos[i*3] - a.px, dy = this.nodePos[i*3+1] - a.py, dz = this.nodePos[i*3+2] - a.pz;
+            const d2 = dx*dx + dy*dy + dz*dz;
+            if (d2 < 25 && d2 > 0.01) { const w = this.nodeMass[i] / d2; nnx += dx*w; nny += dy*w; nnz += dz*w; nnw += w; }
+          }
+          if (nnw > 0) { ndx += nnx/nnw * pullStr; ndy += nny/nnw * pullStr; ndz += nnz/nnw * pullStr; }
+        }
+      }
+
+      // Dark energy expansion
+      if (CFG.darkEnergy > 0.01) {
+        ndx += a.px * CFG.darkEnergy * 0.005;
+        ndy += a.py * CFG.darkEnergy * 0.005;
+        ndz += a.pz * CFG.darkEnergy * 0.005;
+      }
+
+      const len = Math.sqrt(ndx*ndx + ndy*ndy + ndz*ndz) || 1;
+      a.dx = ndx/len; a.dy = ndy/len; a.dz = ndz/len;
+      a.px += a.dx * a.spd * sf; a.py += a.dy * a.spd * sf; a.pz += a.dz * a.spd * sf;
+      const bound = 5 * sf;
+      if (a.px*a.px + a.py*a.py + a.pz*a.pz > bound*bound) {
+        const l = Math.sqrt(a.px*a.px + a.py*a.py + a.pz*a.pz) || 1;
+        a.px = -a.px/l * bound * 0.9; a.py = -a.py/l * bound * 0.9; a.pz = -a.pz/l * bound * 0.9;
+      }
+      this.deposit(a.px/5, a.py/5, a.pz/5, CFG.trailIntensity);
+    }
+
+    // Spatial index
+    this.spatial.clear();
+    const N = CFG.numNodes;
+    for (let i = 0; i < N; i++) this.spatial.insert(i, this.nodePos[i*3], this.nodePos[i*3+1], this.nodePos[i*3+2]);
+
+    // Quantum wavefunction
+    for (let i = 0; i < N; i++) {
+      const h = CFG.quantum;
+      let lapR=0, lapI=0; const nearby = this.spatial.query(this.nodePos[i*3], this.nodePos[i*3+1], this.nodePos[i*3+2], 2);
+      let cnt = 0;
+      for (const j of nearby) {
+        if (j === i) continue;
+        const dx = this.nodePos[j*3]-this.nodePos[i*3], dy = this.nodePos[j*3+1]-this.nodePos[i*3+1], dz = this.nodePos[j*3+2]-this.nodePos[i*3+2];
+        const dist = Math.sqrt(dx*dx+dy*dy+dz*dz) || 0.1;
+        lapR += (this.nodeWaveReal[j]-this.nodeWaveReal[i])/dist; lapI += (this.nodeWaveImag[j]-this.nodeWaveImag[i])/dist; cnt++;
+      }
+      if (cnt > 0) { lapR /= cnt; lapI /= cnt; }
+      const V = this.nodeMass[i]*0.5 + this.nodeWeight[i]*0.5 + CFG.higgsField * 0.2;
+      const dt = 0.02;
+      const dR = (-h*lapI + V*this.nodeWaveImag[i])*dt; const dI = (h*lapR - V*this.nodeWaveReal[i])*dt;
+      this.nodeWaveReal[i] += dR; this.nodeWaveImag[i] += dI;
+      const prob = this.nodeWaveReal[i]**2 + this.nodeWaveImag[i]**2;
+      if (prob > 1) { const s = 1/Math.sqrt(prob); this.nodeWaveReal[i] *= s; this.nodeWaveImag[i] *= s; }
+      // Decoherence
+      if (CFG.decoherence > 0.001) {
+        this.nodeWaveReal[i] *= (1 - CFG.decoherence); this.nodeWaveImag[i] *= (1 - CFG.decoherence);
+      }
+      // Quantum jitter
+      if (h > 0.01) { const j = h * 0.05; this.nodePos[i*3] += (Math.random()-0.5)*j; this.nodePos[i*3+1] += (Math.random()-0.5)*j; this.nodePos[i*3+2] += (Math.random()-0.5)*j; }
+    }
+
+    // Entanglement
+    if (CFG.entangle > 0.01) {
+      for (let i = 0; i < N; i++) for (const j of this.nodeEntangle[i]) {
+        if (j <= i) continue;
+        const str = CFG.entangle * 0.1;
+        const aw = (this.nodeWeight[i]+this.nodeWeight[j])/2;
+        this.nodeWeight[i] += (aw-this.nodeWeight[i])*str; this.nodeWeight[j] += (aw-this.nodeWeight[j])*str;
+        this.nodePos[i*3] += (this.nodePos[j*3]-this.nodePos[i*3])*str*0.05;
+        this.nodePos[i*3+1] += (this.nodePos[j*3+1]-this.nodePos[i*3+1])*str*0.05;
+        this.nodePos[i*3+2] += (this.nodePos[j*3+2]-this.nodePos[i*3+2])*str*0.05;
+        const asp = (this.nodeSpin[i]+this.nodeSpin[j])/2;
+        this.nodeSpin[i] += (asp-this.nodeSpin[i])*str; this.nodeSpin[j] += (asp-this.nodeSpin[j])*str;
+      }
+    }
+
+    // Gravity
+    if (CFG.gravity > 0.01) {
+      for (let i = 0; i < N; i++) {
+        let gx=0, gy=0, gz=0;
+        const nearby = this.spatial.query(this.nodePos[i*3], this.nodePos[i*3+1], this.nodePos[i*3+2], 8);
+        for (const j of nearby) {
+          if (j === i) continue;
+          const dx = this.nodePos[j*3]-this.nodePos[i*3], dy = this.nodePos[j*3+1]-this.nodePos[i*3+1], dz = this.nodePos[j*3+2]-this.nodePos[i*3+2];
+          const d2 = dx*dx+dy*dy+dz*dz;
+          if (d2 > 0.01 && d2 < 64) { const f = CFG.gravity*this.nodeMass[j]/d2; gx += dx*f; gy += dy*f; gz += dz*f; }
+        }
+        // Strong force (short-range attraction)
+        if (CFG.strongForce > 0.01) {
+          for (const j of nearby) {
+            if (j === i) continue;
+            const dx = this.nodePos[j*3]-this.nodePos[i*3], dy = this.nodePos[j*3+1]-this.nodePos[i*3+1], dz = this.nodePos[j*3+2]-this.nodePos[i*3+2];
+            const d2 = dx*dx+dy*dy+dz*dz;
+            if (d2 < 4 && d2 > 0.01) { const f = CFG.strongForce*0.3/(d2+0.1); gx += dx*f; gy += dy*f; gz += dz*f; }
+          }
+        }
+        this.nodeVel[i*3] += gx; this.nodeVel[i*3+1] += gy; this.nodeVel[i*3+2] += gz;
+      }
+    }
+
+    // Dark energy / Inflation expansion
+    if (CFG.darkEnergy > 0.01 || CFG.inflation > 0.001) {
+      const expFactor = CFG.darkEnergy * 0.002 + CFG.inflation * 0.01;
+      for (let i = 0; i < N; i++) {
+        this.nodeVel[i*3] += this.nodePos[i*3] * expFactor;
+        this.nodeVel[i*3+1] += this.nodePos[i*3+1] * expFactor;
+        this.nodeVel[i*3+2] += this.nodePos[i*3+2] * expFactor;
+      }
+    }
+
+    // Energy shells
+    if (CFG.energyShells > 0) {
+      for (let i = 0; i < N; i++) {
+        const ts = Math.floor(this.nodeWeight[i] * CFG.energyShells);
+        const tr = (ts + 1) / (CFG.energyShells + 1) * 6 * sf;
+        const cr = Math.sqrt(this.nodePos[i*3]**2 + this.nodePos[i*3+1]**2 + this.nodePos[i*3+2]**2);
+        if (cr > 0.01) { const p = (tr-cr)*0.01; this.nodeVel[i*3] += this.nodePos[i*3]/cr*p; this.nodeVel[i*3+1] += this.nodePos[i*3+1]/cr*p; this.nodeVel[i*3+2] += this.nodePos[i*3+2]/cr*p; }
+      }
+    }
+
+    // Neural dynamics
+    const align = CFG.alignStrength, repulse = CFG.repulsionStrength, damp = CFG.damping;
+    for (let i = 0; i < N; i++) {
+      const px=this.nodePos[i*3], py=this.nodePos[i*3+1], pz=this.nodePos[i*3+2];
+      let fx=0, fy=0, fz=0;
+      const nearby = this.spatial.query(px, py, pz, 3);
+      let cnt=0, ax=0, ay=0, az=0, rx=0, ry=0, rz=0;
+      for (const j of nearby) {
+        if (j === i) continue;
+        const dx=this.nodePos[j*3]-px, dy=this.nodePos[j*3+1]-py, dz=this.nodePos[j*3+2]-pz;
+        const d2 = dx*dx+dy*dy+dz*dz;
+        if (d2 < 9 && d2 > 0.0001) {
+          const w = this.nodeWeight[j]*0.5+0.5; ax += dx*w; ay += dy*w; az += dz*w; cnt++;
+          if (d2 < 0.09) { const d = Math.sqrt(d2); const s = repulse/(d+0.01); rx -= dx/d*s; ry -= dy/d*s; rz -= dz/d*s; }
+        }
+      }
+      if (cnt > 0) { fx += ax/cnt*align; fy += ay/cnt*align; fz += az/cnt*align; }
+      fx += rx; fy += ry; fz += rz;
+      const ti = this.getTrail(px/5, py/5, pz/5);
+      fx += (Math.random()-0.5)*ti*0.08; fy += (Math.random()-0.5)*ti*0.08; fz += (Math.random()-0.5)*ti*0.08;
+
+      const aff = i/N, tr = aff*5*sf;
+      const cr = Math.sqrt(px*px+py*py+pz*pz);
+      if (cr > 0.001) { fx += px/cr*(tr-cr)*0.005; fy += py/cr*(tr-cr)*0.005; fz += pz/cr*(tr-cr)*0.005; }
+
+      // Harmony hooks: gentle orbital revolution + anti-collapse separation keep
+      // the ensemble as several orderly clusters instead of one collapsed blob.
+      if (CFG.orbital > 0.001 && cr > 0.001) {
+        const ux = px/cr, uy = py/cr, uz = pz/cr;
+        const tx = -uz, tz = ux;
+        const tl = Math.sqrt(tx*tx + tz*tz) || 1;
+        fx += tx/tl * CFG.orbital * 0.5;
+        fz += tz/tl * CFG.orbital * 0.5;
+        fy += (Math.sin(i*0.7) - uy) * CFG.orbital * 0.05;
+        fx -= ux * CFG.orbital * 0.06;
+        fy -= uy * CFG.orbital * 0.06;
+        fz -= uz * CFG.orbital * 0.06;
+      }
+      if (CFG.separation > 0.001) {
+        const crr = cr > 0.001 ? cr : 0.001;
+        if (crr < 0.9) {
+          const s = (0.9 - crr) * CFG.separation;
+          fx -= px/crr*s; fy -= py/crr*s; fz -= pz/crr*s;
+        }
+      }
+
+      let vx0 = (this.nodeVel[i*3] + fx) * damp;
+      let vy0 = (this.nodeVel[i*3+1] + fy) * damp;
+      let vz0 = (this.nodeVel[i*3+2] + fz) * damp;
+      const vlen = Math.sqrt(vx0*vx0 + vy0*vy0 + vz0*vz0) || 1;
+      if (vlen > 0.55){ vx0 *= 0.55/vlen; vy0 *= 0.55/vlen; vz0 *= 0.55/vlen; }
+      this.nodeVel[i*3] = vx0; this.nodeVel[i*3+1] = vy0; this.nodeVel[i*3+2] = vz0;
+      this.nodePos[i*3] += vx0; this.nodePos[i*3+1] += vy0; this.nodePos[i*3+2] += vz0;
+      const maxR = 6*sf;
+      const cr2 = Math.sqrt(this.nodePos[i*3]**2+this.nodePos[i*3+1]**2+this.nodePos[i*3+2]**2);
+      if (cr2 > maxR) { this.nodePos[i*3]=this.nodePos[i*3]/cr2*maxR*0.95; this.nodePos[i*3+1]=this.nodePos[i*3+1]/cr2*maxR*0.95; this.nodePos[i*3+2]=this.nodePos[i*3+2]/cr2*maxR*0.95; }
+      if (CFG.meshShell && cr2 > 0.001) {
+        const hR = this.nodeHomeR[i] || cr2;
+        const hold = Math.min(1, 0.06 * Math.max(0.0, 1 - CFG.gravity * 0.8));
+        this.nodePos[i*3] += (this.nodePos[i*3]/cr2*hR - this.nodePos[i*3]) * hold;
+        this.nodePos[i*3+1] += (this.nodePos[i*3+1]/cr2*hR - this.nodePos[i*3+1]) * hold;
+        this.nodePos[i*3+2] += (this.nodePos[i*3+2]/cr2*hR - this.nodePos[i*3+2]) * hold;
+      }
+
+      let act = 0;
+      for (const j of nearby) {
+        if (j === i) continue;
+        const dx=this.nodePos[j*3]-this.nodePos[i*3], dy=this.nodePos[j*3+1]-this.nodePos[i*3+1], dz=this.nodePos[j*3+2]-this.nodePos[i*3+2];
+        if (dx*dx+dy*dy+dz*dz < 9) act += this.nodeWeight[j];
+      }
+      this.nodeAct[i] = Math.tanh(act * 0.05);
+      this.nodeWeight[i] += (this.nodeAct[i]*0.01 - (this.nodeWeight[i]-0.5)*0.005);
+      this.nodeWeight[i] = Math.max(0, Math.min(1, this.nodeWeight[i]));
+    }
+
+    // Connections
+    const connThresh = CFG.connectionThreshold;
+    const maxConn = CFG.maxConnections;
+    for (let i = 0; i < N; i++) {
+      const px=this.nodePos[i*3], py=this.nodePos[i*3+1], pz=this.nodePos[i*3+2];
+      const nearby = this.spatial.query(px, py, pz, 2.5);
+      const conns = [];
+      for (const j of nearby) {
+        if (j === i) continue;
+        const dx=this.nodePos[j*3]-px, dy=this.nodePos[j*3+1]-py, dz=this.nodePos[j*3+2]-pz;
+        const dist = Math.sqrt(dx*dx+dy*dy+dz*dz);
+        const trail = this.getTrail((px+this.nodePos[j*3])/10, (py+this.nodePos[j*3+1])/10, (pz+this.nodePos[j*3+2])/10);
+        if (dist < connThresh + trail*1.8) conns.push({ t: j, s: trail*this.nodeWeight[i]*this.nodeWeight[j], d: dist });
+      }
+      conns.sort((a,b)=>b.s-a.s);
+      this.connections[i] = conns.slice(0, maxConn);
+    }
+
+    // Thermodynamics
+    this.totalEnergy = 0; let entSum = 0;
+    for (let i = 0; i < N; i++) {
+      const ke = (this.nodeVel[i*3]**2+this.nodeVel[i*3+1]**2+this.nodeVel[i*3+2]**2)*this.nodeMass[i]*0.5;
+      this.totalEnergy += ke + this.nodeMass[i]*0.5;
+      entSum += this.nodeWeight[i] * Math.log(this.nodeWeight[i]+0.001);
+    }
+    this.entropy = -entSum / N;
+
+    // security system: defenders vs attackers, healing, DDoS waves
+    this.secStep();
+  }
+}
+
+// ─── RENDERER ───────────────────────────────────────────────────────────
+class Renderer3D {
+  constructor(sim) {
+    this.sim = sim;
+    this.nodePosBuf = new Float32Array(CFG.numNodes * 3);
+    this.nodeColBuf = new Float32Array(CFG.numNodes * 3);
+    this.nodeSzBuf = new Float32Array(CFG.numNodes);
+    this.nodeGeo = new THREE.BufferGeometry();
+    this.nodeGeo.setAttribute('position', new THREE.BufferAttribute(this.nodePosBuf, 3));
+    this.nodeGeo.setAttribute('color', new THREE.BufferAttribute(this.nodeColBuf, 3));
+    this.nodeGeo.setAttribute('size', new THREE.BufferAttribute(this.nodeSzBuf, 1));
+    const nm = new THREE.PointsMaterial({ size: 0.12, vertexColors: true, transparent: true, opacity: 0.9, blending: THREE.AdditiveBlending, depthWrite: false, sizeAttenuation: true });
+    this.nodeMesh = new THREE.Points(this.nodeGeo, nm);
+    scene.add(this.nodeMesh);
+
+    this.wavePosBuf = new Float32Array(CFG.numNodes * 3);
+    this.waveColBuf = new Float32Array(CFG.numNodes * 3);
+    this.waveGeo = new THREE.BufferGeometry();
+    this.waveGeo.setAttribute('position', new THREE.BufferAttribute(this.wavePosBuf, 3));
+    this.waveGeo.setAttribute('color', new THREE.BufferAttribute(this.waveColBuf, 3));
+    const wm = new THREE.PointsMaterial({ size: 0.25, vertexColors: true, transparent: true, opacity: 0.15, blending: THREE.AdditiveBlending, depthWrite: false, sizeAttenuation: true });
+    this.waveMesh = new THREE.Points(this.waveGeo, wm);
+    scene.add(this.waveMesh);
+
+    this.lensGeo = new THREE.BufferGeometry();
+    this.lensPos = new Float32Array(CFG.numNodes * 36 * 3);
+    this.lensGeo.setAttribute('position', new THREE.BufferAttribute(this.lensPos, 3));
+    this.lensMat = new THREE.LineBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.06 });
+    this.lensMesh = new THREE.LineSegments(this.lensGeo, this.lensMat);
+    scene.add(this.lensMesh);
+
+    this.agentPosBuf = new Float32Array(CFG.numAgents * 3);
+    this.agentColBuf = new Float32Array(CFG.numAgents * 3);
+    this.agentGeo = new THREE.BufferGeometry();
+    this.agentGeo.setAttribute('position', new THREE.BufferAttribute(this.agentPosBuf, 3));
+    this.agentGeo.setAttribute('color', new THREE.BufferAttribute(this.agentColBuf, 3));
+    const am = new THREE.PointsMaterial({ size: 0.04, vertexColors: true, transparent: true, opacity: 0.5, blending: THREE.AdditiveBlending, depthWrite: false, sizeAttenuation: true });
+    this.agentMesh = new THREE.Points(this.agentGeo, am);
+    scene.add(this.agentMesh);
+
+    // Security attack pulses (attacker → target node beams)
+    this.pulsePosBuf = new Float32Array(60 * 2 * 3);
+    this.pulseColBuf = new Float32Array(60 * 2 * 3);
+    this.pulseGeo = new THREE.BufferGeometry();
+    this.pulseGeo.setAttribute('position', new THREE.BufferAttribute(this.pulsePosBuf, 3));
+    this.pulseGeo.setAttribute('color', new THREE.BufferAttribute(this.pulseColBuf, 3));
+    this.pulseMat = new THREE.LineBasicMaterial({ vertexColors: true, transparent: true, opacity: 0.6, depthWrite: false });
+    this.pulseMesh = new THREE.LineSegments(this.pulseGeo, this.pulseMat);
+    this.pulseMesh.visible = false;
+    scene.add(this.pulseMesh);
+
+    this.linePosBuf = new Float32Array(CFG.numNodes * 8 * 2 * 3);
+    this.lineColBuf = new Float32Array(CFG.numNodes * 8 * 2 * 3);
+    this.lineGeo = new THREE.BufferGeometry();
+    this.lineGeo.setAttribute('position', new THREE.BufferAttribute(this.linePosBuf, 3));
+    this.lineGeo.setAttribute('color', new THREE.BufferAttribute(this.lineColBuf, 3));
+    const lm = new THREE.LineBasicMaterial({ vertexColors: true, transparent: true, opacity: 0.25, blending: THREE.AdditiveBlending, depthWrite: false });
+    this.lineMesh = new THREE.LineSegments(this.lineGeo, lm);
+    scene.add(this.lineMesh);
+
+    this.shellGeo = new THREE.BufferGeometry();
+    this.shellPos = new Float32Array(CFG.numNodes * 36 * 2 * 3);
+    this.shellGeo.setAttribute('position', new THREE.BufferAttribute(this.shellPos, 3));
+    this.shellMat = new THREE.LineBasicMaterial({ color: 0x00ffff, transparent: true, opacity: 0.04 });
+    this.shellMesh = new THREE.LineSegments(this.shellGeo, this.shellMat);
+    scene.add(this.shellMesh);
+
+    this.halo = new THREE.Mesh(new THREE.SphereGeometry(1, 24, 24), new THREE.MeshBasicMaterial({ color: 0x00ffff, wireframe: true, transparent: true, opacity: 0.03 }));
+    scene.add(this.halo);
+  }
+
+  resize() {
+    this.nodePosBuf = new Float32Array(CFG.numNodes * 3); this.nodeColBuf = new Float32Array(CFG.numNodes * 3); this.nodeSzBuf = new Float32Array(CFG.numNodes);
+    this.nodeGeo.setAttribute('position', new THREE.BufferAttribute(this.nodePosBuf, 3));
+    this.nodeGeo.setAttribute('color', new THREE.BufferAttribute(this.nodeColBuf, 3));
+    this.nodeGeo.setAttribute('size', new THREE.BufferAttribute(this.nodeSzBuf, 1));
+    this.wavePosBuf = new Float32Array(CFG.numNodes * 3); this.waveColBuf = new Float32Array(CFG.numNodes * 3);
+    this.waveGeo.setAttribute('position', new THREE.BufferAttribute(this.wavePosBuf, 3));
+    this.waveGeo.setAttribute('color', new THREE.BufferAttribute(this.waveColBuf, 3));
+    this.lensPos = new Float32Array(CFG.numNodes * 36 * 3);
+    this.lensGeo.setAttribute('position', new THREE.BufferAttribute(this.lensPos, 3));
+    this.agentPosBuf = new Float32Array(CFG.numAgents * 3); this.agentColBuf = new Float32Array(CFG.numAgents * 3);
+    this.agentGeo.setAttribute('position', new THREE.BufferAttribute(this.agentPosBuf, 3));
+    this.agentGeo.setAttribute('color', new THREE.BufferAttribute(this.agentColBuf, 3));
+    this.linePosBuf = new Float32Array(CFG.numNodes * 8 * 2 * 3); this.lineColBuf = new Float32Array(CFG.numNodes * 8 * 2 * 3);
+    this.lineGeo.setAttribute('position', new THREE.BufferAttribute(this.linePosBuf, 3));
+    this.lineGeo.setAttribute('color', new THREE.BufferAttribute(this.lineColBuf, 3));
+    this.shellPos = new Float32Array(CFG.numNodes * 36 * 2 * 3);
+    this.shellGeo.setAttribute('position', new THREE.BufferAttribute(this.shellPos, 3));
+  }
+
+  update(scaleIdx, scaleLevel) {
+    const sim = this.sim, N = CFG.numNodes, A = CFG.numAgents;
+    const col = new THREE.Color(scaleLevel.c);
+    const nodeCol = new THREE.Color(CFG.nodeColor);
+    const agentCol = new THREE.Color(CFG.agentColor);
+    const connCol = new THREE.Color(CFG.connectColor);
+
+    for (let i = 0; i < N; i++) {
+      this.nodePosBuf[i*3] = sim.nodePos[i*3]; this.nodePosBuf[i*3+1] = sim.nodePos[i*3+1]; this.nodePosBuf[i*3+2] = sim.nodePos[i*3+2];
+      const baseCol = nodeCol.clone().multiplyScalar(0.3 + sim.nodeWeight[i] * 0.7);
+      const intensity = CFG.colorIntensity || 1.0;
+      const offset = (CFG.colorOffset || 0) * 0.5;
+      const c = new THREE.Color(baseCol.r + offset, baseCol.g + offset, baseCol.b + offset).multiplyScalar(intensity);
+      this.nodeColBuf[i*3] = c.r; this.nodeColBuf[i*3+1] = c.g; this.nodeColBuf[i*3+2] = c.b;
+      this.nodeSzBuf[i] = 0.06 + sim.nodeWeight[i] * 0.18;
+    }
+    this.nodeGeo.attributes.position.needsUpdate = true;
+    this.nodeGeo.attributes.color.needsUpdate = true;
+    this.nodeGeo.attributes.size.needsUpdate = true;
+
+    if (CFG.waveFunc) {
+      for (let i = 0; i < N; i++) {
+        const prob = sim.nodeWaveReal[i]**2 + sim.nodeWaveImag[i]**2;
+        const off = prob * 0.8;
+        this.wavePosBuf[i*3] = sim.nodePos[i*3] + (Math.random()-0.5)*off;
+        this.wavePosBuf[i*3+1] = sim.nodePos[i*3+1] + (Math.random()-0.5)*off;
+        this.wavePosBuf[i*3+2] = sim.nodePos[i*3+2] + (Math.random()-0.5)*off;
+        const wc = new THREE.Color(0xff00ff).lerp(new THREE.Color(0x00ffff), prob);
+        this.waveColBuf[i*3] = wc.r; this.waveColBuf[i*3+1] = wc.g; this.waveColBuf[i*3+2] = wc.b;
+      }
+      this.waveGeo.attributes.position.needsUpdate = true; this.waveGeo.attributes.color.needsUpdate = true;
+      this.waveMesh.material.opacity = 0.15;
+    } else this.waveMesh.material.opacity = 0;
+
+    if (CFG.gravLens && CFG.gravity > 0.01) {
+      let idx = 0;
+      for (let i = 0; i < N && idx < N*36; i++) {
+        const mass = sim.nodeMass[i] * CFG.gravity;
+        if (mass > 0.15) {
+          const radius = mass * 1.5;
+          const px = sim.nodePos[i*3], py = sim.nodePos[i*3+1], pz = sim.nodePos[i*3+2];
+          for (let j = 0; j < 36; j++) {
+            const a1=(j/36)*Math.PI*2, a2=((j+1)/36)*Math.PI*2;
+            this.lensPos[idx*3]=px+Math.cos(a1)*radius; this.lensPos[idx*3+1]=py+Math.sin(a1)*radius; this.lensPos[idx*3+2]=pz; idx++;
+            this.lensPos[idx*3]=px+Math.cos(a2)*radius; this.lensPos[idx*3+1]=py+Math.sin(a2)*radius; this.lensPos[idx*3+2]=pz; idx++;
+          }
+        }
+      }
+      for (let i = idx; i < N*36; i++) { this.lensPos[i*3]=0; this.lensPos[i*3+1]=0; this.lensPos[i*3+2]=0; }
+      this.lensGeo.attributes.position.needsUpdate = true; this.lensGeo.setDrawRange(0, idx);
+      this.lensMesh.material.opacity = 0.06;
+    } else this.lensMesh.material.opacity = 0;
+
+    if (CFG.showAgents) {
+      this.agentMesh.visible = true;
+      const attackerCol = new THREE.Color(0xff3355);
+      const defenderCol = new THREE.Color(0x33ff77);
+      for (let i = 0; i < A; i++) {
+        const a = sim.agents[i];
+        this.agentPosBuf[i*3]=a.px; this.agentPosBuf[i*3+1]=a.py; this.agentPosBuf[i*3+2]=a.pz;
+        const t = sim.getTrail(a.px/5, a.py/5, a.pz/5);
+        let c2;
+        if (a.role === 'attacker') c2 = attackerCol.clone().lerp(new THREE.Color(0xff0000), t);
+        else if (a.role === 'defender') c2 = defenderCol.clone().lerp(new THREE.Color(0x00ff66), t);
+        else c2 = agentCol.clone().lerp(new THREE.Color(0xff00ff), t);
+        this.agentColBuf[i*3]=c2.r; this.agentColBuf[i*3+1]=c2.g; this.agentColBuf[i*3+2]=c2.b;
+      }
+      this.agentGeo.attributes.position.needsUpdate = true; this.agentGeo.attributes.color.needsUpdate = true;
+    } else this.agentMesh.visible = false;
+
+    // Security attack pulses: red beams from attacker to its target node
+    {
+      const pl = sim.pulses || [], maxv = 60 * 2;
+      let idx = 0;
+      for (let p = 0; p < pl.length && idx < maxv; p++) {
+        const e = pl[p];
+        this.pulsePosBuf[idx*3]=e[0]; this.pulsePosBuf[idx*3+1]=e[1]; this.pulsePosBuf[idx*3+2]=e[2];
+        this.pulsePosBuf[(idx+1)*3]=e[3]; this.pulsePosBuf[(idx+1)*3+1]=e[4]; this.pulsePosBuf[(idx+1)*3+2]=e[5];
+        this.pulseColBuf[idx*3]=1; this.pulseColBuf[idx*3+1]=0.15; this.pulseColBuf[idx*3+2]=0.25;
+        this.pulseColBuf[(idx+1)*3]=1; this.pulseColBuf[(idx+1)*3+1]=0.15; this.pulseColBuf[(idx+1)*3+2]=0.25;
+        idx += 2;
+      }
+      for (let i = idx; i < maxv; i++) { this.pulsePosBuf[i*3]=0; this.pulsePosBuf[i*3+1]=0; this.pulsePosBuf[i*3+2]=0; this.pulseColBuf[i*3]=0; this.pulseColBuf[i*3+1]=0; this.pulseColBuf[i*3+2]=0; }
+      this.pulseGeo.attributes.position.needsUpdate = true;
+      this.pulseGeo.attributes.color.needsUpdate = true;
+      this.pulseGeo.setDrawRange(0, idx);
+      this.pulseMesh.visible = CFG.security;
+      this.pulseMesh.material.opacity = CFG.security && CFG.attackTrails ? 0.55 : 0;
+    }
+
+    if (CFG.showConnections) {
+      this.lineMesh.visible = true;
+      let idx = 0; const maxVerts = N * CFG.maxConnections * 2;
+      for (let i = 0; i < N; i++) for (const conn of sim.connections[i]) {
+        if (idx >= maxVerts) break;
+        const j = conn.t;
+        this.linePosBuf[idx*3]=sim.nodePos[i*3]; this.linePosBuf[idx*3+1]=sim.nodePos[i*3+1]; this.linePosBuf[idx*3+2]=sim.nodePos[i*3+2];
+        this.linePosBuf[(idx+1)*3]=sim.nodePos[j*3]; this.linePosBuf[(idx+1)*3+1]=sim.nodePos[j*3+1]; this.linePosBuf[(idx+1)*3+2]=sim.nodePos[j*3+2];
+        const tc = connCol.clone().multiplyScalar(0.2 + conn.s*0.8);
+        this.lineColBuf[idx*3]=tc.r; this.lineColBuf[idx*3+1]=tc.g; this.lineColBuf[idx*3+2]=tc.b;
+        this.lineColBuf[(idx+1)*3]=tc.r; this.lineColBuf[(idx+1)*3+1]=tc.g; this.lineColBuf[(idx+1)*3+2]=tc.b;
+        idx += 2;
+      }
+      for (let i = idx; i < maxVerts; i++) { this.linePosBuf[i*3]=0; this.linePosBuf[i*3+1]=0; this.linePosBuf[i*3+2]=0; this.lineColBuf[i*3]=0; this.lineColBuf[i*3+1]=0; this.lineColBuf[i*3+2]=0; }
+      this.lineGeo.attributes.position.needsUpdate = true; this.lineGeo.attributes.color.needsUpdate = true;
+      this.lineGeo.setDrawRange(0, idx);
+    } else this.lineMesh.visible = false;
+
+    let idx = 0;
+    if (CFG.energyShells > 0) for (let i = 0; i < N && idx < N*36*2; i++) {
+      const shell = Math.floor(sim.nodeWeight[i]*CFG.energyShells);
+      const radius = (shell+1)/(CFG.energyShells+1)*6;
+      const px=sim.nodePos[i*3], py=sim.nodePos[i*3+1], pz=sim.nodePos[i*3+2];
+      const norm = Math.sqrt(px*px+py*py+pz*pz) || 1;
+      const nx=px/norm, ny=py/norm, nz=pz/norm;
+      const up = Math.abs(nz)<0.9 ? new THREE.Vector3(0,0,1) : new THREE.Vector3(1,0,0);
+      const rx=up.y*nz-up.z*ny, ry=up.z*nx-up.x*nz, rz=up.x*ny-up.y*nx;
+      const rlen = Math.sqrt(rx*rx+ry*ry+rz*rz) || 1;
+      for (let j = 0; j < 18; j++) {
+        const a1=(j/18)*Math.PI*2, a2=((j+1)/18)*Math.PI*2;
+        const ca1=Math.cos(a1), sa1=Math.sin(a1), ca2=Math.cos(a2), sa2=Math.sin(a2);
+        this.shellPos[idx*3]=px+(rx/rlen)*ca1*radius; this.shellPos[idx*3+1]=py+(ry/rlen)*ca1*radius; this.shellPos[idx*3+2]=pz+(rz/rlen)*ca1*radius+(nx*ca1*radius+ny*sa1*radius)*0.3; idx++;
+        this.shellPos[idx*3]=px+(rx/rlen)*ca2*radius; this.shellPos[idx*3+1]=py+(ry/rlen)*ca2*radius; this.shellPos[idx*3+2]=pz+(rz/rlen)*ca2*radius+(nx*ca2*radius+ny*sa2*radius)*0.3; idx++;
+      }
+    }
+    for (let i = idx; i < N*36*2; i++) { this.shellPos[i*3]=0; this.shellPos[i*3+1]=0; this.shellPos[i*3+2]=0; }
+    this.shellGeo.attributes.position.needsUpdate = true; this.shellGeo.setDrawRange(0, idx);
+
+    const hs = Math.max(1, (scaleIdx+1)*0.5);
+    this.halo.scale.set(hs, hs, hs); this.halo.material.color.set(scaleLevel.c);
+    const ss = Math.max(0.04, Math.min(1, (scaleIdx+1)/16));
+    const rs = CFG.renderStyle || 'points';
+    const rsProf = rs === 'glow' ? { sz: 1.5, op: 1.15 } : rs === 'wire' ? { sz: 0.55, op: 0.6 } : rs === 'hybrid' ? { sz: 1.2, op: 0.85 } : { sz: 1.0, op: 1.0 };
+    this.nodeMesh.material.size = 0.12*ss*rsProf.sz*Math.max(0.1, CFG.glowSize||1);
+    this.agentMesh.material.size = 0.04*ss;
+    this.nodeMesh.material.opacity = Math.max(0.05, Math.min(1, (CFG.nodeOpacity ?? 0.9)*rsProf.op));
+    this.nodeMesh.material.color.set(CFG.nodeColor);
+    this.agentMesh.material.color.set(CFG.agentColor);
+    this.lineMesh.material.color.set(CFG.connectColor);
+  }
+}
+
+// ─── INIT ───────────────────────────────────────────────────────────────
+const sim = new Sim();
+const r3d = new Renderer3D(sim);
+updateGrid(1, true);
+let curScaleIdx = Math.floor(SCALE_LEVELS.length / 2);
+let curScale = SCALE_LEVELS[curScaleIdx].v;
+const el = id => document.getElementById(id);
+
+// ─── BUILD UI ───────────────────────────────────────────────────────────
+const panel = el('panel');
+const sections = [
+    { title: 'Simulation', items: [
+      { type: 'slider', id: 'numAgents', label: 'Agents', min: 10, max: 800, step: 1, init: 200, cfg: 'numAgents', fmt: v=>String(v) },
+      { type: 'slider', id: 'numNodes', label: 'Nodes', min: 10, max: 600, step: 1, init: 180, cfg: 'numNodes', fmt: v=>String(v) },
+      { type: 'slider', id: 'agentSpeed', label: 'Speed', min: 1, max: 100, step: 1, init: 15, cfg: 'agentSpeed', scale: v=>v/100, fmt: v=>(v/100).toFixed(2) },
+      { type: 'slider', id: 'evaporation', label: 'Evaporation', min: 800, max: 999, step: 1, init: 985, cfg: 'evaporation', scale: v=>v/1000, fmt: v=>(v/1000).toFixed(3) },
+      { type: 'slider', id: 'diffusion', label: 'Diffusion', min: 0, max: 100, step: 1, init: 10, cfg: 'diffusion', scale: v=>v/100, fmt: v=>(v/100).toFixed(2) },
+      { type: 'slider', id: 'sensorAngle', label: 'Sensor Angle °', min: 5, max: 120, step: 1, init: 36, cfg: 'sensorAngle', scale: v=>v*Math.PI/180, fmt: v=>`${v}°` },
+      { type: 'slider', id: 'rotationAngle', label: 'Rotation °', min: 5, max: 120, step: 1, init: 30, cfg: 'rotationAngle', scale: v=>v*Math.PI/180, fmt: v=>`${v}°` },
+      { type: 'slider', id: 'sensorDistance', label: 'Sensor Dist', min: 1, max: 50, step: 1, init: 20, cfg: 'sensorDistance', scale: v=>v/10, fmt: v=>(v/10).toFixed(1) },
+      { type: 'slider', id: 'trailIntensity', label: 'Trail Deposit', min: 1, max: 50, step: 1, init: 12, cfg: 'trailIntensity', scale: v=>v/100, fmt: v=>(v/100).toFixed(2) },
+      { type: 'slider', id: 'trailRes', label: 'Trail Resolution', min: 16, max: 64, step: 8, init: 32, cfg: 'trailRes', fmt: v=>String(v) },
+      { type: 'slider', id: 'alignStrength', label: 'Alignment', min: 0, max: 200, step: 1, init: 20, cfg: 'alignStrength', scale: v=>v/1000, fmt: v=>(v/1000).toFixed(3) },
+      { type: 'slider', id: 'repulsionStrength', label: 'Repulsion', min: 0, max: 200, step: 1, init: 20, cfg: 'repulsionStrength', scale: v=>v/1000, fmt: v=>(v/1000).toFixed(3) },
+      { type: 'slider', id: 'damping', label: 'Damping', min: 50, max: 99, step: 1, init: 88, cfg: 'damping', scale: v=>v/100, fmt: v=>(v/100).toFixed(2) },
+      { type: 'slider', id: 'maxConnections', label: 'Max Links', min: 1, max: 12, step: 1, init: 5, cfg: 'maxConnections', fmt: v=>String(v) },
+      { type: 'slider', id: 'connectionThreshold', label: 'Link Threshold', min: 1, max: 50, step: 1, init: 12, cfg: 'connectionThreshold', scale: v=>v/10, fmt: v=>(v/10).toFixed(1) },
+    ]},
+    { title: 'Theoretical Physics', items: [
+      { type: 'slider', id: 'gravity', label: 'Gravity G', min: 0, max: 100, step: 1, init: 30, cfg: 'gravity', scale: v=>v/100, fmt: v=>(v/100).toFixed(2) },
+      { type: 'slider', id: 'quantum', label: 'Quantum ħ', min: 0, max: 100, step: 1, init: 15, cfg: 'quantum', scale: v=>v/100, fmt: v=>(v/100).toFixed(2) },
+      { type: 'slider', id: 'entangle', label: 'Entanglement', min: 0, max: 100, step: 1, init: 30, cfg: 'entangle', scale: v=>v/100, fmt: v=>(v/100).toFixed(2) },
+      { type: 'slider', id: 'tunnel', label: 'Tunneling', min: 0, max: 100, step: 1, init: 10, cfg: 'tunnel', scale: v=>v/100, fmt: v=>(v/100).toFixed(2) },
+      { type: 'slider', id: 'curvature', label: 'Curvature', min: 0, max: 100, step: 1, init: 25, cfg: 'curvature', scale: v=>v/100, fmt: v=>(v/100).toFixed(2) },
+      { type: 'slider', id: 'energyShells', label: 'Energy Shells', min: 0, max: 12, step: 1, init: 4, cfg: 'energyShells', fmt: v=>String(Math.round(v)) },
+      { type: 'slider', id: 'darkEnergy', label: 'Dark Energy', min: 0, max: 100, step: 1, init: 5, cfg: 'darkEnergy', scale: v=>v/100, fmt: v=>(v/100).toFixed(2) },
+      { type: 'slider', id: 'inflation', label: 'Inflation', min: 0, max: 50, step: 1, init: 0, cfg: 'inflation', scale: v=>v/1000, fmt: v=>(v/1000).toFixed(3) },
+      { type: 'slider', id: 'fineStructure', label: 'α Fine Struct', min: 0, max: 200, step: 1, init: 100, cfg: 'fineStructure', scale: v=>v/100, fmt: v=>(v/100).toFixed(2) },
+      { type: 'slider', id: 'strongForce', label: 'Strong Force', min: 0, max: 100, step: 1, init: 10, cfg: 'strongForce', scale: v=>v/100, fmt: v=>(v/100).toFixed(2) },
+      { type: 'slider', id: 'weakForce', label: 'Weak Force', min: 0, max: 100, step: 1, init: 5, cfg: 'weakForce', scale: v=>v/100, fmt: v=>(v/100).toFixed(2) },
+      { type: 'slider', id: 'higgsField', label: 'Higgs Field', min: 0, max: 100, step: 1, init: 30, cfg: 'higgsField', scale: v=>v/100, fmt: v=>(v/100).toFixed(2) },
+      { type: 'slider', id: 'decoherence', label: 'Decoherence', min: 0, max: 50, step: 1, init: 2, cfg: 'decoherence', scale: v=>v/100, fmt: v=>(v/100).toFixed(2) },
+      { type: 'slider', id: 'vacuumEnergy', label: 'Vacuum Energy', min: 0, max: 50, step: 1, init: 1, cfg: 'vacuumEnergy', scale: v=>v/1000, fmt: v=>(v/1000).toFixed(3) },
+      { type: 'slider', id: 'planckScale', label: 'Planck Scale', min: 0, max: 100, step: 1, init: 0, cfg: 'planckScale', scale: v=>v/100, fmt: v=>(v/100).toFixed(2) },
+    ]},
+    { title: 'Visuals', items: [
+      { type: 'select', id: 'preset', label: 'Preset', cfg: 'preset', options: Object.entries(PRESETS).map(([k,v])=>[k, v.label]) },
+      { type: 'select', id: 'renderStyle', label: 'Style', cfg: 'renderStyle', options: [['points','Points'],['glow','Glow'],['wire','Wireframe'],['hybrid','Hybrid']] },
+      { type: 'color', id: 'nodeColor', label: 'Node Color', cfg: 'nodeColor' },
+      { type: 'color', id: 'agentColor', label: 'Agent Color', cfg: 'agentColor' },
+      { type: 'color', id: 'connectColor', label: 'Link Color', cfg: 'connectColor' },
+      { type: 'color', id: 'bgColor', label: 'Background', cfg: 'bgColor' },
+      { type: 'slider', id: 'colorOffset', label: 'Color Offset', min: 0, max: 100, step: 1, init: 30, cfg: 'colorOffset', scale: v=>v/100, fmt: v=>(v/100).toFixed(2) },
+      { type: 'slider', id: 'colorIntensity', label: 'Color Intensity', min: 10, max: 100, step: 1, init: 70, cfg: 'colorIntensity', scale: v=>v/100, fmt: v=>(v/100).toFixed(2) },
+      { type: 'slider', id: 'nodeOpacity', label: 'Node Opacity', min: 10, max: 100, step: 1, init: 90, cfg: 'nodeOpacity', scale: v=>v/100, fmt: v=>(v/100).toFixed(2) },
+      { type: 'slider', id: 'glowSize', label: 'Glow Size', min: 0, max: 50, step: 1, init: 10, cfg: 'glowSize', fmt: v=>(v/10).toFixed(1) },
+      { type: 'check', id: 'meshShell', label: 'Mesh wall shells', cfg: 'meshShell', onChange: (v) => { sim.applyShellLayout(); } },
+      { type: 'check', id: 'showGrid', label: 'Show Grid', cfg: 'showGrid' },
+      { type: 'check', id: 'showAgents', label: 'Show Agents', cfg: 'showAgents' },
+      { type: 'check', id: 'showConnections', label: 'Show Links', cfg: 'showConnections' },
+      { type: 'check', id: 'autoRotate', label: 'Auto Rotate', cfg: 'autoRotate' },
+      { type: 'check', id: 'waveFunc', label: 'Wave Function', cfg: 'waveFunc' },
+      { type: 'check', id: 'gravLens', label: 'Grav. Lensing', cfg: 'gravLens' },
+      { type: 'check', id: 'trailHeatmap', label: 'Trail Heatmap', cfg: 'trailHeatmap' },
+      { type: 'check', id: 'attackTrails', label: 'Attack Beams', cfg: 'attackTrails' },
+    ]},
+    { title: 'Security System', items: [
+      { type: 'check', id: 'security', label: 'Security demo', cfg: 'security' },
+      { type: 'slider', id: 'threatLevel', label: 'Threat', min: 0, max: 100, step: 1, init: 20, cfg: 'threatLevel', scale: v=>v/100, fmt: v=>(v/100).toFixed(2) },
+      { type: 'slider', id: 'firewall', label: 'Firewall', min: 0, max: 100, step: 1, init: 70, cfg: 'firewall', scale: v=>v/100, fmt: v=>(v/100).toFixed(2) },
+      { type: 'slider', id: 'defenderCount', label: 'Defenders', min: 0, max: 40, step: 1, init: 6, cfg: 'defenderCount', fmt: v=>String(v) },
+      { type: 'check', id: 'autoDefense', label: 'Moving-target defense (A)', cfg: 'autoDefense', onChange: (v) => { if (v){ CFG.security = true; const cb = el('chksecurity'); if (cb) cb.checked = true; } } },
+      { type: 'adrow' },
+      { type: 'secrow' },
+    ]},
+    { title: 'Tracking & Inspection', items: [
+      { type: 'check', id: 'trackFocus', label: 'Track closest to camera', cfg: 'trackFocus' },
+      { type: 'slider', id: 'trackCount', label: 'Track count', min: 1, max: 12, step: 1, init: 5, cfg: 'trackCount', fmt: v=>String(v) },
+    ]},
+    { title: 'Export / Import', items: [
+      { type: 'textarea', id: 'jsonData', label: '', placeholder: 'node data JSON...' },
+      { type: 'buttons', id: 'ioButtons' },
+    ]},
+    { title: 'Node Inspector', items: [
+      { type: 'nodeList', id: 'nodeList' },
+      { type: 'nodeDetail', id: 'nodeDetail' },
+    ]},
+  ];
+
+  let html = '';
+  for (const sec of sections) {
+    html += `<div class="section"><div class="section-title">${sec.title}</div>`;
+    for (const item of sec.items) {
+      if (item.type === 'slider') {
+        const valId = item.id + 'Val';
+        html += `<label><span>${item.label}</span><div class="slider-row"><input type="range" id="sld${item.id}" min="${item.min}" max="${item.max}" step="${item.step}" value="${item.init}"><span class="val" id="${valId}">${item.fmt(item.scale ? item.scale(item.init) : item.init)}</span><input type="text" class="num-input" id="num${item.id}" value="${item.init}"></div></label>`;
+      } else if (item.type === 'check') {
+        html += `<div class="check-row"><input type="checkbox" id="chk${item.id}"><span>${item.label}</span></div>`;
+      } else if (item.type === 'color') {
+        html += `<label><span>${item.label}</span><input type="color" id="clr${item.id}" value="${item.init||'#00ffff'}"></label>`;
+      } else if (item.type === 'select') {
+        html += `<label><span>${item.label}</span><select id="sel${item.id}">${item.options.map(([v,l])=>`<option value="${v}">${l}</option>`).join('')}</select></label>`;
+      } else if (item.type === 'textarea') {
+        html += `<textarea id="${item.id}" placeholder="${item.placeholder||''}"></textarea>`;
+      } else if (item.type === 'buttons') {
+        html += `<div style="display:flex;gap:4px;margin-top:4px;flex-wrap:wrap"><button class="btn" id="btnExport">Export</button><button class="btn" id="btnImport">Import</button><button class="btn" id="btnRandomize">Randomize</button><button class="btn" id="btnRandomizeAll">Randomize All</button><button class="btn danger" id="btnReset">Reset</button></div>`;
+      } else if (item.type === 'secrow') {
+        html += `<div style="display:flex;gap:4px;margin-top:4px;flex-wrap:wrap;align-items:center"><span id="secStatus" class="run-ctl" style="font-size:9px;color:#3f6;margin-right:auto;flex:1;min-width:120px"></span><button class="btn" id="btnBurst">⟠ Attack burst</button><button class="btn danger" id="btnResetSec">⚔ Reset</button></div>`;
+      } else if (item.type === 'adrow') {
+        html += `<div style="display:flex;gap:4px;margin-top:2px;flex-wrap:wrap;align-items:center"><span id="adStatus" class="run-ctl" style="font-size:9px;color:#3ff;margin-right:auto;flex:1;min-width:120px"></span><button class="btn" id="btnAdRotate">↻ rotate now</button></div>`;
+      } else if (item.type === 'nodeList') {
+        html += `<div id="nodeList" style="max-height:120px;overflow-y:auto;font-size:9px"></div>`;
+      } else if (item.type === 'nodeDetail') {
+        html += `<div id="nodeDetail" style="font-size:9px;color:#888;margin-top:4px">Click a node</div>`;
+      }
+    }
+    html += '</div>';
+  }
+  panel.innerHTML = html;
+
+  // Bind sliders
+  const needsResize = { value: false };
+  const allSliders = () => sections.flatMap(s=>s.items).filter(i=>i.type==='slider');
+  // Re-derive each slider's raw position from the active CFG value (preset-safe):
+  // scans the slider domain for the raw that closest reproduces the stored value,
+  // so the thumb, number box and label always agree with what the sim uses.
+  const syncSlider = (item) => {
+    const sld = el('sld' + item.id);
+    const valEl = el(item.id + 'Val');
+    const numEl = el('num' + item.id);
+    if (!sld || CFG[item.cfg] === undefined) return;
+    const scaled = CFG[item.cfg];
+    let best = item.init, bestErr = Infinity;
+    for (let r = item.min; r <= item.max; r += (item.step || 1)) {
+      const s = item.scale ? item.scale(r) : r;
+      const err = Math.abs(s - scaled);
+      if (err < bestErr) { bestErr = err; best = r; }
+    }
+    sld.value = best;
+    if (numEl) numEl.value = best;
+    if (valEl) valEl.textContent = item.fmt(scaled);
+  };
+  for (const item of allSliders()) {
+    const sld = el('sld' + item.id);
+    const valEl = el(item.id + 'Val');
+    const numEl = el('num' + item.id);
+    if (!sld) continue;
+    const update = (fromSlider) => {
+      let raw;
+      if (fromSlider) { raw = parseFloat(sld.value); if (numEl) numEl.value = raw; }
+      else { raw = parseFloat(numEl.value); if (!isNaN(raw) && raw >= item.min && raw <= item.max) sld.value = raw; else return; }
+      const scaled = item.scale ? item.scale(raw) : raw;
+      CFG[item.cfg] = scaled;
+      if (valEl) valEl.textContent = item.fmt(scaled);
+      if (item.cfg === 'numAgents' || item.cfg === 'numNodes' || item.cfg === 'trailRes') needsResize.value = true;
+      if (item.cfg === 'bgColor') renderer.setClearColor(CFG.bgColor);
+    };
+    sld.addEventListener('input', () => update(true));
+    if (numEl) numEl.addEventListener('change', () => update(false));
+  }
+
+  // Bind checks
+  for (const item of sections.flatMap(s=>s.items).filter(i=>i.type==='check')) {
+    const chk = el('chk' + item.id);
+    if (chk) { chk.checked = CFG[item.cfg] || false; chk.addEventListener('change', () => { CFG[item.cfg] = chk.checked; if (item.onChange) item.onChange(chk.checked); }); }
+  }
+
+  // Bind colors
+  for (const item of sections.flatMap(s=>s.items).filter(i=>i.type==='color')) {
+    const clr = el('clr' + item.id);
+    if (clr) { clr.value = CFG[item.cfg] || '#00ffff'; clr.addEventListener('input', () => { CFG[item.cfg] = clr.value; if (item.cfg === 'bgColor') renderer.setClearColor(clr.value); }); }
+  }
+
+  // Bind selects
+  for (const item of sections.flatMap(s=>s.items).filter(i=>i.type==='select')) {
+    const sel = el('sel' + item.id);
+    if (sel) {
+      sel.value = CFG[item.cfg] || '';
+      sel.addEventListener('change', () => {
+        CFG[item.cfg] = sel.value;
+        if (item.cfg === 'preset' && sel.value !== 'custom') {
+          const p = PRESETS[sel.value];
+          if (p) for (const [k, v] of Object.entries(p)) if (k !== 'label') CFG[k] = v;
+          allSliders().forEach(syncSlider);
+        }
+      });
+    }
+  }
+
+  const needsResizeFlag = needsResize;
+
+// ─── URL PRESET LOADING ───────────────────────────────────────────────────
+const urlParams = new URLSearchParams(location.search);
+const urlPreset = urlParams.get('preset');
+if (urlPreset && PRESETS[urlPreset]) {
+  CFG.preset = urlPreset;
+  const p = PRESETS[urlPreset];
+  if (p) for (const [k, v] of Object.entries(p)) if (k !== 'label') CFG[k] = v;
+  const sel = el('selpreset');
+  if (sel) sel.value = urlPreset;
+  allSliders().forEach(syncSlider);
+}
+
+// ─── UI REFS ────────────────────────────────────────────────────────────
+const uiScaleName = el('scaleName'), uiScaleVal = el('scaleValue');
+const uiNodes = el('nodeCount'), uiAgents = el('agentCount'), uiConns = el('connectionCount');
+const uiFps = el('fpsDisplay'), uiEnergy = el('energyDisplay'), uiEntropy = el('entropyDisplay');
+const scaleFill = el('scaleFill'), scaleDot = el('scaleDot');
+
+// ─── NODE DATA ──────────────────────────────────────────────────────────
+const nodeListEl = el('nodeList');
+const nodeDetailEl = el('nodeDetail');
+let selectedNode = -1;
+
+function renderNodeList() {
+  if (!nodeListEl) return;
+  nodeListEl.innerHTML = '';
+  for (let i = 0; i < CFG.numNodes; i++) {
+    const d = sim.nodeData[i];
+    const div = document.createElement('div');
+    div.className = 'node-select' + (i === selectedNode ? ' active' : '');
+    const es = sim.nodeEntangle[i].length > 0 ? ` ⟷${sim.nodeEntangle[i].join(',')}` : '';
+    div.textContent = `${d.label} w:${sim.nodeWeight[i].toFixed(3)}${es}`;
+    div.addEventListener('click', () => {
+      selectedNode = i;
+      renderNodeList();
+      const d2 = sim.nodeData[i];
+      const prob = sim.nodeWaveReal[i]**2 + sim.nodeWaveImag[i]**2;
+      if (nodeDetailEl) nodeDetailEl.innerHTML =
+        `Node ${i}<br>` +
+        `Weight: ${sim.nodeWeight[i].toFixed(4)} | Act: ${sim.nodeAct[i].toFixed(4)} | Bias: ${sim.nodeBias[i].toFixed(4)}<br>` +
+        `Mass: ${sim.nodeMass[i].toFixed(3)} | Charge: ${sim.nodeCharge[i].toFixed(3)} | Spin: ${sim.nodeSpin[i].toFixed(3)}<br>` +
+        `Shell: ${Math.round(sim.nodeShell[i])} | Wave: ${prob.toFixed(4)}<br>` +
+        `Entangled: ${sim.nodeEntangle[i].join(', ') || 'none'}<br>` +
+        `Pos: ${sim.nodePos[i*3].toFixed(2)}, ${sim.nodePos[i*3+1].toFixed(2)}, ${sim.nodePos[i*3+2].toFixed(2)}<br>` +
+        `Vel: ${sim.nodeVel[i*3].toFixed(3)}, ${sim.nodeVel[i*3+1].toFixed(3)}, ${sim.nodeVel[i*3+2].toFixed(3)}<br>` +
+        `Label: <input type="text" id="nodeLabel" value="${d2.label}" style="width:100px"><br>` +
+        `Data: <textarea id="nodeData" rows="2">${d2.data}</textarea><br>` +
+        `<button class="btn" id="saveNodeBtn">Save</button>`;
+      setTimeout(() => {
+        const lbl = document.getElementById('nodeLabel');
+        const dat = document.getElementById('nodeData');
+        const saveBtn = document.getElementById('saveNodeBtn');
+        if (lbl) lbl.addEventListener('change', () => { sim.nodeData[i].label = lbl.value; renderNodeList(); });
+        if (saveBtn) saveBtn.addEventListener('click', () => {
+          sim.nodeData[i].label = lbl ? lbl.value : sim.nodeData[i].label;
+          sim.nodeData[i].data = dat ? dat.value : sim.nodeData[i].data;
+          renderNodeList();
+        });
+      }, 0);
+    });
+    nodeListEl.appendChild(div);
+  }
+}
+renderNodeList();
+
+// ─── EXPORT / IMPORT ────────────────────────────────────────────────────
+function exportNodesArr(){
+  const data = [];
+  for (let i = 0; i < CFG.numNodes; i++) data.push({
+    label: sim.nodeData[i].label, data: sim.nodeData[i].data,
+    weight: sim.nodeWeight[i], bias: sim.nodeBias[i], mass: sim.nodeMass[i],
+    charge: sim.nodeCharge[i], spin: sim.nodeSpin[i],
+    waveReal: sim.nodeWaveReal[i], waveImag: sim.nodeWaveImag[i],
+    shell: sim.nodeShell[i], entangled: sim.nodeEntangle[i],
+    pos: [sim.nodePos[i*3], sim.nodePos[i*3+1], sim.nodePos[i*3+2]],
+    vel: [sim.nodeVel[i*3], sim.nodeVel[i*3+1], sim.nodeVel[i*3+2]],
+  });
+  return data;
+}
+
+// ─── RUN CONTROLS ───────────────────────────────────────────────────────
+// The engine starts paused: compose a configuration plate first, then press
+// ▶ Run experiment. Stepping is throttled by CFG.runSpeed (steps per frame),
+// so the default rate of 0.25 merges things slowly instead of boiling them.
+let running = false, simAcc = 0, simStepCount = 0, runMs = 0, fpsNav = 60, prevT = 0;
+const runBtn = el('runBtn'), stepBtn = el('stepBtn');
+const runRateEl = el('runRate'), runRateVal = el('runRateVal'), stepCountEl = el('stepCount');
+
+function setRunning(v){
+  running = v;
+  if (runBtn) { runBtn.textContent = v ? '❚❚ Pause' : '▶ Run experiment'; runBtn.classList.toggle('run', v); }
+}
+function refreshStepCount(){ if (stepCountEl) stepCountEl.textContent = 'steps ' + simStepCount; }
+function updateRunRate(){
+  CFG.runSpeed = parseFloat(runRateEl.value) / 100;   // 0.01 .. 1.00 steps per frame
+  if (runRateVal) runRateVal.textContent = CFG.runSpeed.toFixed(2) + ' st/fr';
+}
+runBtn?.addEventListener('click', () => setRunning(!running));
+stepBtn?.addEventListener('click', () => { sim.update(curScaleIdx); simStepCount++; recordHistory(); refreshStepCount(); });
+runRateEl?.addEventListener('input', updateRunRate);
+updateRunRate();
+
+// ─── CONTROLS MODAL (keyboard-safe) ─────────────────────────────────────
+// The parameter module lives in a centered modal, not a corner, so the on-screen
+// keyboard can never push it off-view: it recenters inside the visual viewport.
+const scrim = el('scrim'), openBtn = el('openPanel');
+const controlsModalOpen = () => panel.classList.contains('open');
+function positionControlsModal(){
+  const vv = window.visualViewport;
+  const pw = panel.offsetWidth || 380, ph = panel.offsetHeight || 600;
+  if (vv){
+    panel.style.top = (vv.offsetTop + Math.max(10, (vv.height - ph) / 2)) + 'px';
+    panel.style.left = (vv.offsetLeft + Math.max(10, (vv.width - pw) / 2)) + 'px';
+    panel.style.transform = 'none';
+  }
+}
+function openControlsModal(){
+  panel.classList.add('open'); scrim.classList.add('on');
+  positionControlsModal();
+}
+function closeControlsModal(){
+  panel.classList.remove('open'); scrim.classList.remove('on');
+  panel.style.top = ''; panel.style.left = ''; panel.style.transform = '';
+}
+openBtn?.addEventListener('click', openControlsModal);
+scrim?.addEventListener('click', closeControlsModal);
+addEventListener('keydown', (e) => { if (e.key === 'Escape' && controlsModalOpen()) closeControlsModal(); });
+if (window.visualViewport){
+  window.visualViewport.addEventListener('resize', () => { if (controlsModalOpen()) positionControlsModal(); });
+  window.visualViewport.addEventListener('scroll', () => { if (controlsModalOpen()) positionControlsModal(); });
+}
+
+function linkTotal(){ let t = 0; for (const c of sim.connections) t += c.length; return t; }
+function recordHistory(){
+  sim.history = sim.history || [];
+  sim.history.push({ step: simStepCount, energy: +sim.totalEnergy.toFixed(4), entropy: +sim.entropy.toFixed(4), links: linkTotal() });
+  if (sim.history.length > 1200) sim.history.splice(0, sim.history.length - 1200);
+}
+
+// ─── RUN REPORT / EXPORT INFOCARD ───────────────────────────────────────
+function structureStats(){
+  const N = CFG.numNodes;
+  let links = linkTotal(), pairs = 0;
+  const shells = {};
+  let wmin = Infinity, wmax = -Infinity, wsum = 0, msum = 0, cmin = Infinity, cmax = -Infinity, sup = 0, sdn = 0, wps = 0;
+  for (let i = 0; i < N; i++) {
+    const w = sim.nodeWeight[i]; if (w < wmin) wmin = w; if (w > wmax) wmax = w; wsum += w;
+    msum += sim.nodeMass[i];
+    const c = sim.nodeCharge[i]; if (c < cmin) cmin = c; if (c > cmax) cmax = c;
+    if (sim.nodeSpin[i] > 0) sup++; else sdn++;
+    wps += sim.nodeWaveReal[i]**2 + sim.nodeWaveImag[i]**2;
+    const sh = Math.round(sim.nodeShell[i]); shells[sh] = (shells[sh] || 0) + 1;
+  }
+  for (let i = 0; i < N; i++) for (const j of sim.nodeEntangle[i]) if (j > i) pairs++;
+  return {
+    nodes: N, agents: sim.agents.length, links, meanLinks: N ? +(links / N).toFixed(3) : 0, pairs,
+    weightMin: N ? +wmin.toFixed(4) : 0, weightMean: N ? +(wsum / N).toFixed(4) : 0, weightMax: N ? +wmax.toFixed(4) : 0,
+    massMean: N ? +(msum / N).toFixed(3) : 0, chargeMin: +cmin.toFixed(3), chargeMax: +cmax.toFixed(3),
+    spinUp: sup, spinDown: sdn, waveProbSum: +wps.toFixed(4),
+    shells: Object.keys(shells).map(Number).sort((a, b) => a - b).map(k => ({ shell: k, count: shells[k] })),
+  };
+}
+
+function buildReport(){
+  const st = structureStats();
+  const scale = SCALE_LEVELS[curScaleIdx];
+  return {
+    _meta: {
+      app: 'Quantum→Universe | Theoretical Physics Engine',
+      file: 'quantum-universe-run-report',
+      generated: new Date().toISOString(),
+      scale: scale.name, scaleValue: scale.v, preset: CFG.preset,
+      url: location.href, running, steps: simStepCount,
+      elapsedMs: Math.round(runMs), fps: Math.round(fpsNav), runRate: CFG.runSpeed,
+    },
+    config: Object.assign({}, CFG),
+    structure: st,
+    energy: { total: sim.totalEnergy, entropy: sim.entropy, history: sim.history },
+    security: {
+      enabled: CFG.security, threatLevel: CFG.threatLevel, firewall: CFG.firewall, defenderCount: CFG.defenderCount,
+      intrusions: sim.intrusions, blocked: sim.blocked,
+      peakStress: +sim.peakStress.toFixed(3), compromised: sim.compromised.size,
+      defenders: sim.countRole('defender'), attackers: sim.countRole('attacker'),
+      autoDefense: CFG.autoDefense, strategy: sim.auto.on ? sim.auto.strategy : 'pursuit',
+      rotations: sim.auto.rotation, uniquePaths: CFG.autoDefense ? sim.countRole('defender') : 0,
+      coverPercent: CFG.autoDefense ? +((sim.auto.coverCount / (PAC * PAC * PAC)) * 100).toFixed(1) : 0,
+      intercepts: sim.auto.intercepts,
+    },
+    nodes: exportNodesArr(),
+  };
+}
+
+const ecEsc = s => String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+const ecNum = n => {
+  if (n == null) return '—';
+  n = +n; if (!isFinite(n)) return String(n);
+  const a = Math.abs(n);
+  if (a >= 1e15) return (n / 1e15).toFixed(2) + ' P';
+  if (a >= 1e12) return (n / 1e12).toFixed(2) + ' T';
+  if (a >= 1e9) return (n / 1e9).toFixed(2) + ' G';
+  if (a >= 1e6) return (n / 1e6).toFixed(2) + ' M';
+  if (a >= 1e3) return (n / 1e3).toFixed(2) + ' k';
+  return a < 1 ? n.toFixed(4) : n.toFixed(1);
+};
+const ecCell = (title, kvs) => {
+  let r = '<div class="cell"><h4>' + ecEsc(title) + '</h4><div class="kv">';
+  for (let x = 0; x < kvs.length; x += 2) r += '<b>' + ecEsc(kvs[x]) + '</b><span>' + ecEsc(kvs[x + 1]) + '</span>';
+  return r + '</div></div>';
+};
+
+function buildExportHtml(rep){
+  const meta = rep._meta, st = rep.structure, cfg = rep.config, en = rep.energy;
+  const shellsStr = (st.shells || []).map(s => `${s.shell}:${s.count}`).join(' · ') || '—';
+  const propStr = cfg.preset === 'custom' ? 'custom (all controls live)' : `${cfg.preset} physics plate`;
+  const approxRate = (cfg.runSpeed * meta.fps).toFixed(1);
+  const configRows = Object.entries(cfg)
+    .map(([k, v]) => `<tr><td>${ecEsc(k)}</td><td>${ecEsc(typeof v === 'number' ? (Math.abs(v) >= 1000 || (Math.abs(v) < 0.001 && v !== 0) ? v.toExponential(3) : v.toPrecision(4)) : v)}</td></tr>`)
+    .join('');
+  const scaleLine = SCALE_LEVELS
+    .map(sl => `<tr${sl.name === meta.scale ? ' class="cur"' : ''}><td>${ecEsc(sl.name)}</td><td>${sl.v.toExponential(2)} m</td></tr>`)
+    .join('');
+  const facts = [
+    ['engine', ecEsc(meta.app)],
+    ['scale', `${ecEsc(meta.scale)} · ${ecEsc(meta.scaleValue.toExponential(2))} m`],
+    ['plate', `${ecEsc(cfg.preset)} · ${meta.runRate} st/fr`],
+    ['run', `${ecNum(meta.steps)} steps · ${ecNum(meta.elapsedMs)} ms`],
+    ['ensemble', `${st.nodes} nodes · ${st.agents} agents`],
+    ['mesh', cfg.meshShell ? 'wall shells on' : 'free-fall'],
+    ['connectivity', `${ecNum(st.links)} links · ${st.meanLinks}/node`],
+    ['entangle', `${st.pairs} pairs`],
+    ['shells', ecEsc(shellsStr)],
+    ['energy', ecNum(en.total)],
+    ['entropy', ecNum(en.entropy)],
+    ['spin', `${st.spinUp} ↑ / ${st.spinDown} ↓`],
+    ['exported', ecEsc(meta.generated)],
+  ].map(f => `<li><b>${f[0]}</b>${f[1]}</li>`).join('');
+  const cells =
+    ecCell('Run plate', ['steps', ecNum(meta.steps), 'elapsed', ecNum(meta.elapsedMs) + ' ms', 'rate', meta.runRate + ' st/fr', 'fps', meta.fps]) +
+    ecCell('Structure', ['nodes', st.nodes, 'agents', st.agents, 'links', ecNum(st.links), 'mean', st.meanLinks]) +
+    ecCell('Quantities', ['weight', `${st.weightMin} … ${st.weightMax}`, 'weight μ', st.weightMean, 'mass μ', st.massMean, 'charge', `${st.chargeMin} … ${st.chargeMax}`]) +
+    ecCell('Thermodynamics', ['energy', ecNum(en.total), 'entropy', ecNum(en.entropy), 'spin', `${st.spinUp}↑ / ${st.spinDown}↓`, 'Σ|ψ|²', st.waveProbSum]);
+  const prose1 = `<p class="prose"><b>Summary.</b> One pass of a smart-matter field through the engine at the <b>${ecEsc(meta.scale)}</b> scale (${ecEsc(meta.scaleValue.toExponential(2))} m). ${st.nodes} nodes and ${st.agents} agents populate the volume — agents scent trail through the grid while node masses curve the space they move through — under the ${ecEsc(propStr)}, at a run rate of ${meta.runRate} steps/frame, roughly ${approxRate} physics steps per second at the measured ${meta.fps} fps.</p>`;
+  const prose2 = `<p class="prose"><b>Outcome.</b> Across ${ecNum(meta.steps)} steps (${ecNum(meta.elapsedMs)} ms of wall clock) the system settled at ${ecNum(en.total)} total energy and ${ecNum(en.entropy)} entropy, with ${ecNum(st.links)} links tying the ${st.nodes} nodes (mean ${st.meanLinks} per node) and ${st.pairs} entangled pairs. Node weights span ${st.weightMin}–${st.weightMax} (mean ${st.weightMean}); the ensemble is ${st.spinUp} spin-up / ${st.spinDown} spin-down with wave-probability mass Σ|ψ|² = ${st.waveProbSum}.</p>`;
+  const sec = rep.security;
+  let secBlock = '';
+  let autoLine = '';
+  if (sec && sec.enabled && sec.autoDefense){
+    autoLine = `<p class="prose"><b>Moving-target defense.</b> The auto-defense controller ran <b>${ecEsc(sec.strategy)}</b> (rotation ${sec.rotations}) — ${sec.uniquePaths} defenders each patrolled on a <b>wholly unique path</b> through the field lattice, covering ${sec.coverPercent}% of the volume with ${sec.intercepts} close-range intercepts. Strategies auto-rotate on a timer (sweep → perimeter → rash → pursuit); press <b>A</b> or hit <b>↻ rotate now</b> to force a rotation.</p>`;
+  }
+  if (sec && sec.enabled){
+    const outcome = sec.intrusions === 0 ? 'zero-breach' : ecNum(sec.intrusions) + ' degraded flag(s)';
+    secBlock = `<h3>SecMesh · this run vs baseline</h3>
+  <div class="grid">
+    ${ecCell('Run outcome', ['regime', outcome, 'intrusions', ecNum(sec.intrusions), 'blocked', ecNum(sec.blocked), 'degraded now', ecNum(sec.compromised)])}
+    ${ecCell('Fleet & threat', ['defenders', ecNum(sec.defenders), 'attackers', ecNum(sec.attackers), 'threat', sec.threatLevel, 'firewall', sec.firewall])}
+    ${ecCell('Stress', ['peak σ', ecNum(sec.peakStress), 'flag rule', 'w < 0.30', 'restore', 'w > 0.55'])}
+  </div>
+  ${autoLine}
+  <p class="prose"><b>Reference baseline</b> — a 69-trial headless matrix (3 seeds, same frozen config) held <b>42/42 trials intrusion-free</b> through a 10× threat and 8× wave escalation (availability 1.000, 15,855 attackers neutralized). Decomposition @ threat 0.35: healing field alone 0/3 breached, full mesh 0/3 at ~42% lower peak stress, no defense 2/3 breached. First degradation only near 14× baseline, then continuous, bounded, self-healing (no cliff). Same 6-defender fleet covers 60→360 nodes intrusion-free. Full method, equations and numbers: <b>docs/secmesh-concept.md</b> (repo).</p>`;
+  } else if (sec){
+    secBlock = `<h3>SecMesh</h3>
+  <p class="prose"><b>Security demo is off.</b> Enable it in ⚙ Controls → Security System → <i>Security demo</i> to compare this run against the baseline (docs/secmesh-concept.md: 42/42 trials zero-breach at up to 10× threat).</p>`;
+  }
+  return `<div id="exportCard">
+  <h1>Quantum→Universe · run report</h1>
+  <div class="sub">${ecEsc(meta.url)} · exported ${ecEsc(meta.generated)}</div>
+  <div class="btns">
+    <button id="ecPrint">🖨 print</button><button id="ecCopy">⧉ copy json</button><button id="ecDl">⇩ download .json</button><button id="ecClose">✕ close</button>
+  </div>
+  ${prose1}${prose2}
+  <ul class="facts">${facts}</ul>
+  <div class="grid">${cells}</div>
+  ${secBlock}
+  <h3>Configuration plate</h3>
+  <table><tr><th>setting</th><th>value</th></tr>${configRows}</table>
+  <h3>Scale ladder</h3>
+  <table><tr><th>level</th><th>value</th></tr>${scaleLine}</table>
+  <h3>Raw JSON</h3>
+  <details><summary>full report · ${ecNum(JSON.stringify(rep).length)} bytes</summary><pre>${ecEsc(JSON.stringify(rep, null, 2))}</pre></details>
+</div>`;
+}
+
+function fallbackCopy(text){
+  const ta = document.createElement('textarea');
+  ta.value = text; ta.style.position = 'fixed'; ta.style.opacity = '0';
+  document.body.appendChild(ta); ta.select();
+  try { document.execCommand('copy'); } catch (e) {}
+  document.body.removeChild(ta);
+}
+function openExportCard(rep){
+  if (document.getElementById('exportCard')) document.getElementById('exportCard').remove();
+  document.body.insertAdjacentHTML('beforeend', buildExportHtml(rep));
+  const card = document.getElementById('exportCard');
+  const json = JSON.stringify(rep, null, 2);
+  card.querySelector('#ecClose').onclick = () => card.remove();
+  card.querySelector('#ecCopy').onclick = () => {
+    if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(json).catch(() => fallbackCopy(json));
+    else fallbackCopy(json);
+  };
+  card.querySelector('#ecDl').onclick = () => {
+    const blob = new Blob([json], { type: 'application/json' });
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob); a.download = 'quantum-universe-run-report.json'; a.click();
+    setTimeout(() => URL.revokeObjectURL(a.href), 2000);
+  };
+  card.querySelector('#ecPrint').onclick = () => window.print();
+}
+
+el('btnExport')?.addEventListener('click', () => {
+  if (controlsModalOpen()) closeControlsModal();
+  const rep = buildReport();
+  el('jsonData').value = JSON.stringify(rep, null, 2);
+  openExportCard(rep);
+});
+
+el('btnImport')?.addEventListener('click', () => {
+  try {
+    const data = JSON.parse(el('jsonData').value);
+    for (let i = 0; i < Math.min(data.length, CFG.numNodes); i++) {
+      const d = data[i]; const idx = i;
+      sim.nodeData[idx].label = d.label || sim.nodeData[idx].label;
+      sim.nodeData[idx].data = d.data || sim.nodeData[idx].data;
+      if (d.weight !== undefined) sim.nodeWeight[idx] = d.weight;
+      if (d.bias !== undefined) sim.nodeBias[idx] = d.bias;
+      if (d.mass !== undefined) sim.nodeMass[idx] = d.mass;
+      if (d.charge !== undefined) sim.nodeCharge[idx] = d.charge;
+      if (d.spin !== undefined) sim.nodeSpin[idx] = d.spin;
+      if (d.waveReal !== undefined) sim.nodeWaveReal[idx] = d.waveReal;
+      if (d.waveImag !== undefined) sim.nodeWaveImag[idx] = d.waveImag;
+      if (d.shell !== undefined) sim.nodeShell[idx] = d.shell;
+      if (d.entangled) sim.nodeEntangle[idx] = d.entangled;
+      if (d.pos) { sim.nodePos[idx*3] = d.pos[0]; sim.nodePos[idx*3+1] = d.pos[1]; sim.nodePos[idx*3+2] = d.pos[2]; }
+      if (d.vel) { sim.nodeVel[idx*3] = d.vel[0]; sim.nodeVel[idx*3+1] = d.vel[1]; sim.nodeVel[idx*3+2] = d.vel[2]; }
+    }
+    renderNodeList();
+  } catch (e) { alert('Invalid JSON: ' + e.message); }
+});
+
+el('btnReset')?.addEventListener('click', () => {
+  sim.resize(CFG.numNodes, CFG.numAgents);
+  r3d.resize();
+  renderNodeList();
+  selectedNode = -1;
+  if (nodeDetailEl) nodeDetailEl.textContent = 'Click a node';
+});
+
+el('btnRandomize')?.addEventListener('click', () => {
+  for (let i = 0; i < CFG.numNodes; i++) {
+    sim.nodeWeight[i] = Math.random();
+    sim.nodeMass[i] = 0.5 + Math.random();
+    sim.nodeCharge[i] = (Math.random() - 0.5) * 2;
+    sim.nodeSpin[i] = (Math.random() > 0.5 ? 1 : -1) * (0.5 + Math.random() * 0.5);
+    sim.nodeWaveReal[i] = Math.random() * 0.5;
+    sim.nodeWaveImag[i] = Math.random() * 0.5;
+  }
+  renderNodeList();
+});
+
+el('btnRandomizeAll')?.addEventListener('click', () => {
+  for (let i = 0; i < CFG.numNodes; i++) {
+    sim.nodeWeight[i] = Math.random();
+    sim.nodeMass[i] = 0.5 + Math.random();
+    sim.nodeCharge[i] = (Math.random() - 0.5) * 2;
+    sim.nodeSpin[i] = (Math.random() > 0.5 ? 1 : -1) * (0.5 + Math.random() * 0.5);
+    sim.nodeWaveReal[i] = Math.random() * 0.5;
+    sim.nodeWaveImag[i] = Math.random() * 0.5;
+    sim.nodeBias[i] = (Math.random() - 0.5) * 2;
+    sim.nodeData[i].label = `Node_${i}`;
+    sim.nodeData[i].data = JSON.stringify({ seed: Math.random().toFixed(4) });
+  }
+  for (let i = 0; i < CFG.numAgents; i++) {
+    const a = sim.agents[i];
+    a.px = (Math.random()-0.5)*10; a.py = (Math.random()-0.5)*10; a.pz = (Math.random()-0.5)*10;
+    a.dx = Math.random()-0.5; a.dy = Math.random()-0.5; a.dz = Math.random()-0.5;
+    const len = Math.sqrt(a.dx*a.dx+a.dy*a.dy+a.dz*a.dz)||1;
+    a.dx/=len; a.dy/=len; a.dz/=len;
+    a.spd = 0.15+Math.random()*0.1;
+  }
+  renderNodeList();
+});
+
+// ─── SECURITY SYSTEM WIRING ─────────────────────────────────────────────
+function securityStatus(){
+  if (!CFG.security) return { state: 'off', compromised: 0, text: 'security demo off' };
+  const c = sim.compromised.size;
+  const state = c > 0 ? 'UNDER ATTACK' : 'SECURE';
+  return {
+    state, compromised: c,
+    text: state + (c ? ' · ' + c + ' degraded' : '') + ' · protected ' + CFG.numNodes +
+          ' nodes · blocked ' + sim.blocked + ' · intrusions ' + sim.intrusions,
+  };
+}
+let secStatusEl = null, secStatusClock = 0;
+function refreshSecStatus(){
+  if (secStatusClock++ % 4 !== 0) return;
+  const se = secStatusEl || (secStatusEl = el('secStatus'));
+  if (se){
+    const s = securityStatus();
+    se.textContent = s.text;
+    se.style.color = s.state === 'UNDER ATTACK' ? '#f66' : '#3f6';
+  }
+  const ad = el('adStatus');
+  if (ad){
+    if (!CFG.autoDefense || !CFG.security){
+      ad.textContent = 'auto-defense off · press A to enable';
+      ad.style.color = '#888';
+    } else {
+      const cover = sim.auto.coverCount / (PAC * PAC * PAC);
+      ad.textContent = sim.auto.strategy + ' · rot ' + sim.auto.rotation + ' · ' + sim.countRole('defender') + ' paths · cover ' + (cover * 100).toFixed(0) + '%';
+      ad.style.color = '#3ff';
+    }
+  }
+}
+el('btnBurst')?.addEventListener('click', () => {
+  if (!CFG.security){ CFG.security = true; const cb = el('chksecurity'); if (cb) cb.checked = true; }
+  sim.launchBurst(CFG.attackerBatch);
+});
+el('btnAdRotate')?.addEventListener('click', () => {
+  if (!CFG.security){ CFG.security = true; const cb = el('chksecurity'); if (cb) cb.checked = true; }
+  if (!CFG.autoDefense){ CFG.autoDefense = true; const cb = el('chkautoDefense'); if (cb) cb.checked = true; }
+  sim.manualRotate();
+});
+el('btnResetSec')?.addEventListener('click', () => {
+  sim.blocked = 0; sim.intrusions = 0; sim.peakStress = 0;
+  sim.events.length = 0; sim.pulses.length = 0; sim.compromised.clear();
+  sim.stress.fill(0);
+  for (const a of sim.agents) if (a.role === 'attacker') a.removed = true;
+  sim.agents = sim.agents.filter(a => !(a.role === 'attacker' && a.removed));
+});
+el('barExport')?.addEventListener('click', () => el('btnExport')?.click());
+
+// ─── TRACKING OVERLAY + TAP-INSPECT ─────────────────────────────────────
+const trackLayer = document.createElement('div');
+trackLayer.id = 'trackLayer';
+document.body.appendChild(trackLayer);
+const tapPopup = document.createElement('div');
+tapPopup.id = 'tapPopup';
+tapPopup.style.display = 'none';
+trackLayer.appendChild(tapPopup);
+const trackBoxes = [];
+function ensureTrackBoxes(n){
+  while (trackBoxes.length < n){
+    const b = document.createElement('div');
+    b.className = 'tk-box';
+    b.innerHTML = '<span class="tk-lb"></span>';
+    trackLayer.appendChild(b);
+    trackBoxes.push(b);
+  }
+}
+const tmpV = new THREE.Vector3();
+function projectWorld(x, y, z){
+  tmpV.set(x, y, z).project(camera);
+  return { x: (tmpV.x*0.5 + 0.5) * innerWidth, y: (-tmpV.y*0.5 + 0.5) * innerHeight, z: tmpV.z };
+}
+function trackDraw(){
+  const on = CFG.trackFocus;
+  const K = Math.max(0, Math.min(12, Math.round(CFG.trackCount || 5)));
+  ensureTrackBoxes(on ? K : 0);
+  for (let i = 0; i < trackBoxes.length; i++){
+    const b = trackBoxes[i];
+    b.style.display = on ? '' : 'none';
+    if (on) b.classList.remove('tk-att');
+  }
+  if (!on) return;
+  const cx = camera.position.x, cy = camera.position.y, cz = camera.position.z;
+  const order = [];
+  for (let i = 0; i < CFG.numNodes; i++){
+    const dx = sim.nodePos[i*3]-cx, dy = sim.nodePos[i*3+1]-cy, dz = sim.nodePos[i*3+2]-cz;
+    order.push([dx*dx+dy*dy+dz*dz, i]);
+  }
+  order.sort((a, b) => a[0] - b[0]);
+  for (let k = 0; k < K && k < order.length; k++){
+    const i = order[k][1];
+    const p = projectWorld(sim.nodePos[i*3], sim.nodePos[i*3+1], sim.nodePos[i*3+2]);
+    if (p.z > 1 || Math.abs(p.x - innerWidth/2) > innerWidth) continue;
+    const b = trackBoxes[k];
+    if (sim.compromised.has(i)) b.classList.add('tk-att');
+    b.style.left = p.x + 'px';
+    b.style.top = p.y + 'px';
+    b.querySelector('.tk-lb').textContent = (sim.compromised.has(i) ? '⚠ ' : '') +
+      sim.nodeData[i].label + ' w' + sim.nodeWeight[i].toFixed(2);
+  }
+}
+function clusterOf(idx){
+  const seen = new Set([idx]);
+  const stack = [idx];
+  const comp = { nodes: [], links: 0 };
+  while (stack.length){
+    const i = stack.pop();
+    comp.nodes.push(i);
+    for (const c of sim.connections[i] || []) if (!seen.has(c.t)){ seen.add(c.t); stack.push(c.t); }
+    for (const j of sim.nodeEntangle[i] || []) if (!seen.has(j)){ seen.add(j); stack.push(j); }
+  }
+  const set = new Set(comp.nodes);
+  let edges = 0;
+  for (const i of comp.nodes) for (const c of (sim.connections[i] || [])) if (set.has(c.t) && i < c.t) edges++;
+  comp.links = edges;
+  let cx2 = 0, cy2 = 0, cz2 = 0;
+  for (const i of comp.nodes){ cx2 += sim.nodePos[i*3]; cy2 += sim.nodePos[i*3+1]; cz2 += sim.nodePos[i*3+2]; }
+  const n = comp.nodes.length;
+  cx2 /= n; cy2 /= n; cz2 /= n;
+  let rad = 0, wsum = 0;
+  for (const i of comp.nodes){
+    const dx = sim.nodePos[i*3]-cx2, dy = sim.nodePos[i*3+1]-cy2, dz = sim.nodePos[i*3+2]-cz2;
+    rad = Math.max(rad, Math.sqrt(dx*dx+dy*dy+dz*dz));
+    wsum += sim.nodeWeight[i];
+  }
+  comp.radius = rad;
+  comp.centroidR = Math.sqrt(cx2*cx2 + cy2*cy2 + cz2*cz2);
+  comp.meanWeight = n ? wsum/n : 0;
+  comp.density = n > 1 ? edges / (n * (n-1) / 2) : 0;
+  comp.compromised = 0;
+  for (const i of comp.nodes) if (sim.compromised.has(i)) comp.compromised++;
+  return comp;
+}
+let popupTimer = null;
+function hidePopup(){ if (tapPopup) tapPopup.style.display = 'none'; }
+function showPopup(html, x, y){
+  tapPopup.innerHTML = html;
+  tapPopup.style.display = 'block';
+  const w = tapPopup.offsetWidth || 220;
+  const h = tapPopup.offsetHeight || 120;
+  tapPopup.style.left = Math.min(Math.max(x, 70), Math.max(70, innerWidth - 70)) + 'px';
+  tapPopup.style.top = Math.max(30, y - h - 14) + 'px';
+  clearTimeout(popupTimer);
+  popupTimer = setTimeout(hidePopup, 9000);
+}
+const escS = s => String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+function pick(px, py){
+  let bestN = -1, bestD = Infinity;
+  for (let i = 0; i < CFG.numNodes; i++){
+    const p = projectWorld(sim.nodePos[i*3], sim.nodePos[i*3+1], sim.nodePos[i*3+2]);
+    if (p.z > 1) continue;
+    const d = Math.hypot(p.x - px, p.y - py);
+    if (d < bestD){ bestD = d; bestN = i; }
+  }
+  if (bestN >= 0 && bestD < 16){
+    const i = bestN;
+    const prob = sim.nodeWaveReal[i]**2 + sim.nodeWaveImag[i]**2;
+    const comp = clusterOf(i);
+    let html = '<div class="tp-head">◆ NODE ' + escS(sim.nodeData[i].label) + ' <span class="tp-c">w' + sim.nodeWeight[i].toFixed(3) + '</span></div>';
+    if (comp.nodes.length > 1){
+      html += '<div class="tp-c"><b>CLUSTER</b> · ' + comp.nodes.length + ' nodes · ' + comp.links + ' links · density ' + comp.density.toFixed(2) +
+        '<br>radius ' + comp.radius.toFixed(2) + ' · centroid r=' + comp.centroidR.toFixed(2) + ' · mean w ' + comp.meanWeight.toFixed(3) + '</div>';
+      if (comp.compromised > 0) html += '<div class="tp-warn"><b>⚠ UNDER ATTACK</b> · ' + comp.compromised + ' nodes degraded</div>';
+    } else {
+      html += 'mass ' + sim.nodeMass[i].toFixed(2) + ' · charge ' + sim.nodeCharge[i].toFixed(2) + ' · spin ' + sim.nodeSpin[i].toFixed(2) +
+        '<br>shell ' + Math.round(sim.nodeShell[i]) + ' · |ψ|² ' + prob.toFixed(3) + ' · bias ' + sim.nodeBias[i].toFixed(2) +
+        '<br>entangled [' + (sim.nodeEntangle[i].join(',') || '—') + ']</div>';
+    }
+    showPopup(html, px, py);
+    return;
+  }
+  let bestA = null, bestDA = Infinity;
+  for (const a of sim.agents){
+    const p = projectWorld(a.px, a.py, a.pz);
+    if (p.z > 1) continue;
+    const d = Math.hypot(p.x - px, p.y - py);
+    if (d < bestDA){ bestDA = d; bestA = a; }
+  }
+  if (bestA && bestDA < 10){
+    const cls = bestA.role === 'attacker' ? 'tp-warn' : 'tp-c';
+    const trail = sim.getTrail(bestA.px/5, bestA.py/5, bestA.pz/5);
+    const roleLabel = bestA.role === 'defender' ? 'DEFENDER' : bestA.role === 'attacker' ? 'ATTACKER' : 'LEGIT';
+    showPopup('<div class="tp-head">◆ ' + roleLabel + ' AGENT</div>' +
+      '<div class="' + cls + '">role ' + escS(bestA.role) + '</div>' +
+      'pos ' + bestA.px.toFixed(2) + ', ' + bestA.py.toFixed(2) + ', ' + bestA.pz.toFixed(2) +
+      '<br>speed ' + bestA.spd.toFixed(2) + ' · trail ' + trail.toFixed(2) + ' · tunnel cd ' + bestA.tunnelCD, px, py);
+    return;
+  }
+  hidePopup();
+}
+renderer.domElement.addEventListener('pointerup', (e) => {
+  if (e.target !== renderer.domElement) return;
+  pick(e.clientX, e.clientY);
+});
+
+// ─── MAIN LOOP ──────────────────────────────────────────────────────────
+let frameCount = 0, lastFps = 0;
+
+function animate(time) {
+  requestAnimationFrame(animate);
+
+  if (needsResizeFlag.value) {
+    sim.resize(CFG.numNodes, CFG.numAgents);
+    r3d.resize();
+    renderNodeList();
+    selectedNode = -1;
+    if (nodeDetailEl) nodeDetailEl.textContent = 'Click a node';
+    needsResizeFlag.value = false;
+  }
+
+  const dt = prevT ? time - prevT : 0;
+  prevT = time;
+
+  const dist = camera.position.length();
+  let bestIdx = 0, bestD = Infinity;
+  for (let i = 0; i < SCALE_LEVELS.length; i++) {
+    const d = Math.abs(Math.log10(dist + 1) - Math.log10(SCALE_LEVELS[i].v + 1));
+    if (d < bestD) { bestD = d; bestIdx = i; }
+  }
+  curScaleIdx = bestIdx;
+  curScale = SCALE_LEVELS[curScaleIdx].v;
+
+  // Advance physics only while an experiment is running, throttled by the
+  // run rate (CFG.runSpeed steps per frame). Paused by default so the user
+  // can compose the plate first; the base rate is deliberately slow.
+  if (running) {
+    runMs += dt;
+    simAcc += CFG.runSpeed;
+    let guard = 8;
+    while (simAcc >= 1 && guard-- > 0) { sim.update(curScaleIdx); simAcc -= 1; simStepCount++; recordHistory(); refreshStepCount(); }
+  }
+
+  updateGrid(curScale, CFG.showGrid);
+  r3d.update(curScaleIdx, SCALE_LEVELS[curScaleIdx]);
+  if (CFG.autoRotate) stars.rotation.y += 0.0003;
+  controls.update();
+
+  trackDraw();
+  refreshSecStatus();
+
+  renderer.render(scene, camera);
+
+  frameCount++;
+  if (time - lastFps > 1000) { fpsNav = frameCount; uiFps.textContent = frameCount; frameCount = 0; lastFps = time; }
+  uiScaleName.textContent = SCALE_LEVELS[curScaleIdx].name;
+  uiScaleVal.textContent = curScale.toExponential(2);
+  uiNodes.textContent = sim.nodeWeight.length;
+  uiAgents.textContent = sim.agents.length;
+  let tc = 0; for (const c of sim.connections) tc += c.length;
+  uiConns.textContent = tc;
+  uiEnergy.textContent = sim.totalEnergy.toFixed(2);
+  uiEntropy.textContent = sim.entropy.toFixed(3);
+  const pct = curScaleIdx / (SCALE_LEVELS.length - 1);
+  scaleFill.style.height = `${pct * 100}%`;
+  scaleDot.style.bottom = `${pct * 100}%`;
+}
+animate(0);
+
+addEventListener('keydown', (e) => {
+  if (e.key === 'r' || e.key === 'R') { camera.position.set(5, 3, 8); controls.target.set(0, 0, 0); }
+  if (e.key === 't' || e.key === 'T') {
+    CFG.trackFocus = !CFG.trackFocus;
+    const cb = el('chktrackFocus');
+    if (cb) cb.checked = CFG.trackFocus;
+  }
+  if (e.key === 'a' || e.key === 'A') {
+    CFG.autoDefense = !CFG.autoDefense;
+    if (CFG.autoDefense) CFG.security = true;
+    const cb = el('chkautoDefense'), cbs = el('chksecurity');
+    if (cb) cb.checked = CFG.autoDefense;
+    if (cbs) cbs.checked = CFG.security;
+  }
+  if (e.key === ' ') for (let i = 0; i < 50; i++) {
+    sim.agents.push({
+      px: (Math.random()-0.5)*10, py: (Math.random()-0.5)*10, pz: (Math.random()-0.5)*10,
+      dx: Math.random()-0.5, dy: Math.random()-0.5, dz: Math.random()-0.5,
+      spd: 0.15+Math.random()*0.1, phase: Math.random()*Math.PI*2, tunnelCD: 0,
+    });
+    const a = sim.agents[sim.agents.length-1]; const len = Math.sqrt(a.dx*a.dx+a.dy*a.dy+a.dz*a.dz) || 1;
+    a.dx /= len; a.dy /= len; a.dz /= len;
+  }
+});
+
+console.log('QUANTUM→UNIVERSE | Expanded Controls');
+console.log('30+ sliders, color pickers, presets, dropdowns, direct number input, batch ops.');
+console.log('Starts paused — ▶ Run experiment advances at the slow run rate (Rate slider). Export opens a full run infocard.');
+</script>
+</body>
+</html>

@@ -1,0 +1,18 @@
+# machine-local secrets / key material
+qkd-run.json
+
+# runtime logs (contain serials, machine paths, live run history)
+app/logs/
+**/*.log
+app/serve-*.log
+
+# packaging artifacts (releases/*.tar.gz IS committed — the STABLE tarball ships)
+app/backups/
+aarkanum-*.tar.gz
+
+# machine-specific ops notes (kept locally only)
+E200HA-HANDOFF.md
+relink_supervisor_family.py
+
+# node caches
+**/node_modules/.cache

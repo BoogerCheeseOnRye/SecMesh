@@ -1,0 +1,582 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Aarkanum Laboratories · Guide & Table of Contents</title>
+<style>
+  :root{
+    --bg:#05070f; --line:#223052; --txt:#dbe6ff; --dim:#7c8db3;
+    --amber:#ffb020; --cyan:#37c8ff; --good:#59ff9c; --danger:#ff5b5b;
+  }
+  *{ box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
+  html{ scroll-behavior:smooth; }
+  body{ margin:0; background:var(--bg); color:var(--txt);
+    font:14px/1.6 system-ui,-apple-system,'Segoe UI',Roboto,sans-serif; }
+  a{ color:var(--cyan); }
+
+  .top{ position:sticky; top:0; z-index:20; padding:12px 20px;
+    background:linear-gradient(180deg, rgba(12,19,40,.98), rgba(7,11,22,.94));
+    border-bottom:1px solid var(--line); display:flex; align-items:center; gap:12px; flex-wrap:wrap; }
+  .top b{ color:var(--amber); letter-spacing:2px; font-size:15px; }
+  .top .home{ margin-left:auto; font-size:11px; color:var(--dim); border:1px solid var(--line);
+    padding:4px 10px; text-decoration:none; }
+  .top .home:hover{ color:var(--amber); border-color:var(--amber); }
+  .top .tech{ font-size:11px; color:var(--dim); border:1px solid var(--line);
+    padding:4px 10px; text-decoration:none; }
+  .top .tech:hover{ color:var(--amber); border-color:var(--amber); }
+
+  .grid{ display:grid; grid-template-columns:256px 1fr; gap:0; min-height:100vh; }
+  .toc{ position:sticky; top:57px; height:calc(100vh - 57px); overflow-y:auto; padding:16px 14px 40px;
+    border-right:1px solid var(--line); background:rgba(8,12,24,.6); }
+  .toc h4{ margin:0 0 10px; font-size:10px; letter-spacing:2px; color:var(--dim); text-transform:uppercase; }
+  .toc a{ display:block; padding:5px 8px; font-size:12px; color:var(--dim); text-decoration:none;
+    border-left:2px solid transparent; }
+  .toc a:hover{ color:var(--txt); border-left-color:var(--cyan); }
+  .toc a.sub{ padding-left:18px; font-size:11px; }
+
+  .doc{ max-width:820px; padding:26px 30px 80px; min-width:0; }
+  .doc h2{ margin:44px 0 0; font-size:17px; color:var(--amber); letter-spacing:.8px; }
+  .doc h2::before{ content:'▮ '; color:var(--cyan); font-size:11px; vertical-align:2px; }
+  .doc h3{ margin:26px 0 4px; font-size:13px; color:var(--cyan); letter-spacing:.4px; }
+  .doc p{ margin:8px 0; }
+  .doc ul{ margin:6px 0 10px; padding-left:20px; }
+  .doc li{ margin:3px 0; }
+  .doc code{ background:#0a0f1f; border:1px solid var(--line); border-radius:2px; padding:1px 5px;
+    font-size:12px; color:#9fcfff; }
+  .doc pre{ background:#060a16; border:1px solid var(--line); border-radius:3px; padding:12px 14px;
+    overflow-x:auto; font-size:12px; color:#cfe6ff; }
+  .doc table{ border-collapse:collapse; width:100%; margin:10px 0; font-size:12px; }
+  .doc th{ text-align:left; color:var(--dim); text-transform:uppercase; font-size:10px; letter-spacing:1px;
+    border-bottom:1px solid var(--line); padding:6px 8px; }
+  .doc td{ border-bottom:1px solid #141c33; padding:5px 8px; }
+  .tipbox{ border-left:3px solid var(--amber); background:rgba(255,176,32,.06); padding:8px 12px;
+    border-radius:0 3px 3px 0; margin:10px 0; font-size:12.5px; }
+  .key{ display:inline-block; background:rgba(126,231,255,.1); border:1px solid rgba(126,231,255,.3);
+    color:var(--cyan); padding:0 6px; border-radius:2px; font-size:11px; }
+  .use-grid{ display:grid; grid-template-columns:repeat(auto-fit,minmax(280px,1fr)); gap:14px; margin:12px 0; }
+  .use-card{ background:#0a0f1f; border:1px solid var(--line); border-radius:8px; padding:14px 16px; }
+  .use-card h4{ margin:0 0 6px; font-size:11px; color:var(--cyan); letter-spacing:1px; text-transform:uppercase; }
+  .use-card p{ margin:0; font-size:12px; line-height:1.62; color:var(--dim); }
+  .use-card strong{ color:var(--txt); }
+  .use-card code{ font-size:10.5px; }
+  .foot{ margin-top:60px; padding-top:14px; border-top:1px solid var(--line);
+    font-size:10px; color:var(--dim); letter-spacing:1px; }
+  @media (max-width:760px){
+    .grid{ grid-template-columns:1fr; }
+    .toc{ position:static; height:auto; border-right:0; border-bottom:1px solid var(--line); }
+    .doc{ padding:18px 16px 60px; }
+  }
+</style>
+</head>
+<body>
+
+<div class="top">
+  <b>AARKANUM LABORATORIES</b><span style="color:var(--dim);font-size:11px">field guide & table of contents</span>
+  <a class="home" href="landing.html">← hub</a>
+  <a class="tech" href="readme.html">tech readme</a>
+  <a class="tech" href="about.html">about</a>
+</div>
+
+<div class="grid">
+  <nav class="toc">
+    <h4>Contents</h4>
+    <a href="#overview">1 · Overview</a>
+    <a href="#quickstart">2 · Quick start</a>
+    <a href="#drive">2b · Drive it — by hand or by agent</a>
+    <a href="#worlds">3 · Three worlds</a>
+    <a href="#controls">4 · Lab controls</a>
+    <a class="sub" href="#timescale">Time scale — slow → eons</a>
+    <a class="sub" href="#furnace">Furnace &amp; command center</a>
+    <a class="sub" href="#beams">Beam bank</a>
+    <a class="sub" href="#mri">MRI scanner</a>
+    <a class="sub" href="#mri-map">ALL-axis map &amp; clip → animation</a>
+    <a class="sub" href="#tracking">Cluster tracking</a>
+    <a class="sub" href="#crosslab">Cross-Lab &amp; cross wall</a>
+    <a class="sub" href="#univ">Universe engine · physics_simulator</a>    <a class="sub" href="#ais">AI &amp; security — the mapping</a>
+    <a class="sub" href="#secmesh">SecMesh · security demo</a>
+    <a class="sub" href="#secops">SecOps · defense console</a>
+    <a class="sub" href="#fleet">Real device testing</a>
+    <a class="sub" href="#modules">Moveable UI modules</a>
+    <a class="sub" href="#settings">Settings &amp; overlays</a>
+    <a href="#physics">5 · The physics (honest approximations)</a>
+    <a href="#data">6 · Data &amp; export</a>
+    <a href="#layout">7 · Project layout</a>
+    <a href="#tech">8 · Tech &amp; files</a>
+  </nav>
+
+  <main class="doc" id="doc">
+
+    <h2 id="overview">1 · Overview</h2>
+    <p>An interactive nanoscale matter simulator: a folding 3D periodic table, a chemistry lab where you spawn
+      elements, weld bonds, and hammer them with electromagnetic fields, a machine park (tokamak, stellarator,
+      beamline, CVD, sputter), a live MRI-style tomography scanner, and a cross-lab field engine that turns the
+      same chamber into atoms, cells, brains or galaxies — all running offline in your browser with no build step.</p>
+
+    <h2 id="quickstart">2 · Quick start</h2>
+    <p>There is nothing to install. ES modules + an import map mean you open it over HTTP rather than <code>file://</code>:</p>
+    <pre>node serve.js            # → http://localhost:8082
+# or any static server:
+python3 -m http.server 8082</pre>
+    <p>Land on <code>landing.html</code>, or jump straight to <code>experiments.html</code>. The “▦ COMMAND CENTER”
+      menu in the lab lists every experiment with its goal.</p>
+
+    <h2 id="drive">2b · Drive it — by hand or by agent</h2>
+    <p>Every surface of the lab works the same whether a human taps it or an agent drives it,
+      because state enters and leaves through the same plain interfaces.</p>
+    <h3>By hand</h3>
+    <ul>
+      <li><span class="key">▦</span> command center → tap a dossier → <b>DEPLOY</b>. Then <span class="key">▶</span> run, <span class="key">−/＋</span> pace time, <span class="key">＋</span> spawn elements, <span class="key">⚙</span> open the instruments drawer (machines, beams, MRI, cross-lab). The ⚙ gear on the right edge of the stats bar holds settings — overlays, hud size, modules, agent identity, save root.</li>
+      <li>Full control tour: <a href="#controls">Lab controls</a> below.</li>
+    </ul>
+    <h3>By agent</h3>
+    <ul>
+      <li><b>Boot straight to a target</b>: <code>experiments.html?exp=salt</code> (any id from the ▦ menu or the exported <code>EXPERIMENTS</code> list) skips drive-time navigation.</li>
+      <li><b>Export state, don't scrape the page</b>: ▦ → <b>⬇ export data</b> writes <code>aps-&lt;exp&gt;-&lt;t&gt;fs.json</code> with <code>run/feed/atoms/bonds/events</code> — rate, fields, beams, shape, feeder and full history are all plain JSON.</li>
+      <li><b>Name your work</b>: ⚙ settings → <b>agent</b> sets the identity so exports land under <code>agents/&lt;you&gt;/…</code>.</li>
+      <li><b>Verify without a browser</b>: <code>exp-core.mjs</code> is DOM-free, so <code>node</code> can construct chambers and assert directly. The lab ships regression probes (run · rate-probe · ui-stress · overlay-probe · settings · grid · scanning · parts · mods · mach-sweep · laser-probe · urlparam-test · exp-core-test) — all green prints <code>*-OK</code>.</li>
+      <li><b>Drive the universe world</b>: <code>physics_simulator.html?preset=…</code> boots straight to a scene; <span class="key">⚒</span> export pulls run + structure + security as JSON; the SecMesh baseline is reproducible headlessly (<code>node node-tests/secmesh-exp.mjs all</code>).</li>
+      <li>The technical readme (<a href="readme.html">readme.html</a>) documents architecture, agent recipes and licence/credit references.</li>
+    </ul>
+
+    <h2 id="worlds">3 · Three worlds</h2>
+    <table>
+      <tr><th>Page</th><th>What it does</th></tr>
+      <tr><td><code>index.html</code></td><td>The folding 3D periodic table — all 118 elements, orbit/zoom/pan, per-element fact cards.</td></tr>
+      <tr><td><code>experiments.html</code></td><td>The lab — spawn elements, watch chemistry, run machines, map Chladni sand, MRI the chamber.</td></tr>
+      <tr><td><code>crosslab/physics_simulator.html</code></td><td>The cross-lab field engine (magnetic bubbles, quantum foam, chaos) feeding the lab's ◈ Cross-Lab presets — and, standalone, a full second world: 16 scales of swarm-and-field physics with presets, tracking, node inspection, an export infocard and the <b>SecMesh</b> security demo. Deep dive in <a href="#univ">§4b</a>, AI/security map in <a href="#ais">§4c</a>, baseline in <a href="#secmesh">§4d</a>.</td></tr>
+      <tr><td><code>crosslab/security_defender.html</code></td><td>The <b>security defense console</b> — an <em>operational</em> view of the same SecMesh engine: 180 service nodes wrapped to a globe, harmony at rest (<b>zero fabricated attackers</b>), research-tool-style node tap-inspect (mesh addr/port/load), streamdeck ops deck (auto-defense, guards, firewall, quarantine/ring/release/deploy, strategies), live status + situation boards fed by a real <b><code>mesh-guardian</code> agent</b> (probes stream onto the globe when they're blocked), and a separated system-testing suite (guardian · tester · baseline; <code>mesh-selfcheck.mjs</code> proves system-ON &gt; system-OFF). See <a href="#secops">§4e</a> / <a href="#fleet">§4f</a>.</td></tr>
+    </table>
+
+    <h2 id="controls">4 · Lab controls</h2>
+    <ul>
+      <li><span class="key">▶ / ⏸</span> run / pause, <span class="key">↻</span> reset, <span class="key">◎</span> cluster tracking, <span class="key">▦</span> experiment menu.</li>
+      <li>Top bar cluster: <span class="key">＋</span> add elements (family quick-select + the 18-column table), <span class="key">⚙</span> instruments drawer — one scrollable sheet holding chamber geometry, sound, scope, laser, machines, MRI and cross-lab.</li>
+      <li>The top bar's speed stepper <span class="key">− / +</span> sweeps the integration rate; see <a href="#timescale">Time scale</a>.</li>
+      <li>On phones the ⚙ drawer works the same way; panels stay reachable via the ▦ menu.</li>
+    </ul>
+
+    <h3 id="timescale">Time scale — from 10 attoseconds to eons</h3>
+    <p>The stepper covers <b>31 preset rates</b> across a ± trillion-× range. The slow end resolves every bond
+      wiggle in cinematic slo-mo; the fast end fast-forwards geological and even astronomical time:</p>
+    <table>
+      <tr><th>Band</th><th>Rates (per frame)</th><th>What it's for</th></tr>
+      <tr><td>Cinematic slow</td><td>0.01 fs (10 as) → 0.5 fs</td><td>Zoom into every vibration, collision, and early bond-forming step.</td></tr>
+      <tr><td>Fine physics</td><td>1 fs → 100 ps → 1 µs</td><td>The resolved spring-integrator regime where real chemistry is visible.</td></tr>
+      <tr><td>Fast-forward</td><td>1 ms → 100 s</td><td>Multi-substep coarse regime for long anneals and melts.</td></tr>
+      <tr><td>Deep macro</td><td>17 min → 28 h → 116 d → 32 y → 3.2 ky → 0.32 My → 32 My → 3.2 Gy → 3.2 T y</td><td>One coarse PBD + renormalized-thermo substep per frame that still lands the full commanded time — run erosion over eons.</td></tr>
+    </table>
+    <div class="tipbox">In the deep-macro band the readout is nanoseconds-accurate: the HUD time uses <code>fs → ps → ns → µs → ms → s → min → h → d → y → My → Gy</code> units, and the rate pill shows the exact per-step Δ. Everything is rate-consistent — the same commanded sim-time (per real frame) is delivered at every speed. One honest limit: after you have run tens of giga-years, floats can no longer represent single-femtosecond increments (adding <code>0.01 fs</code> at <code>1e37 fs</code> rounds to nothing), so if you slow back down the HUD correctly shows the time staying put — hit <span class="key">↻ reset</span> to start a fresh slow run.</div>
+
+    <h3 id="furnace">Furnace &amp; command center</h3>
+    <p>The ▦ menu carries the furnace: <span class="key">heat</span> (furnace power) and <span class="key">temp</span>
+      (target temperature) sliders, plus <span class="key">⬇ export data</span>. Fields readouts are split:
+      <code>B · E · P · ☀</code> live in the machine card; <code>N atoms · ⇢ fed</code> sits on its own line — field bars change fields only, never atom counts. A soft thermostat with a rate-scaled heating term and an operating-point taper holds temperature across speed changes, so the displayed °K is the real kinetic temperature.</p>
+
+    <h3 id="beams">Beam bank</h3>
+    <p>In the instruments drawer (⚙) under the oscilloscope: add as many beams as you like, each aimed along any
+      of the six directions (±X ±Y ±Z) with independent optics — <code>ray</code> steady heat + ionization,
+      <code>pulse</code> ablation bursts, <code>trap</code> tweezers pulling atoms onto the line, <code>flood</code> wide soft illumination — plus power, spot width and per-type sliders (pulse frequency, grip strength). Each beam deposits momentum/energy only inside its own collimated spot cylinder, all dt-scaled so they stay rate-consistent. Counter-propagating pairs form an optical molasses that cancels net drift.</p>
+
+    <h3 id="mri">MRI scanner</h3>
+    <p>A slice-tomography scanner for the live chamber (⚙ drawer; it also spawns docked under the top button bar,
+      flushed to the left edge and dropped clear of the bar — ready the moment you open the lab). Arm it, pick the scanning
+      plane, a signal (<code>density</code> atoms, <code>therm</code> kinetic energy, <code>charge</code> signed gradient,
+      <code>bonds</code> bond density) and a colourmap (gray / hot), sweep the slice through the chamber. Sampling splats
+      each atom over a Gaussian footprint so even sparse chambers read as smooth tomography. The virtual slice plane is
+      shown as a glowing sheet inside the chamber. Drag it anywhere — grab the <b>≡</b> handle in the header (top-right)
+      or the header itself — and it snaps to edges just like the other modules.</p>
+
+    <h3 id="mri-map">ALL-axis map &amp; clip → animation</h3>
+    <ul>
+      <li><b>ALL</b> (default) shows the X, Y and Z cross-sections side-by-side as one composite map — a full 3D picture in a single glance. Choosing X / Y / Z drops to that single slice.</li>
+      <li><span class="key">◧ MRI</span> arms the live preview; <span class="key">◈ snap</span> re-samples at high resolution; <span class="key">⬆ PNG</span> exports the current view (or the clip filmstrip).</li>
+      <li><b>Clip mode</b> (<span class="key">◌ clip</span>): press once to record, again to save. It downloads a <b>GIF89a</b> of the sweep (the primary file) plus the PNG filmstrip, a frames manifest, and a self-contained <code>&lt;name&gt;-anim.html</code> <b>experiment infocard</b> — one full technical document pinned to the top of the screen: a <b>2×2 visual grid</b> up front (a <b>gray</b>-colormap MRI clip, a chamber-scan frame, a square screenshot of the 3D environment, and a <b>hot</b>-colormap MRI clip), then <b>scan figures from the other instruments</b> — the chart recorder trace, the mass spectrum and the chamber manometer — plus <b>imaging sheets</b> of the axis sweep and the 360° orbital projection in both <b>gray → hot</b> colormaps, an <b>MRI channels</b> gallery that resolves the same slice on all four channels (density · therm · charge · bonds, each in gray and hot), a written <b>experiment report</b> (summary · interventions · imaging · results), a <b>results-at-a-glance</b> table, and below them every bit of run data: fields, temperature, laser &amp; feeds, active beams, composition, the last events and the full raw JSON (<span class="key">🖨 save / print</span> exports the whole document as a PDF). Zero dependencies; it opens in any browser.</li>
+      <li>One automatic download per save (Chromium/Brave throttle several at once) — the <code>⬇ gif · png · json · player</code> chips under the scanner re-download any file with a normal click.</li>
+      <li><b>◎ orbit</b> rotates the projection through 36° view angles (the all-angles sweep).</li>
+    </ul>
+
+    <h3 id="tracking">Cluster tracking</h3>
+    <p>A face-tracker-style overlay (top bar, on by default) that locks onto every bonded cluster — from a 2-atom pair
+      up to a whole molecule — with colour-coded corner brackets and a <code>Cn · formula</code> chip glued to the atoms
+      as they drift, merge, or split. Track ids persist via membership overlap; hover a bracket for a live report:
+      composition, atom/bond counts, per-type bond distances vs rest length, and the local temperature.</p>
+
+    <h3 id="crosslab">Cross-Lab &amp; cross wall</h3>
+    <ul>
+      <li><b>single</b> — classic one-preset-at-a-time view with knobs + live preview.</li>
+      <li><b>stack</b> — tick any combination of presets; the effective field is the max contribution per force, and removing a preset drops its forces cleanly.</li>
+      <li><b>⬛ run cross wall</b> — side-by-side A/B: every non-off preset gets its own independent chamber cloned from the <i>exact same record</i> of the first 44 live atoms (positions, velocities, temperature) and locked to the main speed stepper. Tap any tile to promote that regime back to the main chamber.</li>
+    </ul>
+
+    <h3 id="modules">Moveable UI modules</h3>
+    <p>Every major UI piece — the stats bar, the MRI scanner, the goal card, minimap, event feed and the
+      tools sheet — is a <b>module</b> you can drag anywhere and snap back into the layout. The scanner spawns
+      docked straight under the top button bar, flush to the left edge with a gap, so it's never hidden behind
+      the action buttons.</p>
+    <ul>
+      <li>Grab the <b>≡</b> grip (top-right corner of each module, now a full 34&thinsp;px touch target) and drag, or press and drag the header/interior. The <b>whole module moves as one group</b>.</li>
+      <li>Edges <b>snap</b> to the viewport border and to the edges of other visible modules (within 10 px).</li>
+      <li>⚙ Settings → <b>modules</b> lists every module with a checkbox toggle: unhide what you need, hide the rest, and dock the survivors edge-to-edge for a custom command deck.</li>
+      <li>Positions and toggles persist between sessions (per-browser).</li>
+    </ul>
+
+    <h3 id="settings">Settings &amp; overlays</h3>
+    <ul>
+      <li><b>agent</b> — export identity; files land under <code>agents/&lt;you&gt;/…</code>.</li>
+      <li><b>save root</b> — pick a permanent export folder (or fall back to downloads).</li>
+      <li><b>minimap</b> — live chamber density tile; spawns mid screen (~80px below centre); the rest of the page stays clickable underneath, drag it via its <b>≡</b> grip.</li>
+      <li><b>tap-inspect</b> — tap atoms / bonds / plates / scan for their stats modal.</li>
+      <li><b>overlays</b> — <code>full</code> everything · <code>calm</code> hide footer + minimap · <code>min</code> stats only.</li>
+      <li><b>hud size</b> — 60 %–180 % scale of the stats strip; the page below it (top bar, drawers) moves with it.</li>
+      <li><b>modules</b> — toggle each moveable module on/off.</li>
+    </ul>
+
+    <h2 id="univ">4b · The universe engine — the other living simulator</h2>
+    <p>The same swarm-and-field core that powers the lab's ◈ Cross-Lab stack is also a standalone world:
+      <code>crosslab/physics_simulator.html</code> runs one engine across <b>16 orders of magnitude</b> of scale
+      (Planck → Universal), driven by the same three.js renderer. It is scored like a machine — not a menu inside
+      the lab — with a full parameter studio, a node inspector, an export infocard, and a built-in security demo.</p>
+    <h3>Presets gallery</h3>
+    <p><code>crosslab/preview.html</code> lines up the headline plates side-by-side as live embeds — <b>Quantum Foam</b>,
+      <b>Atomic Lattice</b>, <b>Galactic Web</b> — each with its physics plate printed as knobs. Every preset boots cold via the URL:
+      <code>physics_simulator.html?preset=quantumFoam</code> (also <code>atomic</code>, <code>galactic</code>,
+      <code>slimeMold</code>, <code>neuralNet</code>, <code>chaos</code>), which is how an agent can land straight on a scene.</p>
+    <h3>Controls &amp; inspection</h3>
+    <ul>
+      <li><span class="key">⚙ Controls</span> opens a centered parameter studio: agents/nodes/trail physics, the theoretical-constants bank (gravity, quantum, entanglement, tunneling, curvature, energy shells, dark energy, inflation, strong force, Higgs field, decoherence…), visuals &amp; presets, the security system, tracking &amp; inspection, export/import, and a live node inspector.</li>
+      <li><span class="key">▶</span> run / pause and <span class="key">⏭</span> single-step on the run bar, next to the <b>Time</b> rate slider (steps per frame) and <span class="key">⚒ Export</span>; the studio's Export button opens the same infocard.</li>
+      <li><span class="key">Scroll</span> changes scale, <span class="key">drag</span> rotates, <span class="key">R</span> resets the camera, <span class="key">Space</span> adds 50 agents, <span class="key">Esc</span> closes the studio, <span class="key">T</span> toggles tracking.</li>
+      <li><b>Tap-inspect</b> (click or tap): hit a node and a popup reports its cluster — member count, links, density, radius, centroid, mean weight — and flags <b>⚠ UNDER ATTACK</b> when the security demo has degraded it; hit an agent for role/speed/trail. <span class="key">T</span> pins a face-tracker-style overlay on the nearest-to-camera nodes (Track count 1–12), and each popup offers an editable <b>Label</b> + <b>Data</b> field (Save persists into export/import).</li>
+      <li><span class="key">A</span> toggles <b>moving-target auto-defense</b> — see <a href="#secmesh">§4d</a>.</li>
+      <li><b>HUD</b>: scale name/value, Nodes/Agents/Links/FPS, Energy/Entropy, stepCount, and a right-edge <b>scale-ladder indicator</b> (fill + dot). <b>⚔ Reset</b> clears blocked/intrusions/stress/pulses; <b>⟠ Attack burst</b> spawns an attacker batch.</li>
+      <li><b>Run-report card</b> ⚒ prints <i>this run</i> against the baseline: facts grid, Structure/Quantities/Thermodynamics cells, configuration plate, scale ladder, a <b>SecMesh vs baseline</b> block, <b>print / copy json / download</b>. Select <b>Mesh wall shells</b> to hold the ensemble on two concentric Fibonacci shells; <b>Attack Beams</b> renders the red attacker→node pulses.</li>
+    </ul>
+    <div class="tipbox"><b>Agent surface.</b> Cold-boot any scene with <code>?preset=…</code>, pull full state (run + config + structure + security) from the <span class="key">⚒</span> export card, and reproduce the SecMesh baseline headlessly: <code>node node-tests/secmesh-exp.mjs all</code>.</div>
+
+    <h3>Scale ladder — the physics implemented per regime</h3>
+    <table>
+      <tr><th>Scale</th><th>Physics</th><th>Implementation</th></tr>
+      <tr><td><b>Planck</b> (10⁻³⁵)</td><td>Quantum foam, spacetime discreteness</td><td>Reserved (UI knob <code>planckScale</code> present but not wired to engine)</td></tr>
+      <tr><td><b>Quark/Nuclear</b> (10⁻¹⁸–10⁻¹⁵)</td><td>Strong force, confinement, color charge</td><td><code>strongForce</code> attraction between same-shell nodes</td></tr>
+      <tr><td><b>Atomic</b> (10⁻¹⁰)</td><td>Electron shells, quantum numbers</td><td><code>energyShells</code>, <code>higgsField</code> mass coupling</td></tr>
+      <tr><td><b>Molecular</b> (10⁻⁹–10⁻⁷)</td><td>Van der Waals, hydrogen bonds, tunneling</td><td><code>tunnel</code> probability through potential barriers</td></tr>
+      <tr><td><b>Mesoscopic</b> (10⁻⁵–1)</td><td>Slime-mold chemotaxis, diffusion-limited aggregation</td><td>Agent trail deposition + sensor-based steering</td></tr>
+      <tr><td><b>Human/City</b> (1–10⁴)</td><td>Neural weight alignment, Hebbian learning</td><td><code>alignStrength</code> × activation correlation</td></tr>
+      <tr><td><b>Planetary/Stellar</b> (10⁷–10⁹)</td><td>Newtonian gravity + GR curvature lensing</td><td><code>gravity</code> × mass, <code>curvature</code> geodesic deviation</td></tr>
+      <tr><td><b>Galactic</b> (10²⁰)</td><td>Dark-matter filaments, MOND-like forces</td><td><code>darkEnergy</code> repulsion at large r, <code>inflation</code> expansion</td></tr>
+      <tr><td><b>Universal</b> (10²⁶)</td><td>ΛCDM cosmology</td><td><code>decoherence</code> wave collapse; <code>vacuumEnergy</code> reserved (UI knob)</td></tr>
+    </table>
+
+    <h3>Equations solved each update</h3>
+    <pre>spacetime curvature (step):  Δx = v·dt + ½·curvature·R·(n×v)·dt²                // geodesic deviation
+wavefunction evolution:      ψ(t+dt) = ψ(t)·exp(−i·H·dt/ħ) − decoherence·ψ(t)·dt;  H = p²/2m + V + higgsField·|ψ|²
+entanglement correlation:    ⟨σᵢ·σⱼ⟩ = entangle·exp(−|rᵢ−rⱼ|/ξ)                    // ξ = correlation length
+tunneling probability (WKB): P ≈ exp(−2·∫√(2m(V−E))/ħ·dx)                          // scaled by the 'tunnel' knob
+slime-mold chemotaxis:       trail *= evaporation + diffusion·∇²trail;  steer = rotationAngle·sign(sensorL − sensorR)
+neural alignment (Hebbian):  Δwᵢⱼ = alignStrength·(aᵢ·aⱼ − wᵢⱼ)                  // weight → activation correlation
+dark energy / inflation:     ṙ = r·(inflation + darkEnergy·ln(r/r₀))</pre>
+
+    <h3>Controls reference</h3>
+    <table>
+      <tr><th>Simulation slider</th><th>Range</th><th>Physics meaning</th></tr>
+      <tr><td>Agents</td><td>10–800</td><td>Slime-mold particles</td></tr>
+      <tr><td>Nodes</td><td>10–600</td><td>Neural / physics vertices</td></tr>
+      <tr><td>Speed</td><td>0.01–1.0</td><td>Reserved (agent speed is per-role, knob not wired)</td></tr>
+      <tr><td>Evaporation</td><td>0.800–0.999</td><td>Trail decay rate</td></tr>
+      <tr><td>Diffusion</td><td>0.00–1.00</td><td>Trail spread</td></tr>
+      <tr><td>Sensor Angle</td><td>5°–120°</td><td>Chemotaxis sensitivity</td></tr>
+      <tr><td>Rotation</td><td>5°–120°</td><td>Turn rate</td></tr>
+      <tr><td>Sensor Dist</td><td>0.1–5.0</td><td>Forward feeler reach</td></tr>
+      <tr><td>Trail Deposit</td><td>0.01–0.50</td><td>Pheromone strength</td></tr>
+      <tr><td>Trail Res</td><td>16–64</td><td>Grid resolution</td></tr>
+      <tr><td>Alignment</td><td>0.000–0.200</td><td>Hebbian weight sync</td></tr>
+      <tr><td>Repulsion</td><td>0.000–0.200</td><td>Node separation</td></tr>
+      <tr><td>Damping</td><td>0.50–0.99</td><td>Velocity decay</td></tr>
+      <tr><td>Max Links</td><td>1–12</td><td>Connection degree</td></tr>
+      <tr><td>Link Threshold</td><td>0.1–5.0</td><td>Distance for edges</td></tr>
+    </table>
+    <table>
+      <tr><th>Theory slider</th><th>Range</th><th>Theory</th></tr>
+      <tr><td>Gravity G</td><td>0.00–1.00</td><td>Newtonian + GR lensing</td></tr>
+      <tr><td>Quantum ħ</td><td>0.00–1.00</td><td>Wavefunction evolution</td></tr>
+      <tr><td>Entanglement</td><td>0.00–1.00</td><td>Non-local correlation</td></tr>
+      <tr><td>Tunneling</td><td>0.00–1.00</td><td>Barrier penetration</td></tr>
+      <tr><td>Curvature</td><td>0.00–1.00</td><td>Geodesic deviation</td></tr>
+      <tr><td>Energy Shells</td><td>0–12</td><td>Quantum number n</td></tr>
+      <tr><td>Dark Energy</td><td>0.00–1.00</td><td>Λ repulsion</td></tr>
+      <tr><td>Inflation</td><td>0.000–0.050</td><td>Exponential expansion</td></tr>
+      <tr><td>α Fine Structure</td><td>0.00–2.00</td><td>Reserved (UI knob, not wired to engine)</td></tr>
+      <tr><td>Strong Force</td><td>0.00–1.00</td><td>Color confinement</td></tr>
+      <tr><td>Weak Force</td><td>0.00–1.00</td><td>Reserved (UI knob, not wired to engine)</td></tr>
+      <tr><td>Higgs Field</td><td>0.00–1.00</td><td>Mass generation</td></tr>
+      <tr><td>Decoherence</td><td>0.00–0.50</td><td>Wave collapse</td></tr>
+      <tr><td>Vacuum Energy</td><td>0.000–0.050</td><td>Reserved (UI knob, not wired to engine)</td></tr>
+      <tr><td>Planck Scale</td><td>0.00–1.00</td><td>Reserved (UI knob, not wired to engine)</td></tr>
+    </table>
+
+    <h3>Preset recipes &amp; head-to-head</h3>
+    <p>The three headline plates boot cold via <code>?preset=quantumFoam</code>, <code>?preset=atomic</code>, <code>?preset=galactic</code>
+      (also <code>slimeMold</code>, <code>neuralNet</code>, <code>chaos</code>). Configs verbatim:</p>
+    <pre>quantumFoam: { quantum: 0.8, tunnel: 0.5, entangle: 0.7, decoherence: 0.01, planckScale: 0.5 }   // PLANCK→QUARK
+atomic:      { energyShells: 7, strongForce: 0.4, quantum: 0.1, gravity: 0.01 }  // ATOMIC→MOLECULAR
+galactic:    { gravity: 0.8, darkEnergy: 0.3, curvature: 0.7, inflation: 0.1, alignStrength: 0.01 }  // GALACTIC→UNIVERSAL</pre>
+    <table>
+      <tr><th>Parameter</th><th>Quantum Foam</th><th>Atomic Lattice</th><th>Galactic Web</th></tr>
+      <tr><td>Scale</td><td>10⁻³⁵ – 10⁻¹⁸</td><td>10⁻¹⁰ – 10⁻⁹</td><td>10²⁰ – 10²⁶</td></tr>
+      <tr><td>Gravity</td><td>0.00</td><td>0.01</td><td>0.80</td></tr>
+      <tr><td>Quantum ħ</td><td>0.80</td><td>0.10</td><td>0.00</td></tr>
+      <tr><td>Entanglement</td><td>0.70</td><td>0.00</td><td>0.00</td></tr>
+      <tr><td>Tunneling</td><td>0.50</td><td>0.00</td><td>0.00</td></tr>
+      <tr><td>Strong Force</td><td>0.00</td><td>0.40</td><td>0.00</td></tr>
+      <tr><td>Energy Shells</td><td>0</td><td>7</td><td>0</td></tr>
+      <tr><td>Dark Energy</td><td>0.00</td><td>0.00</td><td>0.30</td></tr>
+      <tr><td>Curvature</td><td>0.00</td><td>0.00</td><td>0.70</td></tr>
+      <tr><td>Inflation</td><td>0.00</td><td>0.00</td><td>0.10</td></tr>
+      <tr><td>Agents / Nodes</td><td>200 / 180</td><td>200 / 180</td><td>200 / 180</td></tr>
+      <tr><td>Connections</td><td>sparse (entanglement)</td><td>dense (bonds)</td><td>filamentary</td></tr>
+    </table>
+
+    <p><b>Performance.</b> 60 FPS target at 600 nodes / 800 agents: <code>setPixelRatio(1)</code> (no HiDPI supersampling), spatial hash grid
+      (32³ cells) for O(1) neighbour queries, flat <code>Float32Array</code> buffers (zero GC pressure), trail diffusion every other frame, and
+      <code>setDrawRange</code> so geometry never re-allocates.</p>
+
+    <h2 id="ais">4c · AI &amp; security — why the same engine does all three</h2>
+    <p>The knobs of one simulator are the vocabulary of modern machine learning and security. Folded in from the
+      gallery (<code>crosslab/preview.html</code>) so the whole story lives in this guide:</p>
+    <div class="use-grid">
+      <div class="use-card"><h4>Graph Neural Networks</h4><p>Nodes = neurons/atoms/galaxies. Edges = synapses/bonds/filaments. <strong>Message passing</strong> across the graph mirrors how the simulator propagates activation, entanglement and gravity. Training = adjusting edge weights (alignment force) to minimize energy.</p></div>
+      <div class="use-card"><h4>Transformer Attention</h4><p><strong>Entanglement = attention weights.</strong> Every token attends to every other — non-local correlation. The <code>entangle</code> parameter tunes correlation decay with distance. Multi-head attention ≈ multiple entanglement channels.</p></div>
+      <div class="use-card"><h4>Diffusion Models</h4><p>Trail deposition + evaporation = <strong>forward/reverse diffusion</strong>. Agents deposit pheromone (score), diffusion blurs it (noise), chemotaxis follows the gradient (denoising). Slime mold solves the same variational problem as DDPM sampling.</p></div>
+      <div class="use-card"><h4>Adversarial Robustness</h4><p><strong>Tunneling = adversarial escape.</strong> Particles quantum-tunnel through energy barriers — an adversarial example crossing a decision boundary in latent space. <code>tunnel</code> controls the barrier penetration rate: a direct robustness-testing knob.</p></div>
+      <div class="use-card"><h4>Cryptographic Entropy</h4><p>Wavefunction dynamics (<code>quantum</code> + <code>entangle</code>) inject the randomness that drives the key story. <strong>Wavefunction collapse</strong> on measurement = one-time pad generation; entangled pairs across nodes = device-independent QKD (Ekert protocol); decoherence rate = key expiration. (The <code>planckScale</code> label is a reserved UI knob — not wired.)</p></div>
+      <div class="use-card"><h4>Anomaly Detection</h4><p>Dark-energy repulsion (<code>darkEnergy</code>) pushes outliers into voids. <strong>Energy shells</strong> quantize normal behaviour into discrete levels. Anything between shells or stranded in a void = anomaly — the same shape as network-intrusion, fraud, side-channel detection.</p></div>
+      <div class="use-card"><h4>Federated Learning</h4><p>Nodes = clients. <strong>Alignment force</strong> = model averaging; <strong>repulsion</strong> = personalization (prevent collapse to the global model); <strong>curvature</strong> = non-IID data geometry. The simulator visualizes convergence dynamics across heterogeneous clients.</p></div>
+      <div class="use-card"><h4>Zero-Trust Topology</h4><p>Connections form only above a <strong>trust threshold</strong> (<code>connectionThreshold</code>); entanglement = shared secrets; tunneling = covert-channel risk. The graph structure <em>is</em> the policy — visualize, audit and harden it in real time.</p></div>
+    </div>
+
+    <h2 id="secmesh">4d · SecMesh — the security-system demo, moving targets</h2>
+    <p>Turn on <b>Security demo</b> (⚙ → Security System; fire extra waves with <span class="key">⟠ Attack burst</span>)
+      and the node graph becomes a network under a DDoS siege: <b>attackers</b> seek out and stress nodes, <b>defenders</b> intercept them,
+      the <b>firewall</b> heals degraded nodes back to harmony, and a burst timer delivers deterministic DDoS waves.
+      <span class="key">⚒ Export</span> then prints <i>this run</i> against a 69-trial baseline.</p>
+    <h3>Baseline (docs/secmesh-concept.md)</h3>
+    <ul>
+      <li><b>42/42 trials intrusion-free</b> across the main matrix (threat 0.05→0.5, defenders 2→24, firewall 0.3→0.9, batches 10→80) with availability <b>1.000</b> and <b>15,855</b> attackers neutralized.</li>
+      <li><b>Overload boundary</b>: first degradation only near <b>14×</b> the baseline threat, then continuous, bounded and self-healing — no cliff.</li>
+      <li><b>Defense decomposition</b> @ threat 0.35: the healing field is load-bearing; the full mesh adds another ~42% peak-stress reduction (no-defense 2/3 trials breached).</li>
+      <li><b>Fleet scale</b>: the same 6-defender fleet stays clean from 60 → 360 nodes.</li>
+    </ul>
+    <h3>Moving-target auto-defense (<span class="key">A</span>)</h3>
+    <p>Enable <b>Moving-target defense</b> and the controller rotates defense strategy on a timer. Each strategy is a different
+      decision rule over the same live data, and defenders never retrace a route:</p>
+    <ul>
+      <li><b>sweep</b> — every defender patrols on its own <b>wholly unique path</b> through an 8³ volumetric lattice of the field data
+        (low-discrepancy, seeded per agent — no two share a route) and intercepts only at close range; the panel shows <b>path cover</b> (fraction of the volume visited).</li>
+      <li><b>perimeter</b> — defenders hold the backline, engaging only attackers closing on the core.</li>
+      <li><b>rash</b> — aggressive dash with a high kill rate at the cost of wider exposure.</li>
+      <li><b>pursuit</b> — the base nearest-attacker hunt.</li>
+    </ul>
+    <p><span class="key">↻ rotate now</span> (or press <span class="key">A</span> to toggle the system) forces a rotation; the export card
+      records strategy, rotation count, number of unique paths, % cover and close-range intercepts. Reproduce the whole baseline matrix with
+      <code>node node-tests/secmesh-exp.mjs all</code> (writes JSONL per group into <code>node-tests/secmesh-runs/</code>).</p>
+
+    <h3 id="secops">4e · Security operations console</h3>
+    <p><code>crosslab/security_defender.html</code> is the <em>operational</em> surface for the same SecMesh engine. It imports the
+      <b>same</b> <code>Sim</code> as the research tool (via the auto-generated <code>secsim-core.mjs</code>), so a strategy you
+      tune here is literally the same model you can batch-test headlessly.</p>
+    <ul>
+      <li><b>Harmony at rest</b>: the console boots with <code>threatLevel 0</code> — 180 service nodes wrapped to a globe
+        (mesh addresses <code>10.42.x.x/16</code>, service ports, load/stress), 6 defenders orbiting, zero fabricated
+        attackers. <b>Red probes only ever appear when a verified <code>mesh-guardian</code> agent reports them</b>.</li>
+      <li><b>Tap-inspect</b> (research-tool style): tap any node to open its SERVICE NODE pane — name, address, port, load %,
+        stress, guards near, links, state. Tap a red probe to open its source inspector (kind, hash, source, vector, route/risk, live target)
+        and act: <b>Quarantine target</b> (isolate the node; attacks are deferred away and defenders guard it) or <b>Neutralize</b> (drop the marker).</li>
+      <li><b>Streamdeck deck</b>: Operations (Auto-Defense ⟳ arm — also <span class="key">A</span>, Guards +2 ⛨, Firewall step, Rotate Now ↻),
+        Manual forces (Quarantine ⬢ / Ring ◎ / Release ↺ / Deploy ✈), and the four auto-defense strategies (Sweep / Perimeter / Rash / Pursuit)
+        — live until auto-defense is armed.</li>
+      <li><b>System &amp; situation boards</b>: live agent dot + guardian mode/uptime/accepted/blocked, quarantine/compromise tallies,
+        the probe feed, and a hint box. Everything is driven by the same engine primitives
+        <code>attackerSource(a)</code>, <code>quarantineNode(i)</code> / <code>releaseNode(i)</code>, <code>deployDefender(x,y,z)</code>.</li>
+      <li><b>Real device tests</b> (separated pane, no click-fake attacks): <code>node-tests/mesh-guardian.mjs</code> on one device
+        defends TCP (rate-limit → <code>syn-slew</code> blocked, live-cap → <code>slew-overload</code>, idle-evict → <code>conn-linger</code>, echo for
+        <code>snaplag</code>) and serves <code>/status</code> JSON the console polls every 3 s; <code>mesh-tester.mjs</code> on another attacks
+        (<code>--vectors syn-slew,snaplag,udp-amp,pscan --rate --count</code>); <code>mesh-control.mjs</code> reproduces the identical surface with
+        <b>no defense</b> for the system-OFF leg. Headlessly: <code>node node-tests/mesh-selfcheck.mjs</code> proves
+        <code>repel(guardian) &gt; repel(baseline)</code>. See <a href="#fleet">§4f</a>.</li>
+      <li><b>In-console self-test</b> — <span class="key">▶ run self-test</span> runs the same A/B live on this device
+        (<code>/run-self-test?count=N&amp;rate=R&amp;vectors=…</code>, needs the page served by <code>node app/serve.js</code>,
+        409 while a test runs) and renders a result infocard with download/copy.<span class="key">t</span> in the console opens it.
+        Theme presets (<b>Build Own</b> editor + most-used list) persist in the browser.</li>
+      <li><b>Console shortcuts</b>: <code>a</code> auto-defense · <code>g</code> +2 guards · <code>f</code> firewall ·
+        <code>r</code> rotate · <code>e</code> entangle · <code>k</code> keys · <code>m</code> mesh key ·
+        <code>v</code> eve · <code>b</code> bench · <code>p</code> preview refresh · <code>?</code> manual ·
+        <code>Esc</code> close. The <span class="key">⟲ preview</span> button rebuilds the 3D view without reseeding.
+        With <code>peer-supervisor.mjs</code> running, the fabric row arms ⏱/⚡/⏻/⟳/🔁 (auto-restart a dead peer after 2 strikes).</li>
+    </ul>
+
+    <h3 id="fleet">4f · Real device testing — system ON vs system OFF</h3>
+    <p>The console only shows attacks that a <b>verified agent reports</b>, so the fastest way to see one is to launch the
+      suite on your own devices (node-tests/):</p>
+    <ul>
+      <li><b><code>mesh-guardian.mjs</code></b> (the system, device B) — listens on TCP <code>--listen 7171</code>, serves
+        CORS-open JSON at <code>--status 7172</code>. Per-source rate-limit → <code>syn-slew</code> blocked, live-connection cap
+        → <code>slew-overload</code>, idle keep-alive eviction → <code>conn-linger</code>, clean keep-alives echoed
+        (<code>snaplag</code> accepted), optional UDP echo for <code>udp-amp</code>. <b>No kernel/firewall claims</b> — this is the
+        userspace differential you own.</li>
+      <li><b><code>mesh-tester.mjs</code></b> (attacker, device A, does <em>not</em> run the system) — vectors
+        <code>syn-slew</code>, <code>snaplag</code>, <code>udp-amp</code>, <code>pscan</code> with <code>--rate/--count</code>;
+        classifies <em>served</em> vs <em>repelled</em> by whether the target actually answers, prints
+        <code>VERDICT GUARD|BASELINE engaged X/Y (Z%)</code>. Refuses non-private targets unless <code>--force</code>.</li>
+      <li><b><code>mesh-control.mjs</code></b> (system OFF) — identical wire surface, accepts everything, for the baseline leg.</li>
+      <li><b>One-device proof</b>: <code>node node-tests/mesh-selfcheck.mjs</code> runs guardian vs baseline on 127.0.0.1 and
+        passes when <code>repel(guardian) &gt; repel(baseline)</code> (recent run: 31% vs 0%; the full 5-vector bench below reads 50.1% vs 0%).</li>
+    </ul>
+    <p>Console tip: put the guardian URL (e.g. <code>http://&lt;device-B&gt;:7172/status</code>) in ◸ test suite → Agent, and the
+      red probes stream onto the globe as they're blocked.</p>
+
+    <h3>Measured results — comparable to existing products</h3>
+    <p>Every percentage below was measured live on this device with
+      <code>node node-tests/bench-vectors.mjs --count 300 --rate 30 --reps 3</code> — 300 probes × the five vectors × 3 reps,
+      sender at 30/s, linger held 6.5 s so the 6 s idle eviction is actually exercised. No fabricated figures; any claim is
+      re-measurable.</p>
+    <table>
+      <tr><th>Vector</th><th>System ON repel</th><th>System OFF</th><th>Δ</th><th>ON spread (min–max)</th></tr>
+      <tr><td>syn-slew · TCP flood</td><td>42.11%</td><td>0.00%</td><td>+42.11</td><td>41.00 – 43.33%</td></tr>
+      <tr><td>linger · idle hold</td><td>100.00%</td><td>0.00%</td><td>+100.00</td><td>100.00%</td></tr>
+      <tr><td>snaplag · echo / latency</td><td>8.33%</td><td>0.00%</td><td>+8.33</td><td>7.00 – 9.67%</td></tr>
+      <tr><td>udp-amp · UDP flood</td><td>50.11%</td><td>0.00%</td><td>+50.11</td><td>50.00 – 50.33%</td></tr>
+      <tr><td><b>overall TCP+UDP</b></td><td><b>50.10%</b></td><td><b>0.00%</b></td><td><b>+50.1 pp</b></td><td>49.5 – 50.2%</td></tr>
+    </table>
+    <p><b>Latency tax:</b> snaplag echo round-trip was the same with the system on as with it off (4 ms vs 4 ms) — no
+      visible delay at LAN scale.</p>
+    <p><b>Plain-English map.</b> Think of the system as a bouncer at the front door; "system OFF" is the same building
+      with the door propped open (a stock server with no firewall — everything gets in):
+      <code>syn-slew</code> = a per-source pace rule that turns away the excess of an over-rush (like Nginx
+      <code>limit_req</code> / Cloudflare per-IP throttling); <code>linger</code> = "no standing in the lobby" — idle
+      connections are escorted out after the 6 s window where a stock server holds them forever (like HAProxy
+      <code>timeout client</code> / firewall session reaping); <code>udp-amp</code> = UDP datagrams treated as noise, past
+      the allow rate the system stops accepting where a stock echo accepts 100% (Cloudflare / Arbor L3-L4 clamp style). So
+      introduce the system and it behaves like a small next-gen firewall / rate-limiting edge — rejecting about half the
+      attack traffic it's fed while adding ~0 ms of visible latency.</p>
+    <div class="tipbox"><b>Where crypto fits (SHA-256, TLS, the engine's quantum-key mode)</b> — that's the
+      <i>data layer</i>: envelopes and key exchange that protect conversation contents. This benchmark is the
+      <i>admission layer</i>: who passes the front door. They don't compete, and the numbers above wouldn't move if you
+      swapped the hash — the table is about the door, crypto about the safe inside.</div>
+
+    <h3 id="qkd">4g · Entanglement fabric — the quantum-key cluster</h3>
+    <p>An E91 (Ekert) protocol <i>simulator</i> that can actually run on your phones as a cluster. Real photon entanglement
+      can't travel over a wire, so — exactly as the physics engine is an honest approximation of matter — the <b>quantum
+      channel is emulated</b>: the classical outcome distribution is sampled from the singlet joint distribution once both
+      measurement settings are fixed, the only injection that breaks the Bell correlations is an eavesdropper's disturbance,
+      and the Bell-CHSH test decides the verdict. Each node genuinely generates/measures its share and holds half the state.</p>
+    <ul>
+      <li><b>Topology</b>: complete-graph mesh — with <b>N peers</b> you get <b>n(n−1)/2 links</b>, each link one E91 session
+        (initiator = lower-index peer, responder = higher-index). Every pair runs concurrently (<b>async</b>); a
+        <b>conference key</b> is derived by hashing the honest link keys. Add a node and the mesh re-wires itself — nothing
+        says "four" in the protocol.</li>
+      <li><b>Measurements</b>: honest links hold Bell-CHSH <b>S ≈ 2·√2 ≈ 2.83</b> (> 2, no eavesdropper) and derive a real
+        SHA-256 key; inject <code>--eve node-&lt;k&gt;</code> and the links touching that node collapse to <b>S ≈ 0.6 &lt; 2</b>
+        and <b>ABORT</b> — eavesdropping is detected, key refused. Gate: <code>node node-tests/qkd-selfcheck.mjs</code> (part of
+        <code>selfcheck.mjs</code>). <b>Measured 5-node proof</b> (<code>qkd-run.json</code>, 4000 rounds): all 10 links KEY —
+        S = 2.68–2.93 across the complete graph, 417–456 key bits per link, single conference key derived from the honest
+        keys only, gate all green (<code>ok</code>/<code>honOk</code>/<code>eveOk</code>).</li>
+    </ul>
+    <pre># peers on your LAN (Termux, no adb needed) — one entangle-peer per phone:
+node node-tests/entangle-peer.mjs --name node-0 --entangle 7200 --control 7300 --status 7301   # run once on EACH phone
+node node-tests/qkd-cluster.mjs --peers node-0=192.168.1.10:7200&#59;node-1=192.168.1.11:7200&#59;node-2=…:7200 --rounds 6000
+# control port defaults to entangle + 1000 (as in the --adb/--self provisioning); if a peer
+# runs its control socket somewhere else, pass it explicitly:  node-0=host:7200:8300
+
+# …or all attached phones from a host with adb (spawns + forwards each, tears down after):
+node node-tests/qkd-cluster.mjs --adb all       # every `adb devices`-visible phone joins the mesh
+
+# one device, for the bench/gate (any deployment size, here 4 for speed):
+node node-tests/qkd-cluster.mjs --self --nodes 4 --rounds 6000 --eve node-2
+
+# prove the mesh scales — 8 spawn peers, 28 links, one conference key:
+node node-tests/qkd-cluster.mjs --self --nodes 8 --rounds 4000</pre>
+    <p><b>Control node</b>: any always-on machine can drive the whole fabric — run <code>qkd-cluster.mjs</code> there with
+      <code>--peers</code> (phones over wifi) or <code>--adb all</code> with the phones plugged in by USB, and it provisions,
+      meshes, and tears down every node. The console is just another control surface: point its <b>mesh</b> field at that
+      node's <code>/e91</code> status ports.</p>
+    <p><b>Console streamdeck</b> (⚙ → Security demo → <span class="key">⟠ Entangle</span>): the <b>Entanglement fabric</b> deck row
+      — <span class="key">⟠</span> arms, <span class="key">⇆</span> rotates the round, <span class="key">⚑ Eve</span> arms the
+      disturbance watch, <span class="key">⌬</span> re-derives the conference key. Set the N peer <code>/e91</code> URLs in the
+      test suite's <b>mesh</b> field (defaults to the host supervisor's census-family status ports
+      <code>127.0.0.1:20003 / 20006 / 20009 / 20012 / 20015</code> — peer <i>i</i> = <code>20003 + 3i</code>). On the world, each reachable peer appears as an orbiting mini-sphere joined by
+      constellation links — <b>green</b> for honest KEY links, <b>red</b> for Eve ABORTs — so a full deployment reads as a map
+      of every sphere working together at a glance. Under the deck, a live per-link readout shows the raw telemetry for each
+      link — <b>KEY/ABORT · S</b> (Bell-CHSH) · <b>initiator/responder role · rounds · key bits</b> (e.g. 336 bits) · wire target ·
+      full derived key — plus a summary line (<b>peers · links · honest · aborts · S̄ · Σ bits · conference fingerprint</b>). So the
+      constellation is the picture and the readout is the receipt.
+      <b>Mesh Key</b> only lights when the hash of the honest keys derives
+      cleanly. <b>Bench ⟳</b> (input next to the deck) is the ramp-up control: it POSTs
+      <code>/bench?n=&lt;rounds&gt;</code> to every peer, and each re-runs the links it initiates at your length —
+      longer runs ⇒ proportionally more bits (bits ≈ <b>n/9</b> per link, since each side picks base 0/1/2 and both
+      align ≈ 1/9 of the time); the secret actually shared is the SHA-256 of those corrected bits. Same S̄ at any
+      length — the proof operator is length-independent.
+      This is the data layer — sibling to the admission numbers above, not a competitor to them.</p>
+
+    <h2 id="physics">5 · The physics (honest approximations)</h2>
+    <ul>
+      <li>Lennard-Jones pairwise forces + Coulomb for charged species, cell-hashed neighbour lists.</li>
+      <li>A soft thermostat with a rate-scaled heating term and an operating-point taper so the furnace holds temperature across speed changes.</li>
+      <li>Chemical bonds form/break on geometry + energy; ionic, covalent and hydrogen colour-coded. Excited states, reactions and radioactive decay are in.</li>
+      <li>Machine fields: constant <b>B</b> (Lorentz), constant <b>E</b> along a set direction, and input <b>power</b> (RF-style heating), plus the beam bank described above.</li>
+      <li>A resolved fine-regime solver for the chemistry band, a coarse rate-consistent fast-forward regime, and a deep-macro single-substep band that delivers every tick up to <code>3.2 T y/step</code> at full sim-time per frame (rigid bonds via PBD, <code>dt</code>-scaled event rates, renormalized thermo so the °K readout stays truthful).</li>
+    </ul>
+
+    <h2 id="data">6 · Data &amp; export</h2>
+    <p><code>elements.data.js</code> defines <code>window.ELEMENTS_DATA</code>, an audited 118-row dataset
+      (<code>z s n m en d melt boil ion grp per blk cat cfg shells year era crust cosmic cpk</code>). Generated file — do not hand-edit.</p>
+    <p>The ▦ menu's <b>⬇ export data</b> downloads the live experiment as JSON
+      (<code>aps-&lt;exp&gt;-&lt;t&gt;fs.json</code>):</p>
+    <pre>{
+  "format": "atomic-printer-sim/experiment@1",
+  "experiment": { "id": "salt", "name": "Salt from Nothing", "…": "…" },
+  "run":      { "t": 0, "dt": 1, "substeps": 1, "T_cur": 300, "T_target": 400, "B": 0, "E": 0, "power": 0.5, "beams": [ … ], "shape": "cube", "size": 2.4 },
+  "feed":    [ { "z": 11, "n": 2, "every": 50000, "start": 0, "enabled": true } ],
+  "atoms":   [ { "z": 17, "sym": "Cl", "x": 0.12, "y": 0.0, "vx": 0, "vy": 0, "vz": 0, "fixed": false, "temp": 300 } ],
+  "bonds":   [ { "a": 0, "b": 1, "type": "ionic" } ],
+  "events":  [ { "t": 123, "msg": "Na⇄Cl ionic bond formed", "kind": "info" } ]
+}</pre>
+    <p><code>atoms</code> are positioned in nm with velocities in nm/step; <code>bonds</code> reference <code>atoms</code> by index;
+      <code>run</code> carries rate, temperature, fields, the full beam bank, shape, feeder totals and the cross-lab preset.
+      MRI scans download as PNGs; clip mode additionally writes the filmstrip PNG plus a self-contained <code>-anim.html</code> player.</p>
+    <p><b>Cross-lab per-node export</b> (the physics world's <span class="key">⚒</span> export card writes a JSON array of these; import restores
+      <em>all</em> fields including the entanglement graph):</p>
+    <pre>{
+  "label": "Node_42",
+  "data": "{\"seed\":\"0.7342\"}",
+  "weight": 0.8473, "bias": -0.1234, "mass": 1.234, "charge": 0.567, "spin": -0.5,
+  "waveReal": 0.234, "waveImag": 0.111, "shell": 3,
+  "entangled": [5, 12, 42],
+  "pos": [1.23, -0.45, 3.67],
+  "vel": [0.01, -0.02, 0.005]
+}</pre>
+
+    <h2 id="layout">7 · Project layout</h2>
+    <pre>index.html            folding 3D periodic table
+experiments.html      the lab UI + styles (moveable modules, docked MRI bar)
+exp-app.js            lab app: viewport, UI wiring, machines, feeder, export
+exp-core.mjs          physics engine: Chamber, fields, bonds, decay, Chladni, time scale
+elements.data.js      audited element dataset (window.ELEMENTS_DATA)
+landing.html          labs hub
+crosslab/             physicsSim field presets
+lib/                  vendored three.js r160
+serve.js              zero-dependency static server (node)
+guide.html            this document — the field guide
+readme.html           technical readme — architecture, agent usage, credits</pre>
+
+    <h2 id="tech">8 · Tech &amp; files</h2>
+    <p><code>three.js</code> r160 is vendored in <code>lib/</code> with an import map — no CDNs, works offline.
+      The lab references <code>elements.data.js</code>, <code>exp-core.mjs</code> (pure physics, no DOM) and
+      <code>exp-app.js</code> (DOM UI). Everything runs client-side; exports go to a folder you pick or to downloads.</p>
+
+    <div class="foot">Aarkanum Laboratories · companion to README.md · see also <a href="readme.html">readme.html</a> (architecture · agent recipes · credits) · <a href="about.html">about</a> (operator &amp; origin)</div>
+  </main>
+</div>
+
+</body>
+</html>

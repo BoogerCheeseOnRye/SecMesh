@@ -1,0 +1,1 @@
+{"t":1788930096752,"kind":"selfcheck","count":160,"rate":60,"guardPct":4.7,"ctrlPct":0,"pass":true,"guard":{"accepted":305,"total":320,"pct":95.3},"control":{"accepted":320,"total":320,"pct":100}}

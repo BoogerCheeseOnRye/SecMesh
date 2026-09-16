@@ -1,0 +1,189 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Aarkanum Laboratories — one periodic table, three worlds</title>
+<style>
+  *{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+  html{scroll-behavior:smooth}
+  body{background:#04060e;color:#dce9ff;font-family:ui-monospace,'SF Mono','Cascadia Mono','Segoe UI',system-ui,sans-serif;
+    min-height:100vh;overflow-x:hidden}
+  a{color:inherit;text-decoration:none}
+
+  .hero{padding:54px 20px 30px;text-align:center;position:relative;overflow:hidden}
+  .hero::before{content:'';position:absolute;inset:0;z-index:-1;
+    background:radial-gradient(60% 70% at 50% 0%,rgba(63,157,255,.16),transparent 70%),
+               radial-gradient(40% 50% at 80% 20%,rgba(126,231,255,.08),transparent 70%)}
+  .hero h1{font-size:30px;letter-spacing:6px;color:#7ee7ff;text-transform:uppercase;font-weight:800;
+    text-shadow:0 0 22px rgba(126,231,255,.6)}
+  .hero .sub{margin-top:10px;font-size:13px;color:#9fb4d8;letter-spacing:1.5px}
+  .hero .pitch{margin:18px auto 0;max-width:640px;font-size:12.5px;line-height:1.7;color:#b8c9e6}
+
+  .wrap{max-width:980px;margin:0 auto;padding:0 18px 40px}
+
+  .grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:14px;margin-top:26px}
+  .card{background:linear-gradient(165deg,rgba(12,16,36,.85),rgba(6,8,20,.7));border:1px solid rgba(120,200,255,.22);
+    border-radius:18px;padding:18px;display:flex;flex-direction:column;gap:8px;position:relative;overflow:hidden;
+    transition:transform .16s,box-shadow .2s;cursor:pointer}
+  .card:hover{transform:translateY(-3px);box-shadow:0 14px 40px rgba(0,0,0,.5),inset 0 0 24px rgba(90,170,255,.07)}
+  .card .ic{font-size:26px}
+  .card h2{font-size:15px;color:#7ee7ff;letter-spacing:2px;text-transform:uppercase}
+  .card .tag{font-size:10px;color:#6f88b0;letter-spacing:1px}
+  .card .desc{font-size:11.5px;line-height:1.55;color:#b8c9e6}
+  .card .probe{position:absolute;right:-30px;top:-30px;width:110px;height:110px;border-radius:50%;
+    background:radial-gradient(circle,rgba(126,231,255,.16),transparent 70%);pointer-events:none}
+  .card .go{position:absolute;top:14px;right:16px;color:#3f9dff;font-size:18px}
+
+  h3.sec{font-size:12px;letter-spacing:3px;color:#6f88b0;text-transform:uppercase;margin:38px 0 14px;
+    display:flex;align-items:center;gap:10px}
+  h3.sec::after{content:'';flex:1;height:1px;background:linear-gradient(90deg,rgba(120,200,255,.3),transparent)}
+
+  .exp{display:grid;grid-template-columns:1fr;gap:8px}
+  .exprow{display:flex;align-items:center;gap:14px;background:linear-gradient(165deg,rgba(12,16,36,.85),rgba(6,8,20,.6));
+    border:1px solid rgba(120,200,255,.22);border-radius:16px;padding:14px 52px 14px 16px;cursor:pointer;position:relative;overflow:hidden;
+    transition:transform .16s,border-color .15s,box-shadow .2s}
+  .exprow:hover{transform:translateY(-2px);border-color:rgba(126,231,255,.4);box-shadow:0 12px 34px rgba(0,0,0,.5),inset 0 0 20px rgba(90,170,255,.05)}
+  .exprow::after{content:'→';position:absolute;right:18px;top:50%;transform:translateY(-50%);color:#3f9dff;font-size:18px}
+  .exprow .ei{font-size:22px;width:34px;text-align:center;flex:none}
+  .exprow .en{font-size:13.5px;font-weight:700;color:#e8f3ff}
+  .exprow .et{font-size:10px;color:#6f88b0;letter-spacing:.8px;margin-top:2px}
+  .exprow .eg{margin-left:auto;text-align:right;font-size:10.5px;color:#9fb4d8;max-width:36%;padding-right:4px}
+  .exprow .eg b{display:block;font-size:9px;color:#3f9dff;letter-spacing:1px;text-transform:uppercase;margin-bottom:2px}
+
+  .tips{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:10px;margin-top:16px}
+  .tip{background:rgba(10,14,32,.45);border:1px dashed rgba(120,200,255,.18);border-radius:14px;padding:14px}
+  .tip b{font-size:11.5px;color:#7ee7ff;letter-spacing:.6px;display:block;margin-bottom:6px;text-transform:uppercase}
+  .tip p{font-size:11px;line-height:1.6;color:#b8c9e6}
+  .tip kbd{background:rgba(126,231,255,.12);border:1px solid rgba(126,231,255,.25);color:#7ee7ff;
+    padding:0 6px;border-radius:5px;font-size:10px}
+
+  .chips{display:grid;grid-template-columns:repeat(auto-fit,minmax(250px,1fr));gap:12px;margin-top:16px}
+  .chip{display:flex;align-items:center;gap:10px;font-size:11px;color:#b8c9e6;letter-spacing:.6px;
+    border:1px solid rgba(120,200,255,.22);border-radius:14px;padding:13px 50px 13px 14px;position:relative;overflow:hidden;
+    background:linear-gradient(165deg,rgba(12,16,36,.85),rgba(6,8,20,.6));
+    transition:transform .16s,border-color .15s,box-shadow .2s}
+  .chip:hover{transform:translateY(-2px);border-color:#7ee7ff;color:#7ee7ff;box-shadow:0 12px 34px rgba(0,0,0,.5),inset 0 0 18px rgba(90,170,255,.05)}
+  .chip::after{content:'→';position:absolute;right:18px;top:50%;transform:translateY(-50%);color:#3f9dff;font-size:18px}
+  .chip .dot{font-size:11px;color:#59ff9c;flex:none}
+
+  .mcards{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:12px;margin-top:16px}
+  .mcard{background:linear-gradient(165deg,rgba(12,16,36,.85),rgba(6,8,20,.6));border:1px solid rgba(120,200,255,.22);border-radius:16px;padding:16px 50px 16px 16px;cursor:pointer;position:relative;overflow:hidden;transition:transform .16s,border-color .15s,box-shadow .2s}
+  .mcard:hover{transform:translateY(-2px);border-color:rgba(126,231,255,.4);box-shadow:0 12px 34px rgba(0,0,0,.5),inset 0 0 20px rgba(90,170,255,.05)}
+  .mcard::after{content:'→';position:absolute;top:16px;right:18px;color:#3f9dff;font-size:18px}
+  .mcard h4{font-size:11.5px;color:#7ee7ff;letter-spacing:1px;text-transform:uppercase;margin:0 0 6px}
+  .mcard p{font-size:11.5px;line-height:1.6;color:#b8c9e6;margin:0}
+  .mcard code{background:rgba(126,231,255,.1);border:1px solid rgba(126,231,255,.2);border-radius:4px;
+    padding:0 5px;font-size:10px;color:#7ee7ff}
+
+  .footer{margin-top:40px;text-align:center;font-size:10px;color:#4a5f84;letter-spacing:1px;padding-bottom:30px}
+  .footer a{color:#6f88b0;border-bottom:1px dashed rgba(126,231,255,.3)}
+</style>
+</head>
+<body>
+
+<div class="hero">
+  <h1>Aarkanum&nbsp;Laboratories</h1>
+  <div class="sub">ONE PERIODIC TABLE · THREE WORLDS</div>
+  <div class="pitch">
+    Start at the element table, melt chemistry in the lab, then zoom all the way out to the universe.
+    Everything here runs offline on your device — no network, no uploads.
+  </div>
+</div>
+
+<div class="wrap">
+
+  <div class="grid" id="tools"></div>
+
+  <div class="chips">
+    <a class="chip" href="crosslab/preview.html"><span class="dot">▸</span> Universe gallery — three plates</a>
+    <a class="chip" href="crosslab/security_defender.html"><span class="dot">▸</span> SecOps defense console — tap nodes &amp; live probes</a>
+    <a class="chip" href="crosslab/physics_simulator.html"><span class="dot">▸</span> SecMesh in-sim (press A for moving target)</a>
+    <a class="chip" href="guide.html#secmesh"><span class="dot">▸</span> SecMesh · the 69-trial baseline</a>
+    <a class="chip" href="guide.html#secops"><span class="dot">▸</span> Security ops · how to defend</a>
+    <a class="chip" href="guide.html#ais"><span class="dot">▸</span> Why it matters for AI &amp; security</a>
+    <a class="chip" href="about.html"><span class="dot">▸</span> About · the operator &amp; origin</a>
+  </div>
+
+  <h3 class="sec">Lab experiments — the table of contents</h3>
+  <div class="exp" id="expList"><div style="font-size:11px;color:#6f88b0">loading…</div></div>
+
+  <h3 class="sec">Get oriented in 60 seconds</h3>
+  <div class="tips">
+    <div class="tip"><b>Periodic table</b>
+      <p>Three touch gestures: <kbd>drag</kbd> to orbit the folded table, <kbd>pinch</kbd> to zoom, <kbd>two-finger drag</kbd> to pan. Tap any element for its full fact card. The rail on the right flips metrics and toggles auto-spin and bloom.</p></div>
+    <div class="tip"><b>The lab</b>
+      <p>Every experiment has a <b>Mission</b> with ordered steps — run the sim and the lab tells the story as chemistry actually happens. Add raw elements with the <kbd>＋</kbd> panel, shape the chamber with <kbd>◱</kbd>, drive sound plates with <kbd>♬</kbd>, watch the <kbd>∿</kbd> oscilloscope.</p></div>
+    <div class="tip"><b>Experiment menu</b>
+      <p>Press <kbd>▦</kbd> in the lab to open the full experiment menu — every experiment listed with its goal. Tap one to start it fresh (paused at the slowest speed). Pick a <b>machine</b> (Tokamak, Stellarator, Beamline…) with <kbd>⚙</kbd> to add fields and a timed feeder.</p></div>
+    <div class="tip"><b>Universe sandbox</b>
+      <p>It opens in <b>easy mode</b>: pick a scene (Quantum Foam → Galactic Web), then <kbd>⏸</kbd> to freeze time and speed to rewind it. Toggle <kbd>⚙ advanced</kbd> only when you want every physics knob. It also runs the <b>SecMesh</b> security demo — press <kbd>A</kbd> for moving-target auto-defense, <kbd>⚒</kbd> exports the run against a 69-trial baseline.</p></div>
+  </div>
+
+  <h3 class="sec">Universe → AI &amp; security — one engine, three vocabularies</h3>
+  <div class="mcards">
+    <a class="mcard" href="guide.html#ais"><h4>Graph neural networks</h4><p>Nodes &amp; edges, message passing, alignment-as-training. The engine's graph <em>is</em> the model.</p></a>
+    <a class="mcard" href="guide.html#ais"><h4>Attention &amp; diffusion</h4><p>Entanglement ≈ attention weights; trail deposition + evaporation ≈ forward/reverse diffusion.</p></a>
+    <a class="mcard" href="guide.html#ais"><h4>Adversarial &amp; QKD</h4><p>Tunneling = adversarial escape; Planck jitter + wavecollapse = quantum randomness / one-time pads.</p></a>
+    <a class="mcard" href="guide.html#ais"><h4>Anomaly &amp; zero-trust</h4><p>Shells &amp; voids flag outliers; trust-threshold links <em>are</em> the network policy.</p></a>
+  </div>
+
+  <div class="footer">
+    Aarkanum Laboratories · single-page, zero-dependency · <a href="experiments.html">jump straight to the lab →</a>
+    <br><a href="guide.html">field guide &amp; table of contents →</a>
+    <br><a href="readme.html">technical readme · architecture · credits →</a>
+    <br><a href="about.html">about · the operator &amp; origin →</a>
+    <br><a href="crosslab/preview.html">universe gallery →</a> · <a href="crosslab/physics_simulator.html">field engine →</a> · <a href="guide.html#secmesh">SecMesh baseline →</a>
+    <br><span id="expCount"></span>
+  </div>
+</div>
+
+<script src="elements.data.js"></script>
+<script type="module">
+import { EXPERIMENTS, SHAPES, CHLADNI_MODES } from './exp-core.mjs';
+
+const tools = [
+  {
+    ic: '⬡', title: 'Periodic Table', tag: 'the 118-element folding table',
+    desc: 'Standing waves fold the elements into space. Tap, orbit, zoom and flip between metrics — density, boiling point, abundance, valence, and more.',
+    go: 'index.html',
+  },
+  {
+    ic: '⚗', title: 'Chemistry Lab', tag: '10 guided experiments, real interactions',
+    desc: 'Salt from nothing, melting metals, rust, plasma, alloys, noble bubbles — every run is narrated step by step. Add elements, reshape the chamber, drive sand plates.',
+    go: 'experiments.html',
+  },
+  {
+    ic: '✦', title: 'Universe Sandbox', tag: 'quantum foam → galactic web · SecMesh',
+    desc: 'A swarm-and-field engine that becomes atoms, cells, brains or galaxies — and a security demo against a 69-trial baseline. Press A for moving-target defenses, ⚒ to export the run.',
+    go: 'crosslab/physics_simulator.html',
+  },
+];
+const toolsEl = document.getElementById('tools');
+for (const t of tools){
+  const a = document.createElement('a');
+  a.href = t.go;
+  a.className = 'card';
+  a.innerHTML = `<span class="probe"></span><span class="go">→</span>
+    <span class="ic">${t.ic}</span><h2>${t.title}</h2><span class="tag">${t.tag}</span>
+    <span class="desc">${t.desc}</span>`;
+  toolsEl.appendChild(a);
+}
+
+const list = document.getElementById('expList');
+list.innerHTML = '';
+const frag = document.createDocumentFragment();
+for (const e of EXPERIMENTS){
+  const row = document.createElement('a');
+  row.className = 'exprow';
+  row.href = 'experiments.html?exp=' + e.id;
+  row.innerHTML = `<span class="ei">${e.icon}</span>
+    <span><span class="en">${e.name}</span><div class="et">${e.tag}</div></span>
+    <span class="eg"><b>goal</b>${e.goal}</span>`;
+  frag.appendChild(row);
+}
+list.appendChild(frag);
+document.getElementById('expCount').textContent = EXPERIMENTS.length + ' experiments · ' + SHAPES.length + ' chamber shapes · ' + CHLADNI_MODES.length + ' chladni modes';
+</script>
+</body>
+</html>

@@ -1,0 +1,135 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<title>Physics Simulator — Gallery</title>
+<style>
+  * { box-sizing: border-box; }
+  body { margin:0; min-height:100vh; font-family:system-ui,sans-serif; color:#e8e8e8; background:#0a0a12; }
+  #gallery { max-width:1200px; margin:0 auto; padding:40px 20px 80px; }
+  h1 { text-align:center; font-size:28px; letter-spacing:3px; margin:0 0 8px; color:#fff; }
+  .subtitle { text-align:center; color:#666; font-size:14px; margin-bottom:40px; }
+  .frame { background:#111; border:1px solid #222; border-radius:8px; overflow:hidden; margin-bottom:40px; box-shadow:0 4px 24px rgba(0,0,0,0.6), inset 0 1px 0 rgba(255,255,255,0.03); }
+  .frame iframe { width:100%; height:400px; border:none; display:block; background:#000; }
+  @media (max-width: 600px) { .frame iframe { height:280px; } }
+  .placard { padding:24px 28px; background:linear-gradient(180deg, #14141a 0%, #0e0e14 100%); border-top:1px solid #222; }
+  .placard-title { font-size:16px; font-weight:600; color:#0ff; margin:0 0 8px; letter-spacing:1px; text-transform:uppercase; }
+  .placard-desc { font-size:14px; line-height:1.7; color:#aaa; margin:0 0 16px; }
+  .placard-meta { display:flex; flex-wrap:wrap; gap:8px 16px; font-size:12px; color:#666; font-family:monospace; }
+  .placard-meta span { background:#1a1a24; padding:2px 8px; border-radius:3px; border:1px solid #2a2a3a; }
+  .section { margin-top:60px; padding-top:40px; border-top:1px solid #222; }
+  .section h2 { font-size:18px; letter-spacing:2px; color:#0ff; margin:0 0 24px; text-transform:uppercase; text-align:center; }
+  .use-grid { display:grid; grid-template-columns:repeat(auto-fit, minmax(280px, 1fr)); gap:20px; }
+  .use-card { background:#111; border:1px solid #222; border-radius:8px; padding:24px; transition:border-color 0.2s, box-shadow 0.2s; }
+  .use-card:hover { border-color:#0ff; box-shadow:0 0 16px rgba(0,255,255,0.08); }
+  .use-card h3 { font-size:14px; color:#0ff; margin:0 0 12px; letter-spacing:1px; text-transform:uppercase; }
+  .use-card p { font-size:13px; line-height:1.65; color:#999; margin:0; }
+  .use-card strong { color:#ccc; }
+  .topbar { display:flex; flex-wrap:wrap; gap:10px; justify-content:center; margin:18px auto 30px; max-width:1200px; padding:0 20px; }
+  .topbar a { color:#666; font-size:12px; letter-spacing:1px; border:1px solid #2a2a3a; border-radius:20px;
+    padding:6px 14px; text-decoration:none; background:#111; font-family:monospace; }
+  .topbar a:hover { color:#0ff; border-color:#0ff; }
+  .topbar a:first-child { color:#0ff; border-color:#0ff; }
+</style>
+</head>
+<body>
+<div class="topbar">
+  <a href="../landing.html">◂ hub</a>
+  <a href="physics_simulator.html">simulator</a>
+  <a href="../guide.html#ais">AI &amp; security mapping</a>
+  <a href="../guide.html#secmesh">SecMesh demo</a>
+  <a href="../readme.html#universe">tech readme · universe</a>
+</div>
+<div id="gallery">
+  <h1>⚡ Quantum→Universe</h1>
+  <p class="subtitle">Three slices of physics, from Planck foam to cosmic web</p>
+
+  <div class="frame" id="frame-quantum">
+    <iframe src="physics_simulator.html?preset=quantumFoam" title="Quantum Foam"></iframe>
+  </div>
+  <div class="placard">
+    <p class="placard-title">Quantum Foam</p>
+    <p class="placard-desc">At 10⁻³⁵ meters, spacetime isn't smooth — it boils. Virtual particles pop in and out of existence. Entanglement links distant points instantly. Particles tunnel through barriers they classically couldn't cross. This is the substrate from which all forces emerge.</p>
+    <div class="placard-meta">
+      <span>Scale: Planck → Quark</span>
+      <span>Quantum ħ: 0.8</span>
+      <span>Tunneling: 0.5</span>
+      <span>Entanglement: 0.7</span>
+      <span>Decoherence: 0.01</span>
+      <span>Planck jitter: 0.5</span>
+    </div>
+  </div>
+
+  <div class="frame" id="frame-atomic">
+    <iframe src="physics_simulator.html?preset=atomic" title="Atomic Lattice"></iframe>
+  </div>
+  <div class="placard">
+    <p class="placard-title">Atomic Lattice</p>
+    <p class="placard-desc">Electrons settle into discrete shells around nuclei. The fine-structure constant governs electromagnetic coupling. Strong force binds quarks into protons and neutrons. Higgs field gives mass. Crystal bonds form — each atom a node in a quantum graph, sharing electrons through tunneling.</p>
+    <div class="placard-meta">
+      <span>Scale: Atomic → Molecular</span>
+      <span>Energy shells: 7</span>
+      <span>Strong force: 0.4</span>
+      <span>Fine α: 1.0</span>
+      <span>Higgs field: 0.5</span>
+      <span>Gravity: 0.01</span>
+    </div>
+  </div>
+
+  <div class="frame" id="frame-galactic">
+    <iframe src="physics_simulator.html?preset=galactic" title="Galactic Web"></iframe>
+  </div>
+  <div class="placard">
+    <p class="placard-title">Galactic Web</p>
+    <p class="placard-desc">Dark matter forms filaments stretching millions of light-years. Galaxies flow along these threads like dew on a spiderweb. Dark energy pushes voids apart, accelerating expansion. Gravity curves spacetime — light bends around clusters. The universe is a foam of walls and voids.</p>
+    <div class="placard-meta">
+      <span>Scale: Galactic → Universal</span>
+      <span>Gravity: 0.8</span>
+      <span>Dark energy: 0.3</span>
+      <span>Curvature: 0.7</span>
+      <span>Inflation: 0.1</span>
+      <span>Alignment: 0.01</span>
+    </div>
+  </div>
+
+  <div class="section">
+    <h2>Why This Matters for AI & Security</h2>
+    <div class="use-grid">
+      <div class="use-card">
+        <h3>Graph Neural Networks</h3>
+        <p>Nodes = neurons/atoms/galaxies. Edges = synapses/bonds/filaments. <strong>Message passing</strong> across the graph mirrors how our simulator propagates activation, entanglement, and gravity. Training = adjusting edge weights (alignment force) to minimize energy.</p>
+      </div>
+      <div class="use-card">
+        <h3>Transformer Attention</h3>
+        <p><strong>Entanglement = attention weights.</strong> Every token attends to every other — non-local correlation. Our <code>entangle</code> parameter tunes correlation decay with distance. Multi-head attention ≈ multiple entanglement channels.</p>
+      </div>
+      <div class="use-card">
+        <h3>Diffusion Models</h3>
+        <p>Trail deposition + evaporation = <strong>forward/reverse diffusion</strong>. Agents deposit pheromone (score), diffusion blurs it (noise), chemotaxis follows gradient (denoising). Slime mold solves the same variational problem as DDPM sampling.</p>
+      </div>
+      <div class="use-card">
+        <h3>Adversarial Robustness</h3>
+        <p><strong>Tunneling = adversarial escape.</strong> Particles quantum-tunnel through energy barriers. In latent space, this is an adversarial example crossing a decision boundary. <code>tunnel</code> parameter controls barrier penetration rate — a direct knob for robustness testing.</p>
+      </div>
+      <div class="use-card">
+        <h3>Cryptographic Entropy</h3>
+        <p>Planck-scale jitter (<code>planckScale</code>) injects true quantum randomness. <strong>Wavefunction collapse</strong> on measurement = one-time pad generation. Entangled pairs across nodes = device-independent QKD (Ekert protocol). Decoherence rate = key expiration.</p>
+      </div>
+      <div class="use-card">
+        <h3>Anomaly Detection</h3>
+        <p>Dark energy repulsion (<code>darkEnergy</code>) pushes outliers to voids. <strong>Energy shells</strong> quantize normal behavior into discrete levels. Anything between shells or in a void = anomaly. Used for network intrusion, fraud, side-channel detection.</p>
+      </div>
+      <div class="use-card">
+        <h3>Federated Learning</h3>
+        <p>Nodes = clients. <strong>Alignment force</strong> = model averaging. <strong>Repulsion</strong> = personalization (prevent collapse to global model). <strong>Curvature</strong> = non-IID data geometry. The simulator visualizes convergence dynamics across heterogeneous clients.</p>
+      </div>
+      <div class="use-card">
+        <h3>Zero-Trust Topology</h3>
+        <p>Connections form only when <strong>trust threshold</strong> exceeded (<code>connectionThreshold</code>). Entanglement = shared secrets. Tunneling = covert channel risk. The graph structure <em>is</em> the policy — visualize, audit, and harden in real time.</p>
+      </div>
+    </div>
+  </div>
+</div>
+</body>
+</html>

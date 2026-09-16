@@ -1,0 +1,278 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Aarkanum Laboratories — SecMesh vs Cloudflare · pitch deck</title>
+<style>
+  *{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+  html{scroll-behavior:smooth}
+  body{background:#04060e;color:#dce9ff;font-family:ui-monospace,'SF Mono','Cascadia Mono','Segoe UI',system-ui,sans-serif;
+    overflow:hidden;overscroll-behavior:none}
+
+  .deck{height:100vh;width:100vw;position:relative}
+  .slide{position:absolute;inset:0;display:none;flex-direction:column;align-items:center;justify-content:center;
+    text-align:center;padding:40px 28px;overflow:hidden}
+  .slide.active{display:flex;animation:fade .35s ease}
+  @keyframes fade{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
+
+  .kicker{font-size:11px;letter-spacing:4px;color:#3f9dff;text-transform:uppercase;margin-bottom:14px;font-weight:700}
+  h1{font-size:clamp(26px,5vw,44px);color:#7ee7ff;letter-spacing:4px;text-transform:uppercase;font-weight:800;
+    text-shadow:0 0 26px rgba(126,231,255,.45)}
+  h2{font-size:clamp(20px,3.2vw,30px);color:#e8f3ff;letter-spacing:2px;font-weight:800;line-height:1.3}
+  .sub{margin-top:10px;font-size:clamp(12px,1.6vw,14px);color:#9fb4d8;letter-spacing:1.5px}
+  .pitch{margin:18px auto 0;max-width:720px;font-size:clamp(12px,1.5vw,14px);line-height:1.75;color:#b8c9e6}
+
+  .wrap{max-width:960px;margin:0 auto;width:100%}
+  .bar{display:flex;gap:12px;align-items:stretch;width:100%;margin-top:30px}
+  .cell{flex:1;background:linear-gradient(165deg,rgba(12,16,36,.85),rgba(6,8,20,.7));border:1px solid rgba(120,200,255,.22);
+    border-radius:16px;padding:18px 16px;text-align:center;position:relative;overflow:hidden}
+  .cell .num{font-size:clamp(24px,3.6vw,38px);color:#7ee7ff;font-weight:800;letter-spacing:1px}
+  .cell .lbl{font-size:10.5px;color:#6f88b0;letter-spacing:1px;text-transform:uppercase;margin-top:7px;line-height:1.5}
+  .cell::before{content:'';position:absolute;right:-34px;top:-34px;width:120px;height:120px;border-radius:50%;
+    background:radial-gradient(circle,rgba(126,231,255,.14),transparent 70%);pointer-events:none}
+
+  .vs{display:grid;grid-template-columns:1fr 78px 1fr;gap:0;width:100%;align-items:stretch}
+  .vs .col{background:linear-gradient(165deg,rgba(12,16,36,.85),rgba(6,8,20,.7));border:1px solid rgba(120,200,255,.22);
+    border-radius:16px;padding:18px 20px;text-align:left;position:relative;overflow:hidden}
+  .vs .col h4{font-size:12px;letter-spacing:2px;text-transform:uppercase;color:#7ee7ff;margin-bottom:12px;font-weight:800}
+  .vs .col.cf h4{color:#ffb26b}
+  .vs .col ul{list-style:none}
+  .vs .col li{font-size:12px;line-height:1.55;color:#b8c9e6;padding:7px 0 7px 22px;position:relative;border-bottom:1px solid rgba(120,200,255,.07)}
+  .vs .col li:last-child{border-bottom:none}
+  .vs .col.a li::before{content:'⬡';position:absolute;left:0;color:#7ee7ff;font-size:9px;top:9px}
+  .vs .col.cf li::before{content:'◌';position:absolute;left:0;color:#ffb26b;font-size:9px;top:9px}
+  .vs .mid{display:flex;align-items:center;justify-content:center;font-size:clamp(18px,3vw,30px);color:#3f9dff;font-weight:800;letter-spacing:1px}
+
+  .rows{width:100%;margin-top:4px;border-collapse:collapse}
+  .rows th{font-size:10px;letter-spacing:2px;text-transform:uppercase;color:#6f88b0;text-align:left;
+    padding:12px 12px 8px;border-bottom:1px solid rgba(120,200,255,.18)}
+  .rows td{font-size:12px;padding:11px 12px;color:#b8c9e6;text-align:left;vertical-align:top;line-height:1.5;
+    border-bottom:1px solid rgba(120,200,255,.06)}
+  .rows td:first-child{color:#9fb4d8;font-weight:700;white-space:nowrap}
+  .rows td em{color:#7ee7ff;font-style:normal}
+  .rows tr.okrow td{background:rgba(89,255,156,.03)}
+
+  .foot{position:fixed;bottom:16px;left:0;right:0;display:flex;justify-content:space-between;align-items:center;
+    padding:0 22px;font-size:10px;color:#4a5f84;letter-spacing:1px;z-index:5;pointer-events:none}
+  .foot .ctr{font-size:10px;color:#6f88b0}
+  .dots{position:fixed;right:20px;top:50%;transform:translateY(-50%);display:flex;flex-direction:column;gap:9px;z-index:6}
+  .dot{width:8px;height:8px;border-radius:50%;border:1px solid rgba(126,231,255,.4);background:transparent;cursor:pointer}
+  .dot.on{background:#7ee7ff;box-shadow:0 0 10px rgba(126,231,255,.7)}
+  @media(max-width:680px){.dots{display:none}.vs{grid-template-columns:1fr}}
+</style>
+</head>
+<body>
+
+<div class="deck" id="deck">
+
+  <!-- 1 · title -->
+  <section class="slide active">
+    <div class="kicker">Aarkanum Laboratories</div>
+    <h1>SecMesh</h1>
+    <div class="sub">A SELF-STABILIZING DEFENSE FIELD FOR YOUR OWN DEVICES</div>
+    <p class="pitch">One engine: a trust/health field spread over every host, a fixed fleet of
+      stateless defenders, and a health-based healing layer that works each degraded node back to baseline.
+      No signatures. No per-host rules. No operator retuning. Runs offline on your hardware, and ships with a
+      reproducible 69-trial statistics baseline proving it holds under escalation.</p>
+    <div class="wrap"><div class="bar">
+      <div class="cell"><div class="num">42/42</div><div class="lbl">trials · 0 intrusions across the elasticity matrix (10× threat, 8× wave, fleet cut to ⅓)</div></div>
+      <div class="cell"><div class="num">1.0000</div><div class="lbl">availability everywhere — the frozen config never degrades</div></div>
+      <div class="cell"><div class="num">1,019</div><div class="lbl">attackers blocked by the full mesh while peak stress drops ~33%</div></div>
+      <div class="cell"><div class="num">20/20</div><div class="lbl">self-check probes green — every claim re-verified headlessly</div></div>
+    </div></div>
+  </section>
+
+  <!-- 2 · why now / thesis -->
+  <section class="slide">
+    <div class="kicker">The thesis</div>
+    <h2>Centralized proxy security is tuned by rules.<br/>A field doesn't need tuning — it self-stabilizes.</h2>
+    <p class="pitch">Standard WAF/IDS policy is a static, human-ordered rule set: it does the same defensive
+      work whether attack load is low or crushing, degrades in cliff-steps, and hands your traffic to a third
+      party's network. SecMesh replaces the rule stack with a scalar health field. Defensive work is
+      <em>proportional to attack load</em> — measured, not claimed: blocked ≈ 187 at threat 0.05 rises to ≈ 597
+      at threat 0.5, while intrusions stay at zero from the same unchanged config.</p>
+    <div class="wrap"><div class="bar">
+      <div class="cell"><div class="num">0</div><div class="lbl">signatures, per-host rules, or operator retuning in the whole surface</div></div>
+      <div class="cell"><div class="num">10×</div><div class="lbl">threat escalation absorbed with zero parameter changes (0.05 → 0.50)</div></div>
+      <div class="cell"><div class="num">8×</div><div class="lbl">DDoS wave-size escalation absorbed (10 → 80 agents / cycle)</div></div>
+      <div class="cell"><div class="num">⅓</div><div class="lbl">defense fleet cut (6 → 2 defenders) still holds 0 intrusions</div></div>
+    </div></div>
+  </section>
+
+  <!-- 3 · direct head-to-head -->
+  <section class="slide">
+    <div class="kicker">Head-to-head</div>
+    <h2>Your network, defended on your network</h2>
+    <div class="wrap"><div class="vs" style="margin-top:26px">
+      <div class="col a">
+        <h4>⬡ SecMesh (this system)</h4>
+        <ul>
+          <li>Runs on <b>your</b> devices — Termux, LAN, nodepots. Nothing leaves your network.</li>
+          <li>Behavioral &amp; statistical defense: repel is proven A/B against a raw baseline, real loopback probes.</li>
+          <li>Unseen attacks still repelled: 3 novel shapes (jittered flood, 400/s overdrive, hidden-label clips) held without a signature.</li>
+          <li>Post-quantum by default: X25519MLKEM768 hybrid handshake negotiable on this build.</li>
+          <li>Quantum-fabric trust: E91 entanglement conferences with Eve abort + a stealth-Eve leak probe.</li>
+          <li>Agentic-autonomy audited: 52/52 pen-test invariants on the watchdog layer itself.</li>
+          <li>Zero dependency, no build step, no subscription — works offline.</li>
+        </ul>
+      </div>
+      <div class="mid">vs</div>
+      <div class="col cf">
+        <h4>◌ Cloudflare</h4>
+        <ul>
+          <li>Centralized edge: your traffic is proxied through a third party's global network.</li>
+          <li>Rule- &amp; fingerprint-based WAF: your flows get matched against centrally tuned rules.</li>
+          <li>Unknown/never-seen shapes get matched to nearest rule — the model is signature-adjacent.</li>
+          <li>TLS to the origin is still the operator's job; on-ramp and edge are the managed part.</li>
+          <li>Trust is organizational: you must trust the provider's network and its key material.</li>
+          <li>Autonomy is opaque: you can't pen-test the panel's control surface yourself.</li>
+          <li>Bandwidth-metered commercial service; offline operation is not a mode.</li>
+        </ul>
+      </div>
+    </div></div>
+  </section>
+
+  <!-- 4 · the defense you can watch -->
+  <section class="slide">
+    <div class="kicker">It's measurable — and shipped as proof</div>
+    <h2>Real A/B repels, on your own loopback</h2>
+    <p class="pitch">SecMesh ships a defense suite that raises a <b>guardian</b> (system ON) and a raw
+      <b>baseline</b> (system OFF) on the same listening surface, then drives identical probes from an
+      offense harness and records who repels what. The claim is a statistical inequality —
+      <em>repel(system ON) &gt; repel(system OFF)</em> — re-proven on every device, with no firewall
+      privileges claimed.</p>
+    <div class="wrap"><div class="rows" style="max-width:720px;margin:20px auto 0">
+      <table class="rows">
+        <tr><th>Attack shape</th><th>Guardian (system ON)</th><th>Baseline (system OFF)</th></tr>
+        <tr class="okrow"><td>syn-slew flood</td><td>rejects per-source over the 40/s cap</td><td>echoes everything</td></tr>
+        <tr class="okrow"><td>snaplag / linger</td><td>idle watchdog closes stalls</td><td>echoes everything</td></tr>
+        <tr class="okrow"><td>novel jittered flood</td><td>repels <b>33–43%</b> (accepted 40/60 → 114/200)</td><td>0%</td></tr>
+        <tr class="okrow"><td>novel 400/s overdrive</td><td>repels <b>33–60%</b> (accepted 40/60 → 80/200)</td><td>0%</td></tr>
+        <tr class="okrow"><td>novel hidden-label clips</td><td>repels <b>20%</b>, defense never trained on the label</td><td>0%</td></tr>
+      </table>
+    </div></div>
+    <p class="pitch" style="margin-top:16px;font-size:11px;color:#9fb4d8">Repel ratios above are from real measured runs: <code>node node-tests/sweep-novel.mjs</code> and <code>node node-tests/mesh-selfcheck.mjs</code>.</p>
+  </section>
+
+  <!-- 5 · layered: what an attacker actually meets -->
+  <section class="slide">
+    <div class="kicker">Beyond the proxy — the stack an attacker meets</div>
+    <h2>Edge TLS, quantum trust, and a watchdog that watches itself</h2>
+    <div class="wrap"><div class="bar" style="flex-wrap:wrap">
+      <div class="cell" style="min-width:210px"><div class="num">TLSv1.2+</div><div class="lbl">AEAD + PFS only; TLSv1.2 and 1.3 with hybrid X25519MLKEM768 negotiated on this build — downgrade rejected (8/8 policy invariants)</div></div>
+      <div class="cell" style="min-width:210px"><div class="num">E91</div><div class="lbl">pairwise Bell-CHSH + conference key; honest S̄≈2.83 (KEY), Eve-injected ≈0.5 (ABORT)</div></div>
+      <div class="cell" style="min-width:210px"><div class="num">52/52</div><div class="lbl">agent-pen invariants: rogue impostors not adopted, control abuse 400s, forged telemetry ignored, honey-bite quarantines real liars</div></div>
+      <div class="cell" style="min-width:210px"><div class="num">3 tiers</div><div class="lbl">supervisor (peer health/restart/quarantine) + parent watchdog (re-spawn, leak guard) + browser 3D focus — one <code>nohup</code> keeps the whole mesh up</div></div>
+    </div></div>
+    <p class="pitch" style="margin-top:20px;font-size:11.5px">The watchdogs run autonomy <b>you can turn off</b>, honor manual start/stop, quarantine restart-thrash,
+      re-seed an alive-but-keyless mesh, and scale peers against real memory/load — with a signed control API (401 without the key).</p>
+  </section>
+
+  <!-- 6 · cost of the comparison -->
+  <section class="slide">
+    <div class="kicker">The honest trade</div>
+    <h2>Zero dependency, zero subscription — and zero magic</h2>
+    <div class="wrap"><div class="rows" style="max-width:780px;margin:22px auto 0">
+      <table class="rows">
+        <tr><th></th><th>⬡ SecMesh</th><th>◌ Cloudflare</th></tr>
+        <tr><td>Where it runs</td><td>On your devices, offline / LAN</td><td>Their global edge; traffic is proxied</td></tr>
+        <tr><td>Model</td><td>Self-stabilizing health field, <b>load-proportional</b></td><td>Centrally tuned rules &amp; bot scoring</td></tr>
+        <tr><td>Novel attacks</td><td>Repelled by statistics (proved A/B)</td><td>Matched to nearest rule/fingerprint</td></tr>
+        <tr><td>Trust anchor</td><td>Your hardware + quantum fabric on your net</td><td>The provider's network &amp; key material</td></tr>
+        <tr><td>Crypto posture</td><td>x25519mlkem768 hybrid + E91 (<b>PQ capable</b>)</td><td>Managed edge TLS; origin up to you</td></tr>
+        <tr><td>Autonomy</td><td>Watchdog tiers, signed control, <b>you pen-test it</b> (52/52)</td><td>Vendor-only; control surface opaque</td></tr>
+        <tr><td>Cost / ops</td><td>Node.js ≥ 18; no build; no metering</td><td>Per-bandwidth, plan-managed</td></tr>
+        <tr><td>Verifiability</td><td>20/20 self-check probes in the repo</td><td>Independent SOC audits, external</td></tr>
+      </table>
+    </div></div>
+    <p class="pitch" style="margin-top:18px;font-size:11.5px;color:#9fb4d8">Cloudflare is excellent at what it is: managed, global, human-tuned. SecMesh is the inverse: local,
+      autonomous, load-scaled, quantum-ready — and every number on these slides is re-producible from the repo
+      with <code>node selfcheck.mjs</code>.</p>
+  </section>
+
+  <!-- 7 · how to run it -->
+  <section class="slide">
+    <div class="kicker">Right now</div>
+    <h2>Run the proof on your own device</h2>
+    <div class="wrap"><div class="vs" style="margin-top:24px">
+      <div class="col a">
+        <h4>One command</h4>
+        <ul>
+          <li><code>node selfcheck.mjs</code> → <b>20/20 green</b> (every probe headless, no browser needed)</li>
+          <li><code>node node-tests/sweep-novel.mjs</code> → 3 unseen shapes repelled vs baseline</li>
+          <li><code>node node-tests/agent-pen.mjs</code> → 52/52 adversarial invariants</li>
+          <li><code>node node-tests/tls-hybrid.mjs</code> → 8/8 PQ-TLS policies, hybrid negotiated</li>
+        </ul>
+      </div>
+      <div class="mid">→</div>
+      <div class="col cf">
+        <h4>To keep it alive</h4>
+        <ul>
+          <li><code>node node-tests/parent-watchdog.mjs</code> — one daemon keeps supervisor + web + peers up</li>
+          <li>UI: <code>cd app && node serve.js</code> → the SecOps console, live nodes &amp; real probes</li>
+          <li>Hand off to an always-on control node: <code>node make-backup.mjs</code> packages the whole repo to Downloads</li>
+        </ul>
+      </div>
+    </div></div>
+    <p class="pitch" style="margin-top:22px">The comparison isn't a diagram in a deck — it's a measurement in your <code>node-tests/</code> folder.</p>
+  </section>
+
+  <!-- 8 · closing -->
+  <section class="slide">
+    <div class="kicker">Close</div>
+    <h1>Aarkanum SecMesh</h1>
+    <div class="sub">DEFENDED BY YOUR OWN NETWORK · PROVEN BY STATISTICS · READY FOR THE QUANTUM ERA</div>
+    <div class="wrap"><div class="bar">
+      <div class="cell"><div class="num">0</div><div class="lbl">static rules in the defense surface</div></div>
+      <div class="cell"><div class="num">1.0000</div><div class="lbl">availability under 10× threat escalation</div></div>
+      <div class="cell"><div class="num">20/20</div><div class="lbl">self-check probes green in this session</div></div>
+      <div class="cell"><div class="num">hybrid</div><div class="lbl">x25519mlkem768 + E91 — PQ-capable today</div></div>
+    </div></div>
+    <p class="pitch">The future isn't a bigger proxy — it's a mesh that self-stabilizes on hardware you already own.</p>
+  </section>
+
+</div>
+
+<div class="foot">
+  <span>Aarkanum Laboratories · SecMesh pitch</span>
+  <span class="ctr" id="ctr">1 / 8</span>
+  <span>arrow keys / ← → to advance</span>
+</div>
+<div class="dots" id="dots"></div>
+
+<script>
+  const slides = [...document.querySelectorAll('.slide')];
+  const dotsEl = document.getElementById('dots');
+  const ctr = document.getElementById('ctr');
+  let i = 0;
+  slides.forEach((_, n) => {
+    const d = document.createElement('button');
+    d.className = 'dot';
+    d.onclick = () => go(n);
+    dotsEl.appendChild(d);
+  });
+  const dots = [...document.querySelectorAll('.dot')];
+  function go(n){
+    i = Math.max(0, Math.min(slides.length - 1, n));
+    slides.forEach((s, k) => s.classList.toggle('active', k === i));
+    dots.forEach((d, k) => d.classList.toggle('on', k === i));
+    ctr.textContent = (i + 1) + ' / ' + slides.length;
+  }
+  window.addEventListener('keydown', e => {
+    if (e.key === 'ArrowRight' || e.key === ' ' || e.key === 'PageDown'){ e.preventDefault(); go(i + 1); }
+    else if (e.key === 'ArrowLeft' || e.key === 'PageUp'){ e.preventDefault(); go(i - 1); }
+    else if (e.key === 'Home'){ go(0); } else if (e.key === 'End'){ go(slides.length - 1); }
+  });
+  let x0 = null;
+  window.addEventListener('touchstart', e => x0 = e.touches[0].clientX, { passive: true });
+  window.addEventListener('touchend', e => {
+    if (x0 === null) return;
+    const dx = e.changedTouches[0].clientX - x0;
+    if (Math.abs(dx) > 45) go(i + (dx < 0 ? 1 : -1));
+    x0 = null;
+  }, { passive: true });
+  go(0);
+</script>
+</body>
+</html>
