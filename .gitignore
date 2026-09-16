@@ -8,7 +8,7 @@ app/serve-*.log
 
 # packaging artifacts (releases/*.tar.gz IS committed — the STABLE tarball ships)
 app/backups/
-aarkanum-*.tar.gz
+/aarkanum-*.tar.gz
 
 # machine-specific ops notes (kept locally only)
 E200HA-HANDOFF.md
