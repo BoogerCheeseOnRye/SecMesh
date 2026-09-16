@@ -3,6 +3,13 @@
 Everything you need to run the lab **and** verify it on any device with Node.js ≥ 18
 (Termux, Linux, macOS, Windows). No build step, no installs.
 
+## The defense console
+
+![Mesh Defense Console](docs/screenshots/security-defender-console.jpg)
+
+`app/crosslab/security_defender.html` — live ops view of a real mesh-defense run:
+the streamdeck deck drives operations directly from the browser.
+
 ```
 aarkanum-test/
 ├── app/          → the web app. Serve this folder, open in a browser.
