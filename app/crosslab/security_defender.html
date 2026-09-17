@@ -1071,6 +1071,7 @@ let simPeers = 2;              // how many logical peers the in-browser mesh run
 let simRev = 0;                // rotation/rev for reproducible key re-derivation
 const simRounds = () => Math.max(400, Math.min(100000, (+($('qkRounds') && $('qkRounds').value) || 4000)));
 let qkUrls = IS_STATIC_HOST ? [] : ['http://127.0.0.1:20003/e91', 'http://127.0.0.1:20006/e91', 'http://127.0.0.1:20009/e91', 'http://127.0.0.1:20012/e91', 'http://127.0.0.1:20015/e91'];
+let meshDirty = false;                     // user hand-edited the mesh box → stop auto-reconciling
 let qkArmed = false, qkRound = 0, qkEveArmed = false;
 let qkState = { peers: 0, links: [], honest: 0, aborts: 0, conference: null, up: 0, down: [], sim: IS_STATIC_HOST };
 let qkLastGood = 0;
@@ -2571,6 +2572,21 @@ async function launchSup(){
 async function pollSup(){
   const j = await ctlSup('status');
   supState = j;
+  // reconcile the poll list against the ACTUAL live fabric: status reports only
+  // the pairs/instances that exist, so census st ports from the old static
+  // default (e.g. 20012/20015 after auto-scale retired to 3) stop being polled
+  // and refusing. Device st ports ride along from autoMeshForDevices below. The
+  // user can override anytime by editing the mesh box (meshDirty → hands off).
+  if (!IS_STATIC_HOST && j && Array.isArray(j.pairs) && j.pairs.length && !meshDirty){
+    const live = j.pairs.map(p => 'http://127.0.0.1:' + p.status + '/e91');
+    const devs = qkUrls.filter(u => /:220\d+\/e91/.test(u));
+    const want = live.concat(devs);
+    if (want.join() !== qkUrls.join()){
+      qkUrls.length = 0; qkUrls.push(...want);
+      const box = $('qkdUrls');
+      if (box) box.value = qkUrls.join(',');
+    }
+  }
   const line = $('qkSupLine'), wd = $('qkSupWd'), dv = $('dvSupWd');
   if (!j.pairs){
     line.innerHTML = 'supervisor <b class="bad">offline</b> — <button class="launchBtn" id="qkSupLaunch" title="start the tier-1 watchdog + fabric peers">▶ Start Supervisor</button>';
@@ -2676,6 +2692,12 @@ function autoMeshForDevices(j){
 }
 setInterval(pollSup, 4000);
 pollSup();
+(function handMeshGuard(){
+  const input = document.getElementById('qkdUrls');
+  if (!input) return;
+  input.addEventListener('input', () => { meshDirty = true; input.style.borderColor = 'var(--amber)'; });
+  input.addEventListener('change', () => { setTimeout(() => { input.style.borderColor = ''; }, 900); });
+})();
 // ── hardware scan + deploy N entangled peers ───────────────────────────────
 function hwScan(){
   const cores = navigator.hardwareConcurrency || 4;

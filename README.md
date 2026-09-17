@@ -72,6 +72,17 @@ global host index `g` across all phones):
 
 ES modules + an import map require HTTP — do **not** open `experiments.html` via `file://`.
 
+A second serve instance can mirror the GitHub-Pages layout (`/app/crosslab/...`) while
+sharing the same supervisor — useful as a LAN console with the live `/peerctl` proxy:
+
+```bash
+PORT=8099 SERVE_ROOT=$PWD node app/serve.js   # http://this-host:8099/app/crosslab/security_defender.html
+```
+
+The console also reconciles its mesh poll list from supervisor status, so census st
+ports (e.g. `20012/20015` when auto-scale retires to 3 peers) stop being polled and
+throwing connection-refused noise.
+
 ## Defense console on a static host (no Node reachable)
 
 `security_defender.html` detects whether it is being served from a **static host**

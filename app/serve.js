@@ -3,7 +3,7 @@ const fs = require('fs');
 const path = require('path');
 const { spawn } = require('child_process');
 
-const ROOT = __dirname;
+const ROOT = process.env.SERVE_ROOT ? path.resolve(process.env.SERVE_ROOT) : __dirname;
 const PORT = Number(process.env.PORT) || 8080;
 const REPO = path.join(ROOT, '..');
 const SELFCHECK = path.join(REPO, 'node-tests', 'mesh-selfcheck.mjs');
