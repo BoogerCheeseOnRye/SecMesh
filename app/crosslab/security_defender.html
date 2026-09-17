@@ -1183,16 +1183,24 @@ const efHubMat = new THREE.MeshBasicMaterial({ color: 0x9fd8ff, wireframe: true,
 const efHub = new THREE.Mesh(new THREE.SphereGeometry(0.30, 12, 12), efHubMat);
 efHub.userData.name = 'control·hub';
 efGroup.add(efHub);
+// the "angel" outer band — the physical ring rides in its OWN child group that
+// fully ORBITS within the fabric and progressively TILTS, so the ring of
+// devices sweeps every chord of the field while the host fabric turns beneath.
+const efPhysGroup = new THREE.Group();
+efGroup.add(efPhysGroup);
 // band guide circles so the two rings read at a glance: teal = entangled band,
-// amber = physical-device band, both counter-rotating on the fabric group
+// amber = physical-device band; the amber circle rides INSIDE the orbiting
+// group so the guide itself wheels with the angel ring.
 const bandCircle = (r, c) => new THREE.LineSegments(
-  new THREE.EdgesGeometry(new THREE.CircleGeometry(r, 80)),
-  new THREE.LineBasicMaterial({ color: c, transparent: true, opacity: 0.11, depthWrite: false }));
-efGroup.add(bandCircle(EF_RING, 0x39e6b8), bandCircle(EF_RING_OUTER, 0xffbf5e));
+   new THREE.EdgesGeometry(new THREE.CircleGeometry(r, 80)),
+   new THREE.LineBasicMaterial({ color: c, transparent: true, opacity: 0.11, depthWrite: false }));
+efGroup.add(bandCircle(EF_RING, 0x39e6b8));
+efPhysGroup.add(bandCircle(EF_RING_OUTER, 0xffbf5e));
 const efPhysMat = new THREE.MeshBasicMaterial({ color: 0xffbf5e, transparent: true, opacity: 0.95, depthWrite: false });
 const efPhysCageMat = new THREE.MeshBasicMaterial({ color: 0xffbf5e, wireframe: true, transparent: true, opacity: 0.28, depthWrite: false });
 const efPool = new Map();                       // peer name -> mesh
-const MAX_EF_PTS = 2048;
+const efLinkPairs = [];                         // {a,b,verdict} the spoke set (re-solved every frame)
+const MAX_EF_PTS = 8192;
 const efLinkGeo = new THREE.BufferGeometry();
 efLinkGeo.setAttribute('position', new THREE.BufferAttribute(new Float32Array(MAX_EF_PTS * 3), 3));
 efLinkGeo.setAttribute('color', new THREE.BufferAttribute(new Float32Array(MAX_EF_PTS * 3), 3));
@@ -1204,8 +1212,20 @@ function efPoint(i, n, r){
   const a = (i / n) * Math.PI * 2;
   return [Math.cos(a) * r, 0, Math.sin(a) * r];
 }
+function efNameParts(nm){
+  // exact peer shapes: `node-<n>` or `dev-<i>` / `dev-<i>-<k>` (the k-th
+  // entangled peer on phone <i>). The second hyphen is OPTIONAL, so parsing a
+  // link id must try every '-' as the A/B boundary, not pick the first one.
+  return /^node-\d+$/.test(nm || '') || /^dev-\d+(?:-\d+)?$/.test(nm || '') ? nm : null;
+}
 function efLinkParts(id){
-  const m = /^(node-[^-]+|dev-[^-]+)-(node-[^-]+|dev-[^-]+)$/.exec(id || '');
+  id = id || '';
+  for (let i = 1; i < id.length; i++){
+    if (id[i] !== '-') continue;
+    const a = efNameParts(id.slice(0, i)), b = efNameParts(id.slice(i + 1));
+    if (a && b) return [a, b];
+  }
+  const m = /^([^-]+)-([^-]+)$/.exec(id);        // legacy single-hyphen pairs
   return m ? [m[1], m[2]] : null;
 }
 // lay one band of peers on its ring radius, evenly spaced (top-down = concentric circles)
@@ -1238,12 +1258,12 @@ function makePhysicalPeer(nm){
   const def = new THREE.Mesh(new THREE.OctahedronGeometry(1.05, 0), efPhysCageMat);
   m.userData.def = def;
   m.add(def);
-  efGroup.add(m);
+  efPhysGroup.add(m);
   efPool.set(nm, m);
 }
 function updateEntFabric(st){
   const peers = {};
-  const links = [];
+  efLinkPairs.length = 0;
   const seen = new Set();
   for (const l of (st.links || [])){
     if (!l || !l.link) continue;
@@ -1251,7 +1271,7 @@ function updateEntFabric(st){
     if (!m || seen.has(l.link)) continue;
     seen.add(l.link);
     peers[m[0]] = true; peers[m[1]] = true;
-    links.push({ a: m[0], b: m[1], verdict: l.verdict === 'KEY' ? 'KEY' : 'ABORT' });
+    efLinkPairs.push({ a: m[0], b: m[1], verdict: l.verdict === 'KEY' ? 'KEY' : 'ABORT' });
   }
   const names = Object.keys(peers).sort();
   const inner = names.filter(nm => !isPhysPeer(nm)).sort();
@@ -1265,16 +1285,24 @@ function updateEntFabric(st){
   positionBand(inner, EF_RING);
   positionBand(outer, EF_RING_OUTER);
   for (const [nm, m] of efPool) if (!names.includes(nm)) m.visible = false;
-
+  updateEntLinks();
+}
+// draw the entanglement spokes. Static mesh positions are fine while the inner
+// ring is still, but the angel outer ring ORBITS + TILTS every frame — so the
+// spokes are re-solved from true WORLD positions into efGroup space each frame,
+// making the strands chase the sweeping ring instead of tearing away from it.
+const _efW1 = new THREE.Vector3(), _efW2 = new THREE.Vector3();
+function updateEntLinks(){
   const pos = efLinkGeo.attributes.position;
   const col = efLinkGeo.attributes.color;
   let pv = 0;
-  for (const l of links){
+  for (const l of efLinkPairs){
     const ma = efPool.get(l.a), mb = efPool.get(l.b);
     if (!ma || !mb || pv + 2 >= MAX_EF_PTS) continue;
-    const pa = ma.position, pb = mb.position;
-    pos.array[pv * 3] = pa.x; pos.array[pv * 3 + 1] = pa.y; pos.array[pv * 3 + 2] = pa.z;
-    pos.array[(pv + 1) * 3] = pb.x; pos.array[(pv + 1) * 3 + 1] = pb.y; pos.array[(pv + 1) * 3 + 2] = pb.z;
+    ma.getWorldPosition(_efW1); efGroup.worldToLocal(_efW1);
+    mb.getWorldPosition(_efW2); efGroup.worldToLocal(_efW2);
+    pos.array[pv * 3] = _efW1.x; pos.array[pv * 3 + 1] = _efW1.y; pos.array[pv * 3 + 2] = _efW1.z;
+    pos.array[(pv + 1) * 3] = _efW2.x; pos.array[(pv + 1) * 3 + 1] = _efW2.y; pos.array[(pv + 1) * 3 + 2] = _efW2.z;
     const c = EF_VERDICT_COLOR[l.verdict] || EF_VERDICT_COLOR.ABORT;
     for (let k = 0; k < 2; k++){ col.array[(pv + k) * 3] = c[0]; col.array[(pv + k) * 3 + 1] = c[1]; col.array[(pv + k) * 3 + 2] = c[2]; }
     pv += 2;
@@ -1765,6 +1793,15 @@ function animate(){
   draw();
   efGroup.rotation.y += 0.0005;
   const tie = performance.now() / 1000;
+  // ── the angel — the outer ring of physical device peers wheels within the
+  // fabric: a full orbital spin plus a progressive tilt whose axis itself
+  // swings (z rocks side-to-side, x fore-aft). The net tilt axis rotates
+  // continuously, so the ring of devices sweeps every chord of the field —
+  // not a rigid flat orbit — and the spokes re-solve below to chase it.
+  efPhysGroup.rotation.y += 0.0035;
+  efPhysGroup.rotation.z = Math.sin(tie * 0.045) * 0.85;
+  efPhysGroup.rotation.x = Math.cos(tie * 0.031) * 0.30;
+  updateEntLinks();
   for (const m of efPool.values()){
     const ph = m.userData.ph;
     m.rotation.y = Math.sin(tie * 0.5 + ph) * 0.5;
@@ -2569,7 +2606,7 @@ async function pollSup(){
   line.innerHTML =
     'supervisor <b class="ok">on</b> · watchdog ' + (j.watchdog ? '<b class="ok">on</b>' : '<b class="bad">off</b>') +
     ' · ' + (j.desired || (j.pairs || []).length) + ' deployed' +
-    (j.devices && j.devices.length ? ' + ' + j.devices.length + ' device' + (j.devices.length === 1 ? '' : 's') : '') +
+    (j.devHosts ? ' · ' + j.devHosts + ' phone host' + (j.devHosts === 1 ? '' : 's') + ' × ' + (j.devPer || 0) + ' ent' : '') +
     (j.seeding ? ' · <b class="ok">seeding…</b>' : '') +
     (j.lastError && j.lastError.indexOf('auto-seed') === 0 ? ' · <b class="bad">⚠ keyless — auto-</b><b class="ok">re-keyed</b>' : '') +
     (j.lastRecover ? ' · recover ' + new Date(j.lastRecover).toLocaleTimeString([], { hour12:false }) : '') +
@@ -2674,9 +2711,12 @@ $('qkDeploy').addEventListener('click', async () => {
   const n = Math.max(1, Math.min(24, Math.floor(+$('qkNodes').value) || 2));
   $('qkNodes').value = n;
   const rec = hwScan().rec;
-  logEv('', 'deploy ' + n + ' peer' + (n === 1 ? '' : 's') + (n > rec ? ' (above the ' + rec + '-peer suggestion — seeds will be slower)' : '') + ' → supervisor adds/stops ent 20001… ports, then seeds');
+  const devHosts = (supState && supState.devHosts) || 0;
+  logEv('', 'deploy ' + n + ' peer' + (n === 1 ? '' : 's') + (n > rec ? ' (above the ' + rec + '-peer suggestion — seeds will be slower)' : '') +
+    (devHosts ? ' · ' + n + ' entangled peer' + (n === 1 ? '' : 's') + ' on EACH of ' + devHosts + ' attached phone host' + (devHosts === 1 ? '' : 's') + ' (the angel outer ring)' : '') +
+    ' → supervisor adds/stops ent 20001/22001… ports, then seeds');
   const rounds = Math.max(400, Math.min(100000, +$('qkRounds').value || 4000));
-  const j = await ctlSup('deploy', { nodes: n, rounds });
+  const j = await ctlSup('deploy', { nodes: n, rounds, devPer: n });
   if (j.error) logEv('defer', 'deploy failed · ' + j.error);
   else setTimeout(() => { pollSup(); pollQkd(); fitFabricView(); }, 5000);
 });

@@ -48,19 +48,26 @@ any phone/tablet on the same Wi-Fi) and tap **⚡ Experiments** → the lab.
 **Entanglement fabric across devices (the console's live fabric row):** the same
 `serve.js` auto-boots `peer-supervisor.mjs` (tier-1 watchdog on :22100), which by
 default also adopts every physically-attached adb phone (`--devices all`) as
-`dev-0..dev-N` and meshes them with the host census — full K-mesh, every link KEY.
+`dev-<i>` and meshes them with the host census — full K-mesh, every link KEY.
+**⟑ Launch deploys the field count on EVERY phone**: with `N` in the deck, the
+supervisor ensures `N` census peers (`node-0..N-1`) AND spawns `N` entangled
+peers per attached device (`dev-<i>-0 .. dev-<i>-<N-1>`), so an `N=6` with four
+phones up = 6 host + 24 device peers. Each device peer is a plain `entangle-peer.mjs`
+instance run through the phone's `launch.sh`; kills are scoped per `--name` (the
+phone may run many peers — a blanket `pkill -f entangle-peer` would drop them all).
 Two gotchas (both fixed inside the supervisor): every phone needs **`adb reverse`**
 routes for the host ent ports or its outbound dials ECONNREFUSED (the seed exits 1,
 phones sit at 0 links), and the seed must pass **explicit `ent:ctl`** pairs (the
 parsePeers `ctl = ent + 1000` default is wrong for the 2000x/2200x families, where
 control = ent + 1).
 
-**Port families** (each peer = 3 consecutive ports):
+**Port families** (each peer = 3 consecutive ports; device peers share a running
+global host index `g` across all phones):
 
 | slot | family | ent · ctl · sta | device-side |
 |---:|:---|:---|---:|
 | host node-*i* | `2000x` | `20001+3i` · `+1` · `+2` | — |
-| adb dev-*i* | `2200x` (host) | `22001+3i` · `+1` · `+2` | ent `7200+10i` · ctl `8200+10i` · sta `9200+10i` |
+| adb dev-*i*-*k* | `2200x` (host) | `22001+3g` · `+1` · `+2` | ent `7200+10i+k` · ctl `8200+10i+k` · sta `9200+10i+k` |
 | qkd-selfcheck sandbox | `2600x` | `26001+3i` · `+1` · `+2` | — |
 
 ES modules + an import map require HTTP — do **not** open `experiments.html` via `file://`.
@@ -96,8 +103,20 @@ The fabric view draws **two concentric bands** around the operator's host globe:
 - inner (teal wireframe spheres, radius 1.62×globe) — **entangled peers** `node-*`
   (host/simulated, running the E91 emitter);
 - outer (solid gold octahedra + thin cage, radius 2.30×globe) — **physical devices**
-  `dev-*` attached via adb: they live further out, outside the entangled fabric, and
-  each has a faint amber ring guide so the two bands read at a glance.
+  `dev-<i>-<k>` attached via adb: they ride their own ring, and each has a faint
+  amber ring guide so the two bands read at a glance.
+
+**The angel** — the outer ring is not a static torus. Its peer meshes live in a
+dedicated `efPhysGroup` child of the fabric group, and each frame the controller
+gives it a full **orbit** (`rotation.y` accumulation) plus a **progressive tilt
+whose axis itself swings** — `rotation.z` rocks side-to-side and `rotation.x`
+fore-aft on slow phases. The net effect is a wheel that precesses through the
+field instead of spinning in a flat plane, literally "a wheel within a wheel."
+Because the ring is in motion, the entanglement **spokes are re-solved every
+frame**: each link's endpoints are taken from the meshes' true world positions
+and folded back into the fabric group via `worldToLocal`, so every strand
+chases the sweeping, tilting ring and the KEY lines cover every chord of the
+field rather than tearing away from it.
 
 Clicking either type opens an **honest** card: `◆ PHYSICAL DEVICE` vs
 `◆ ENTANGLED PEER`, and it reports real telemetry from the current fabric (its `KEY`
@@ -111,7 +130,10 @@ launch/entangle eases the view out to frame both bands.
 ### Streamdeck launch + bench
 
 - **Min / Med / Max** quick-launch buttons set the peer-count field (2, the
-  hardware-recommended count, or 24) and run an immediate deploy; the **⚙** hardware
+  hardware-recommended count, or 24) and run an immediate deploy; **⟑ Launch in
+  the live build deploys that count on the host AND per attached phone** (the
+  honest log line says so: *"N entangled peers on EACH of M phone hosts (the
+  angel outer ring)"*); the **⚙** hardware
   scan now does something visible too — it writes the recommended count into the
   field (amber flash) instead of only logging.
 - The fabric **bench has its own field in the deck** (`rounds` input + ⟳ Bench).

@@ -82,12 +82,15 @@ function initHoneyList(def){
 const HONEYS = initHoneyList('');
 // ── device (adb phone) peers ────────────────────────────────────────────────
 // `--devices all` (or a comma list of serials) attaches every physically
-// connected phone to the fabric on the extended 2200x family:
-//   host  ent 22001+3i  ctl 22002+3i  sta 22003+3i       (adb-forwarded)
-//   phone ent 7200+10i  ctl 8200+10i  sta 9200+10i       (launch.sh)
-// Peer health is probed over the forwarded /e91 (same as host peers); a dead
-// device is relaunched over adb. Device peers carry NO host pid/rss — they are
-// managed purely by serial. Auto-scale keeps host census peers only.
+// connected phone. One CHASSIS per serial; LAUNCH deploys `devPer` entangled
+// peers onto EACH chassis (dev-<i>-<k>) — the "angel" outer ring. Spread on the
+// extended 2200x family (world-wide index g across all instances):
+//   host  ent 22001+3g  ctl 22002+3g  sta 22003+3g      (adb-forwarded)
+//   phone devEnt 7200+10i+k  devCtl 8200+10i+k  devSta 9200+10i+k  (launch.sh)
+// Health is probed over the forwarded /e91 (same as host peers); a dead device
+// peer is relaunched over adb scoped to its OWN --name — never a blanket pkill
+// (the phone runs many entangle peers and a full kill would drop them all).
+// Device peers carry NO host pid/rss — managed purely by serial + name.
 function adbDevicesL(){
   try{
     const r = spawnSync('adb', ['devices', '-l'], { encoding: 'utf8', timeout: 15000 });
@@ -106,23 +109,23 @@ function initDevices(){
   if (!spec) return [];
   const dm = {}; for (const d of adbDevicesL()) dm[d.serial] = d.model;
   const serials = spec === 'all' ? Object.keys(dm) : spec.split(',').map(s => s.trim()).filter(Boolean);
-  return serials.map((serial, i) => {
-    const ent = 22001 + 3 * i, ctl = 22002 + 3 * i, st = 22003 + 3 * i;
-    const p = { name: 'dev-' + i, serial, model: dm[serial] || null, device: true,
-      ent, ctl, st, url: 'http://127.0.0.1:' + st + '/e91',
-      devEnt: 7200 + 10 * i, devCtl: 8200 + 10 * i, devSta: 9200 + 10 * i };
-    initFields(p);
-    return p;
-  });
+  return serials.map((serial, i) => ({
+    name: 'dev-' + i, idx: i, serial, model: dm[serial] || null,
+    ent: 22001 + 3 * i, ctl: 22002 + 3 * i, st: 22003 + 3 * i,
+    devEnt: 7200 + 10 * i, devCtl: 8200 + 10 * i, devSta: 9200 + 10 * i
+  }));
 }
 const DEVICES = initDevices();
+let devPer = Math.max(0, Math.min(24, parseInt(arg('--dev-per', '1'), 10) || 1));
+let DPL = [];                              // live device-peer instances (dev-<i>-<k>)
+let devSyncing = false;
 // adb reverse: the phone dials peers at 127.0.0.1:<host-ent> — reverse maps the
 // phone's own tcp:<port> back to THIS host (which then forwards on). Without it
 // a phone-initiated dial to a host peer (or another phone) gets ECONNREFUSED,
 // exactly like qkd-cluster --adb failing "control closed".
 function reverseDevice(p){
   const locEnts = new Set([p.ent]);
-  for (const d of DEVICES) locEnts.add(d.ent);
+  for (const d of DPL) locEnts.add(d.ent);
   for (const q of PAIRS) locEnts.add(q.ent);
   for (const le of locEnts) spawnSync('adb', ['-s', p.serial, 'reverse', `tcp:${le}`, `tcp:${le}`], { timeout: 10000 });
 }
@@ -140,7 +143,14 @@ function spawnDevice(p){
 function killDevice(p){
   if (!p) return;
   p.dying = true; p.up = false; p.upS = 0; p.since = 0;
-  if (p.serial) spawnSync('adb', ['-s', p.serial, 'shell', 'pkill -f entangle-peer'], { timeout: 10000 });
+  if (p.serial){
+    // name-scoped pkill — the phone runs many entangle peers (dev-<i>-<k>); the
+    // trailing space pins the exact --name so dev-0-1 never matches dev-0-10.
+    spawnSync('adb', ['-s', p.serial, 'shell', 'pkill -f " --name ' + p.name + ' "'], { timeout: 10000 });
+    for (const loc of [p.ent, p.ctl, p.st]){
+      spawnSync('adb', ['-s', p.serial, 'forward', '--remove', 'tcp:' + loc], { timeout: 10000 });
+    }
+  }
   log(p.name, 'device peer stopped via adb', p.serial);
 }
 async function adoptOrSpawnDevice(p){
@@ -152,6 +162,58 @@ async function adoptOrSpawnDevice(p){
     return;
   }
   spawnDevice(p);
+}
+function configureDevicePeers(per){
+  per = Math.max(0, Math.min(24, parseInt(per, 10) || 0));
+  const want = [];
+  let g = 0;
+  for (const c of DEVICES){
+    for (let k = 0; k < per; k++){
+      const ent = 22001 + 3 * g, ctl = ent + 1, st = ent + 2;
+      want.push({ name: 'dev-' + c.idx + '-' + k, serial: c.serial, model: c.model, device: true,
+        idx: c.idx, k, ent, ctl, st, url: 'http://127.0.0.1:' + st + '/e91',
+        devEnt: c.devEnt + k, devCtl: c.devCtl + k, devSta: c.devSta + k });
+      g++;
+    }
+  }
+  const has = new Map(DPL.map(p => [p.name, p]));
+  for (const p of DPL){
+    if (!want.some(w => w.name === p.name)) killDevice(p);
+  }
+  DPL.length = 0;
+  for (const w of want){
+    const p = has.get(w.name);
+    if (p){
+      p.ent = w.ent; p.ctl = w.ctl; p.st = w.st;
+      p.devEnt = w.devEnt; p.devCtl = w.devCtl; p.devSta = w.devSta;
+      p.k = w.k; p.idx = w.idx;
+      DPL.push(p);
+    } else {
+      initFields(w);
+      DPL.push(w);
+    }
+  }
+  devPer = per;
+  log('devices →', per, 'entangled peer' + (per === 1 ? '' : 's'), 'per', DEVICES.length,
+      'chassis' + (DEVICES.length === 1 ? '' : 'es'), '· total', DPL.length, 'device peer' + (DPL.length === 1 ? '' : 's'));
+  return DPL.length;
+}
+function planDevSync(delay){
+  if (devSyncing) return;
+  devSyncing = true;
+  setTimeout(async () => {
+    devSyncing = false;
+    const fresh = [];
+    for (const p of DPL){
+      if (!p.up && !p.dying && !p.stopped) fresh.push(p);
+    }
+    for (const p of fresh){
+      try{ await adoptOrSpawnDevice(p); }catch(e){ log(p.name, 'dev sync error', e.message); }
+    }
+    const upN = DPL.filter(x => x.up).length;
+    if (fresh.length || upN !== DPL.length)
+      log('device peers synced —', upN + '/' + DPL.length, 'up');
+  }, delay || 600);
 }
 function initFields(p){
   p.pid = null; p.child = null; p.up = false; p.upS = 0;
@@ -520,7 +582,7 @@ async function tick(){
     }
   }
   // ── device (adb phone) peers — health + relaunch over adb ─────────────
-  for (const d of DEVICES){
+  for (const d of DPL){
     if (d.dying) continue;
     const q = QUARANT.get(d.name);
     const dj = await getJson(d.url);
@@ -548,9 +610,9 @@ async function tick(){
   pruneQuarantines();
 
   // keep the fabric keyed — every live peer answers but the mesh shows 0 links
-  if (wdOn && !seeding && (PAIRS.length || DEVICES.length)){
+  if (wdOn && !seeding && (PAIRS.length || DPL.length)){
     let tot = 0;
-    for (const p of [...PAIRS, ...DEVICES]){
+    for (const p of [...PAIRS, ...DPL]){
       if (!p.up) continue;
       const j = await getJson(p.url);
       tot += (j && j.links ? j.links.length : 0);
@@ -558,7 +620,7 @@ async function tick(){
     }
     if (tot > 0){
       meshKeyedAt = Date.now();
-    } else if ([...PAIRS, ...DEVICES].every(p => p.up || p.stopped || QUARANT.has(p.name)) && Date.now() - meshKeyedAt > 60000){
+    } else if ([...PAIRS, ...DPL].every(p => p.up || p.stopped || QUARANT.has(p.name)) && Date.now() - meshKeyedAt > 60000){
       meshKeyedAt = Date.now();
       lastError = 'auto-seed ⚠ mesh was keyless > 60 s';
       log('DEGRADED — peers up, 0 live links for 60+ s · auto-seed to keep the fabric keyed');
@@ -584,7 +646,7 @@ function seedRound(rounds){
   const r = Math.max(400, Math.min(100000, parseInt(rounds, 10) || DEFAULT_ROUNDS));
   const args = [CLUSTER, '--peers'];
   for (const p of PAIRS) args.push(p.name + '=127.0.0.1:' + p.ent + ':' + p.ctl);   // explicit ctl — host census runs control = ent+1, NOT ent+1000
-  for (const d of DEVICES) args.push(d.name + '=127.0.0.1:' + d.ent + ':' + d.ctl); // device peers: host control = ent+1
+  for (const d of DPL) args.push(d.name + '=127.0.0.1:' + d.ent + ':' + d.ctl); // device peers: host control = ent+1
   args.push('--rounds', String(r), '--keep');
   if (EVE) args.push('--eve', EVE);
   seeding = true; seedLog = ''; lastSeedEnd = 0;
@@ -633,11 +695,12 @@ function statusJson(){
     honey: HONEYS.map(h => ({ name: h.name, ent: h.ent, ctl: h.ctl, status: h.st,
       pid: h.pid, up: h.up, snare: h.snare, alive: h.alive, strikes: h.strikes,
       quarantined: h.compromised })),
-    devices: DEVICES.map(d => ({
+    devices: DPL.map(d => ({
       name: d.name, serial: d.serial, model: d.model, ent: d.ent, ctl: d.ctl, status: d.st,
       devEnt: d.devEnt, devCtl: d.devCtl, devSta: d.devSta,
       up: d.up, upS: d.upS, restarts: d.restarts, strikes: d.strikes,
       stopped: d.stopped, quarantined: QUARANT.has(d.name), lastSeen: d.lastSeen })),
+    devPer, devHosts: DEVICES.length,
   };
 }
 function send(res, code, obj){
@@ -675,7 +738,7 @@ const server = http.createServer((req, res) => {
   }
   const nm = u.searchParams.get('name') || 'all';
   const pick = PAIRS.filter(x => nm === 'all' || x.name === nm);
-  const pickDevs = DEVICES.filter(x => nm === 'all' || x.name === nm);
+  const pickDevs = DPL.filter(x => nm === 'all' || x.name === nm);
 
   if (action === 'start'){
     for (const x of pick){ if (!x.up && !x.pid){ killPeer(x); spawnPeer(x); } else log(x.name, 'start: already up'); }
@@ -717,17 +780,20 @@ const server = http.createServer((req, res) => {
     userFloor = want;
     log('deploy →', want, 'peers', '· user floor set to', want);
     for (const p of PAIRS){ unquarantine(p); if (!p.up && !p.pid) spawnPeer(p); }
+    const dps = configureDevicePeers(u.searchParams.get('devPer'));
+    planDevSync(300);
     if (u.searchParams.get('seed') !== '0')
       planSeed(u.searchParams.get('rounds') || DEFAULT_ROUNDS, 2500);
-    send(res, 200, { ok:true, nodes: want, seeding, autoCap: lastStats ? autoCap(lastStats) : null });
+    send(res, 200, { ok:true, nodes: want, devicePeers: dps, devPer, devHosts: DEVICES.length, seeding, autoCap: lastStats ? autoCap(lastStats) : null });
     return;
   }
   send(res, 400, { ok:false, error: 'unknown action ' + action });
 });
 
 (async () => {
+  configureDevicePeers(devPer);
   for (const p of PAIRS) await adoptOrSpawn(p);
-  for (const d of DEVICES) await adoptOrSpawnDevice(d);
+  for (const d of DPL) await adoptOrSpawnDevice(d);
   for (const h of HONEYS){
     const pid = findHoneyPid(h);
     if (pid){ h.pid = pid; log(h.name, 'adopted existing decoy pid', pid); }
@@ -738,6 +804,6 @@ const server = http.createServer((req, res) => {
   log('watchdog tier-1 up · peers', PAIRS.map(p => p.name + ':' + p.st).join(' '), '· watchdog', wdOn ? 'ON' : 'OFF',
       '· auto-scale', autoOn ? 'ON' : 'OFF', '· logfile', LOGFILE,
       '· signed control', SUP_SECRET ? 'ON' : 'OFF (open)',
-      '· devices', DEVICES.map(d => d.name + ':' + d.serial).join(',') || 'none',
+      '· devices', DEVICES.map(d => d.name + ':' + d.serial).join(',') || 'none', '· devPer', devPer,
       '· honeys', HONEYS.map(h => h.name).join(',') || 'none');
 })();
