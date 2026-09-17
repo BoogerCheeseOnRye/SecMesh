@@ -118,6 +118,8 @@
   .row5{ grid-template-columns:repeat(5,1fr); }
   #deck .pad{ padding-top:calc(4px + var(--padT,0)*8px); padding-bottom:calc(4px + var(--padB,0)*8px); }
   #deck .supRow .pad{ padding:4px 2px; border-radius:5px; }
+  #deck .resetRow{ grid-template-columns:1fr; }
+  #deck .resetRow .pad{ padding:5px 2px; border-radius:5px; }
   #deck .supRow .pad .ic{ font-size:10px; margin-bottom:2px; }
   #deck .supRow .pad .lb{ font-size:8px; letter-spacing:.25px; }
   #deck .supRow .pad .dv{ font-size:7.5px; margin-top:1px; }
@@ -640,6 +642,11 @@
     <button class="pad" id="qkSupRecover" title="stop all → start all → re-key the mesh"><span class="ic">🔁</span><span class="lb">Recover</span></button>
   </div>
   <div id="qkSupLine" class="supLine">supervisor: connecting…</div>
+
+  <div class="dg resetRow">
+    <button class="pad cold" id="qkSysReset" title="reset system — clear the ENTIRE drawn fabric (nodes, chassis, satellites, monitor lines), rediscover every peer + phone from the supervisor, and restore the initial setup">
+      <span class="ic">↺</span><span class="lb">Reset System</span><span class="dv">clear fabric · rediscover every device · restore initial</span></button>
+  </div>
 
   <div class="benchrow">
     <input id="qkNodes" value="2" inputmode="numeric" spellcheck="false" aria-label="deploy this many entangled peers">
@@ -1176,22 +1183,25 @@ scene.add(selRing);
 const EF_RING = GLOBE_R * 1.62;           // inner band — entangled host/sim peers (node-*)
 const EF_RING_OUTER = GLOBE_R * 2.30;     // outer band — the phone chassis markers (dev-<i>)
 const EF_CLUSTER = GLOBE_R * 0.42;        // a phone's entangled peers orbit ITS chassis at this radius
-// device globes are the host architecture at half-ish presence: a sphere whose
-// satellite ring keeps EXACTLY the host's 1.62× pitch (EF_CLUSTER / 1.62).
-const DEV_R = EF_CLUSTER / (EF_RING / GLOBE_R);           // ≈ 1.19
+// device globes are the host architecture at reduced presence: a sphere whose
+// satellite rings keep the host's 1.62× pitch, shrunk 10% so it reads smaller
+// than the surrounding field (2026-09 the device mini-assembly was compacted:
+// sphere −10%, rings pushed 5% further out — see SAT_RING_* and EFC cage).
+const DEV_R = (EF_CLUSTER / (EF_RING / GLOBE_R)) * 0.90;  // ≈ 1.07
 const HOST_TILT = 0.60;          // main entangled ring leans +X …
 const CH_TILT   = -0.52;         // …the chassis band opposes it (−X) for full 3-D coverage
 const MINI_TILT = 0.44;          // each phone's satellite ring lean (± by chassis serial)
 const HOST_RING_SPIN = 0.0022;   // carousel speeds (rad/frame) — the rings roll, not jitter
 const CH_RING_SPIN   = 0.0022;
 const MINI_RING_SPIN = 0.0034;
-// when a phone is at max nodes its satellite ring would be bunched on one small
-// circle — so split it into TWO co-orbiting rings (inner/outer) with continuously
-// precessing leans for full 3-D coverage of the device globe.
-const SAT_SPLIT_AT = 6;          // ≤ this many satellites: single ring; above: two rings
-const SAT_RING_IN  = 0.80;       // inner ring radius factor (× sat.r × EF_CLUSTER)
-const SAT_RING_OUT = 1.06;       // outer ring radius factor
+// when a ring is at max nodes it would be bunched on one small circle — so split
+// it into TWO co-orbiting rings (inner/outer for satellites, ±lean for the host)
+// with continuously precessing leans for full 3-D coverage.
+const SAT_SPLIT_AT = 6;          // ≤ this many nodes: single ring; above: two rings
+const SAT_RING_IN  = 0.84;       // inner ring radius factor (× sat.r × EF_CLUSTER) — 5% further out
+const SAT_RING_OUT = 1.113;      // outer ring radius factor (1.06 × 1.05)
 const SAT_WOBBLE   = 0.26;       // rings lean continuously (rad, per-ring precession wobble)
+const EFC_CAGE     = 1.33;       // mini grid cage radius factor — enough to hold the outer band (1.113×1.15)
 const isPhysPeer = nm => /^dev-\d+$/.test(nm || '');          // the phone itself — chassis marker on the outer band
 const isDevEnt  = nm => /^dev-\d+-\d+$/.test(nm || '');       // an entangled peer RUNNING on phone dev-<i>
 const chassisOf = nm => { const m = /^(dev-\d+)-\d+$/.exec(nm || ''); return m ? m[1] : null; };
@@ -1212,11 +1222,25 @@ const gridSphere = (r, s, c, o) => new THREE.LineSegments(
    new THREE.LineBasicMaterial({ color: c, transparent: true, opacity: o, depthWrite: false }));
 efGroup.add(gridSphere(EF_RING, 14, 0x39e6b8, 0.05));        // host entangled band cage
 efGroup.add(gridSphere(EF_RING_OUTER, 16, 0xffbf5e, 0.05));  // chassis band cage
-// the host entangled ring rides its OWN group: carousel spin + a fixed opposing
-// tilt so every node sweeps a different latitude of the host cage each pass.
-const efRingHost = new THREE.Group();
-efRingHost.rotation.x = HOST_TILT;
-efGroup.add(efRingHost);
+// a ring group that both SPINS and continuously changes its lean: rotation.x
+// = base + sin(tie·freq + ph)·amp (applied in animate), so nested rings sweep
+// without ever piling flat.
+const _mkRing = (base, amp, freq, ph) => {
+  const r = new THREE.Group();
+  r.userData.wob = { base, amp, freq, ph };
+  r.rotation.x = base;
+  return r;
+};
+// the host entangled ring rides its OWN carousel: at max nodes it subdivides
+// into TWO co-orbiting rings on the SAME cage — leaning opposite ways (+HOST_TILT
+// vs −0.82×) and wobbling their altitude continuously — so the entangled wheel
+// sweeps two great circles instead of bunching on one, with full coverage of the
+// host cage and no collision with the outer chassis band.
+const efRingHostA = _mkRing(HOST_TILT, SAT_WOBBLE * 0.7, 0.30, Math.random() * Math.PI * 2);
+const efRingHostB = _mkRing(-HOST_TILT * 0.82, SAT_WOBBLE * 0.92, 0.26, Math.random() * Math.PI * 2);
+efGroup.add(efRingHostA, efRingHostB);
+const efHostRings = [efRingHostA, efRingHostB];
+const efRingHost = efRingHostA;                 // alias for legacy single-ring readers
 // the "angel" outer band — the physical ring orbits the field on a FIXED tilt
 // (opposing the host ring) with a steady roll: coverage comes from the roll, not
 // from random axis-swinging, so the band looks like a designed wheel.
@@ -1297,12 +1321,6 @@ function makeSurfaceDash(R, n){
   return new THREE.Points(g, new THREE.PointsMaterial({ size: 0.11, vertexColors: true, transparent: true, opacity: 0.8, depthWrite: false }));
 }
 let _chSerial = 0;                       // chassis creation ordinal → alternating mini-ring tilt
-const _mkRing = (base, amp, freq, ph) => {
-  const r = new THREE.Group();
-  r.userData.wob = { base, amp, freq, ph };
-  r.rotation.x = base;
-  return r;
-};
 function makePhysicalPeer(nm){
   // physical adb device (dev-<i>) → upgraded from a diamond to a SPHERE: a
   // half-presence host globe (own surface dash + satellite rings at host pitch).
@@ -1311,7 +1329,7 @@ function makePhysicalPeer(nm){
   m.userData.ph = Math.random() * Math.PI * 2;
   m.userData.dash = makeSurfaceDash(DEV_R * 0.98, 18);
   m.add(m.userData.dash);
-  const def = new THREE.Mesh(new THREE.SphereGeometry(DEV_R * 1.28, 14, 10), efPhysCageMat);
+  const def = new THREE.Mesh(new THREE.SphereGeometry(DEV_R * 1.15, 14, 10), efPhysCageMat);
   m.userData.def = def;
   m.add(def);
   // TWO stable satellite rings (inner/outer), each alternately leaned and with
@@ -1325,7 +1343,7 @@ function makePhysicalPeer(nm){
   m.userData.ring = ringA;                       // alias so single-ring paths stay sane
   // static mini grid cage around the whole double ring — rides the chassis, NEVER
   // rotates, so the satellites visibly roll across it (movement vs stillness).
-  m.userData.cage = gridSphere(EF_CLUSTER * 1.25, 9, 0x6fe8ff, 0.05);
+  m.userData.cage = gridSphere(EF_CLUSTER * EFC_CAGE, 9, 0x6fe8ff, 0.05);
   m.add(m.userData.cage);
   efPhysGroup.add(m);
   efPool.set(nm, m);
@@ -1413,7 +1431,40 @@ function updateEntFabric(st){
     settle(bList, ringB, SAT_RING_OUT);
   }
   const known = new Set([...host, ...chassis, ...devEnt]);
-  for (const [nm, m] of efPool) if (!known.has(nm)) m.visible = false;
+  // the MAIN ring subdivides the same way — at max nodes the host peers split
+  // across two co-orbiting rings (opposite leans, same host cage), so the wheel
+  // sweeps two great circles instead of bunching. Ring radius stays EF_RING.
+  const hSplit = host.length >= SAT_SPLIT_AT;
+  const hA = [], hB = [];
+  host.forEach((nm, k) => (hSplit && (k % 2) ? hB : hA).push(nm));
+  const settleHost = (list, ring) => {
+    const cnt = Math.max(1, list.length);
+    list.forEach((nm, k) => {
+      const s = efPool.get(nm); if (!s) return;
+      if (s.parent !== ring) ring.add(s);
+      const a = (k / cnt) * Math.PI * 2;
+      s.position.set(Math.cos(a) * EF_RING, 0, Math.sin(a) * EF_RING);
+    });
+  };
+  settleHost(hA, efHostRings[0]);
+  settleHost(hB, efHostRings[1]);
+  // release stale peers from the pool entirely (dispose geometry + remove from
+  // scene) — a hidden-but-live mesh is a ghost: it still raycasts and still
+  // occupies space, so it must never linger between refreshes.
+  const disposeNode = (m) => {
+    if (!m) return;
+    if (m.parent) m.parent.remove(m);
+    const shared = new Set([efPhysMat, efPhysCageMat, efSphereMat, efDevMat, efHubMat]);
+    m.traverse(o => {
+      if (o.geometry){ o.geometry.dispose(); o.geometry = undefined; }
+      if (o.material && !shared.has(o.material)){
+        if (Array.isArray(o.material)) o.material.forEach(mat => mat.dispose());
+        else o.material.dispose();
+        o.material = undefined;
+      }
+    });
+  };
+  for (const [nm, m] of [...efPool]) if (!known.has(nm)){ disposeNode(m); efPool.delete(nm); }
   // ── ring-lattice draw ────────────────────────────────────────────────────
   // the fabric's real mesh is COMPLETE (every pair), but drawing every chord
   // turns 50 peers on two radii into a spiderweb. What the eye wants — and what
@@ -1447,8 +1498,9 @@ function updateEntFabric(st){
     for (let i = 0; i < ordered.length; i++)
       for (let h = 1; h <= hop; h++) addEdge(ordered[i], ordered[(i + h) % ordered.length]);
   };
-  coil(host, 2);                      // ring 1 — host entangled coil (node-*)
-  coil(chassis, 2);                   // ring 2 — the phone coil (dev-<i>)
+  coil(hA, 2);                      // ring 1a — host entangled coil (node-*, even)
+  coil(hB, 2);                      // ring 1b — host entangled coil (node-*, odd) — NO cross-ring chords
+  coil(chassis, 2);                 // ring 2 — the phone coil (dev-<i>)
   for (const ch of Object.keys(chJones).sort()){
     const sats = chJones[ch].slice().sort((a, b) => parseInt(b.match(/-(\d+)$/)[1], 10) - parseInt(a.match(/-(\d+)$/)[1], 10));
     const n = sats.length;
@@ -1498,6 +1550,18 @@ const efDescMesh = new THREE.LineSegments(efDescGeo,
   new THREE.LineBasicMaterial({ color: 0x9fd8ff, transparent: true, opacity: 0.5, depthWrite: false }));
 efGroup.add(efDescMesh);
 const _efDV = new THREE.Vector3();
+// dedicated glow dots for the CURRENT monitor targets — every descend / chassis
+// line terminates on a host-surface node; those endpoints must never read as
+// "invisible nodes in open space", so each frame we paint them as bright dots
+// (and they are clickable → the service-node card, see the tap handler).
+const MAX_EF_TRACK = 96;
+const efTrackGeo = new THREE.BufferGeometry();
+efTrackGeo.setAttribute('position', new THREE.BufferAttribute(new Float32Array(MAX_EF_TRACK * 3), 3));
+const efTrackMesh = new THREE.Points(efTrackGeo, new THREE.PointsMaterial({
+  color: 0x6fe8ff, size: 0.34, transparent: true, opacity: 0.95,
+  blending: THREE.AdditiveBlending, depthWrite: false, sizeAttenuation: true }));
+efGroup.add(efTrackMesh);
+const _efTrack = [];                       // [x,y,z] efGroup-space surface targets, flushed each frame
 function updateHostDescend(){
   const yaw = efGroup.rotation.y;                     // efGroup tilts only in Y
   const cy = Math.cos(yaw), sy = Math.sin(yaw);
@@ -1520,6 +1584,7 @@ function updateHostDescend(){
     const lx = sim.nodePos[best*3] * cy + sim.nodePos[best*3+2] * sy;
     const lz = -sim.nodePos[best*3] * sy + sim.nodePos[best*3+2] * cy;
     pos.array[(pv+1)*3] = lx; pos.array[(pv+1)*3+1] = sim.nodePos[best*3+1]; pos.array[(pv+1)*3+2] = lz;
+    _efTrack.push([lx, sim.nodePos[best*3+1], lz]);   // glow the surface target so the line never ends in a void
     pv += 2;
   }
   efDescMesh.geometry.setDrawRange(0, pv);
@@ -1565,6 +1630,7 @@ function updateMonitors(){
       if (d2 < bestD2){ bestD2 = d2; bx = lx; by = ly; bz = lz; }
     }
     if (bestD2 === Infinity) continue;
+    _efTrack.push([bx, by, bz]);                          // glow the chassis' watched surface node too
     if (!push(hx, hy, hz, bx, by, bz, MON_CH_COL)) return;
   }
   // satellites → nearest point of their own device's surface dash.
@@ -1595,6 +1661,17 @@ function updateMonitors(){
   efMonMesh.geometry.setDrawRange(0, pv);
   efMonMesh.geometry.attributes.position.needsUpdate = true;
   efMonMesh.geometry.attributes.color.needsUpdate = true;
+}
+// paint this frame's monitor targets as a bright dot field so no line endpoint
+// reads as an invisible node in open space. Runs once per frame after the line
+// solvers have collected _efTrack (descend targets + chassis-watched nodes).
+function efFlushTracks(){
+  const g = efTrackGeo.attributes.position;
+  const n = Math.min(_efTrack.length, MAX_EF_TRACK);
+  for (let i = 0; i < n; i++){ g.array[i*3] = _efTrack[i][0]; g.array[i*3+1] = _efTrack[i][1]; g.array[i*3+2] = _efTrack[i][2]; }
+  efTrackMesh.geometry.setDrawRange(0, n);
+  efTrackMesh.geometry.attributes.position.needsUpdate = true;
+  _efTrack.length = 0;
 }
 
 // ── DOM refs ────────────────────────────────────────────────────────────
@@ -1710,8 +1787,21 @@ function pick(e){
     if (bi >= 0){ const [px2, py2] = screenOf(sim.nodePos[bi*3], sim.nodePos[bi*3+1], sim.nodePos[bi*3+2]); showNode(bi, px2, py2); }
     return;
   }
+  // glow-dot monitor targets → the service node they sit on (tap a bright dot
+  // where a monitor line ends and read that surface node's card)
+  const tk = raycaster.intersectObject(efTrackMesh, false);
+  if (tk.length){
+    const p = tk[0].point;
+    let bi = -1, bd = 1.6;
+    for (let i = 0; i < N; i++){
+      const d = Math.hypot(sim.nodePos[i*3] - p.x, sim.nodePos[i*3+1] - p.y, sim.nodePos[i*3+2] - p.z);
+      if (d < bd){ bd = d; bi = i; }
+    }
+    if (bi >= 0){ const [px2, py2] = screenOf(sim.nodePos[bi*3], sim.nodePos[bi*3+1], sim.nodePos[bi*3+2]); showNode(bi, px2, py2); }
+    return;
+  }
   // entanglement fabric peer / hub tappables (ring sits OUTSIDE the globe)
-  const efTaps = efPool.size ? [...efPool.values()] : [];
+  const efTaps = [...efPool.values()].filter(mm => mm.visible);   // hidden/ghost meshes must never answer taps
   efTaps.push(efHub);
   raycaster.params.Points.threshold = 0;
   raycaster.setFromCamera(pointer, camera);
@@ -2084,7 +2174,11 @@ function animate(){
   // Coverage comes from the steady carousel roll, not random axis-swinging —
   // every node traces its ring, which itself lies on a static grid sphere, so
   // the whole field reads as stable geometry in motion.
-  efRingHost.rotation.y += HOST_RING_SPIN;
+  for (let hi = 0; hi < efHostRings.length; hi++){
+    const r = efHostRings[hi], wob = r.userData && r.userData.wob;
+    if (wob) r.rotation.x = wob.base + Math.sin(tie * wob.freq + wob.ph) * wob.amp;   // continuously-changing lean
+    r.rotation.y += HOST_RING_SPIN * (hi === 1 ? 0.85 : 1.0);                          // the two wheels roll apart
+  }
   efPhysGroup.rotation.y += CH_RING_SPIN;
   efPhysGroup.rotation.x = CH_TILT;
   for (const m of efPool.values()){
@@ -2102,6 +2196,7 @@ function animate(){
   updateEntLinks();
   updateHostDescend();   // main-ring peers → nearest moving surface node (real-time)
   updateMonitors();      // device rings + chassis → what they're watching (rotates as they orbit)
+  efFlushTracks();       // glow the surface targets those monitor lines terminate on
   for (const m of efPool.values()){
     const ph = m.userData.ph;
     m.rotation.y = Math.sin(tie * 0.5 + ph) * 0.5;
@@ -2651,6 +2746,7 @@ async function pollQkd(){
   }
   const urls = qkUrls.filter(u => u.trim());
   const byId = new Map();                    // link id -> best telemetry record (prefer role A)
+  const liveNames = new Set();              // peer names answered directly by the /e91 endpoints
   const out = { peers: urls.length, links: [], honest: 0, aborts: 0, avgChsh: 0, bits: 0, conference: null, up: 0, down: [] };
   for (const u of urls){
     try{
@@ -2658,6 +2754,7 @@ async function pollQkd(){
       const r = await fetch(u, { signal: ctl.signal }); clearTimeout(to);
       if (!r.ok){ out.down.push(u); continue; }
       const j = await r.json();
+      if (j && j.node && efNameParts(j.node)) liveNames.add(j.node);   // direct discover — a new device shows up even before the supervisor's next status beat
       out.up++;
       for (const l of (j.links || [])){
         if (!l || !l.link || !byId.has(l.link)) byId.set(l.link, l);
@@ -2673,7 +2770,9 @@ async function pollQkd(){
   if (supState){
     const cc = (supState.pairs || []).map(p => p.name).filter(n => efNameParts(n));
     const dd = (supState.devices || []).map(d => d.name).filter(n => efNameParts(n));
-    out.discovered = [...new Set([...cc, ...dd])];
+    out.discovered = [...new Set([...cc, ...dd, ...liveNames])];
+  } else {
+    out.discovered = [...liveNames];
   }
   out.honest = honest.length;
   out.aborts = aborts.length;
@@ -2803,6 +2902,7 @@ $('qkdApply').addEventListener('click', () => {
 });
 // ── pair supervisor (tier-1 watchdog) — start/stop/reboot/recover ─────────
 let supState = null, lastSupLogs = [];
+let lastDevRoster = '';            // supervisor device-roster signature → triggers live re-discovery
 let supLaunching = false;   // guard the Start Supervisor button against double-clicks
 async function ctlSup(action, extra){
   if (IS_STATIC_HOST){
@@ -2942,6 +3042,11 @@ async function pollSup(){
     const j2 = await ctlSup('log', { n: 12 });
     if (j2 && j2.lines){ lastSupLogs = j2.lines; lb.textContent = lastSupLogs.join('\n'); lb.style.display = lb.style.display === 'none' ? 'block' : 'none'; }
   };
+  // live re-discovery: the moment the device roster changes (a 5th phone plugged
+  // in, a serial re-adopted, a device released) re-render the fabric IMMEDIATELY
+  // instead of waiting for the next armed poll tick.
+  const roster = (j.devices || []).map(d => d.name).sort().join(',');
+  if (roster !== lastDevRoster){ lastDevRoster = roster; pollQkd(); }
 }
 $('qkSupWd').addEventListener('click', async () => {
   if (!supState || !supState.pairs){ launchSup(); return; }   // supervisor down → start everything first
@@ -2975,6 +3080,39 @@ $('qkSupRecover').addEventListener('click', async () => {
   if (j.error) logEv('defer', j.error);
   setTimeout(() => { pollSup(); pollQkd(); }, 3000);
 });
+const $qkSysReset = document.getElementById('qkSysReset');
+if ($qkSysReset){
+  $qkSysReset.addEventListener('click', async () => {
+    // full system reset: tear down EVERYTHING the fabric overlay drew (host
+    // peers, chassis, satellites, coils, monitor lines, glow targets), zero the
+    // round/armed state, then rediscover the initial setup (supervisor + live
+    // /e91 pull) and redraw from scratch — so any ghost geometry, stale "2" box
+    // or drifting fabric returns to the true initial state in one press.
+    for (const [nm, m] of [...efPool]){
+      if (m.parent) m.parent.remove(m);
+      m.traverse(o => { if (o.geometry){ o.geometry.dispose(); o.geometry = undefined; } if (o.material && o.material.dispose) o.material.dispose(); });
+      efPool.delete(nm);
+    }
+    efHostMembers.length = 0; efLinkPairs.length = 0; _efTrack.length = 0;
+    efLinkMesh.geometry.setDrawRange(0, 0);
+    efDescMesh.geometry.setDrawRange(0, 0);
+    efMonMesh.geometry.setDrawRange(0, 0);
+    efTrackMesh.geometry.setDrawRange(0, 0);
+    qkState = { peers: 0, links: [], honest: 0, aborts: 0, avgChsh: 0, bits: 0, conference: null, up: 0, down: [], sim: IS_STATIC_HOST };
+    qkRound = 0; qkEveArmed = false; qkArmed = false; simOn = false; simRev = 0;
+    if (typeof simPeerSup === 'function') simPeerSup(2);
+    try{ $('qkNodes').value = 2; }catch(_){}
+    hidePopup();
+    logEv('', 'SYSTEM RESET → fabric cleared (nodes · chassis · satellites · monitor lines) · rediscovering initial setup…');
+    $qkSysReset.className = 'pad active';
+    await pollSup();
+    const want = supState && supState.desired;
+    if (want) try{ $('qkNodes').value = want; }catch(_){}
+    await pollQkd();
+    $qkSysReset.className = 'pad cold';
+    logEv('', 'SYSTEM RESET done — running ' + (qkState ? (qkState.discovered || '').length : '') + ' node/device peers in the initial fabric');
+  });
+}
 function autoMeshForDevices(j){
   // fold every live/known device peer's status URL into the mesh so the
   // fabric panel draws phone nodes alongside the host census (2200x family).

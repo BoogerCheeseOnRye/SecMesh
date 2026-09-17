@@ -114,11 +114,12 @@ The fabric view draws **two concentric bands** around the operator's host globe:
 - inner (teal wireframe spheres, radius 1.62×globe) — **entangled peers** `node-*`
   (host/simulated, running the E91 emitter) cluster around the operator's globe;
 - outer (solid warm-gold **spheres** + thin cage, radius 2.30×globe) — **one chassis per
-  physical phone** `dev-<i>`. Each chassis is now a globe just like the host but at
-  half-ish presence (`DEV_R = EF_CLUSTER / 1.62` ≈ radius 1.19), so it keeps the host's
-  exact 1.62× ring pitch: it wears its own tiny crawling surface dash and a satellite
-  bead of its own entangled peers `dev-<i>-<k>` (small pale-teal spheres) wheeling
-  around it at radius ~0.42×globe — a phone reads as a miniature host, not a diamond.
+  physical phone** `dev-<i>`. Each chassis is a globe just like the host but at
+  reduced presence (`DEV_R` ≈ radius 1.07 — 10% smaller than the surrounding field
+  so it reads as a slave device, not a rival globe): it wears its own tiny crawling
+  surface dash and a satellite bead of its own entangled peers `dev-<i>-<k>` (small
+  pale-teal spheres) wheeling around it at radius ~0.42×globe — a phone reads as a
+  miniature host, not a diamond.
 
 **Static wireframe grid spheres mark every ring.** Each ring radius gets a faint,
 transparent grid cage that never rotates — radius 1.62× around the host, radius 2.30×
@@ -132,12 +133,21 @@ satellite rings lean ±0.44 alternating by chassis. Steady carousel spins drive 
 coverage — no random axis-swinging — so each ring reads as stable geometry in motion
 instead of a drifting cloud.
 
-**Satellite rings subdivide at max nodes.** A phone's `dev-<i>-<k>` peers never bunch
-on one circle: when a device carries ≥ `SAT_SPLIT_AT` (6) satellites, they split by
-interleave across **two co-orbiting bands** — an inner ring (radius 0.80×) and an
-outer ring (radius 1.06×) — each with its own lean and a *continuously* changing
-precession altitude (`ring.rotation.x` wobbles per ring), so the two rings never
-stack flat and the whole device globe gets covered from both bands.
+**The MAIN ring subdivides at max nodes too.** The host's `node-*` peers split the
+same way the device satellites do: at ≥ `SAT_SPLIT_AT` (6) they interleave across
+**two co-orbiting rings on the same host cage**, leaning opposite ways (+`HOST_TILT`
+vs −0.82×) with their own continuously precessing altitude (`ring.rotation.x`
+wobbles per ring) and slightly different roll rates — so the entangled wheel sweeps
+two great circles covering the whole globe instead of bunching on one small circle.
+
+**Satellite rings subdivide and step away from the device.** A phone's `dev-<i>-<k>`
+peers never bunch on one circle: when a device carries ≥ `SAT_SPLIT_AT` satellites,
+they split by interleave across **two co-orbiting bands** — an inner ring (radius 0.84×)
+and an outer ring (radius 1.113×, both 5% further out than before) — each with its own
+lean and a continuously changing precession altitude, while the device sphere itself is
+10% smaller (`DEV_R`) and the mini grid cage (now `EFC_CAGE` = 1.33×) still contains
+the whole outer band, so the rings roll *outside* the compacted body with visible air
+between the solid globe and the moving wheels.
 
 **The draw is a ring lattice, not a chord graph.** The fabric's real mesh is
 *complete* (every peer pairs with every other — see `simulateMesh`), but drawing
@@ -159,7 +169,19 @@ which surface node.
 own device's surface dash*, and every device chassis drops an amber line to the
 nearest host-globe node. Both are re-solved every frame, so as the double ring
 co-orbits (and the chassis band circles) the monitored targets visibly *rotate* —
-the link lines are the device's live "what am I watching" readout.
+the link lines are the device's live "what am I watching" readout. Every monitor
+target is painted each frame as a bright pale-blue **glow dot** (`efTrackMesh`), so
+no line ever terminates on an invisible node in open space — and tapping a glow dot
+opens that service node's card.
+
+**Live re-discovery + reset.** The console re-polls the supervisor every 4s and the
+fabric every 3s, and the *instant* the device roster changes (a phone just plugged
+in, USB re-adopted, a device released) the fabric re-renders right away — no button
+needed; `/e91` answers also name their own node for the discovered set. The **↺ Reset
+System** button (entanglement deck) tears down every drawn node/chassis/satellite/
+line/glow target, zeroes the round/armed state and re-derives the initial setup from
+the live supervisor — the cure for any stale "count=2 while the fabric is full" or
+lingering ghost geometry after a hard refresh.
 The real telemetry stays honest — the summary line and hub card still report the
 true link / CHSH / bits counts from the fabric, and a drawn edge picks up its
 real KEY/ABORT verdict when that pair exists in the actual mesh. Because the
