@@ -1295,6 +1295,13 @@ function updateEntFabric(st){
     seen.add(l.link);
     peers[m[0]] = true; peers[m[1]] = true;
   }
+  // always render the DISCOVERED topology from the supervisor (pairs + phone
+  // device peers), even while the mesh is keyless — so the ring / cluster
+  // layout pops up immediately and links just add the honest coil on top.
+  for (const nm of (st.discovered || [])){
+    const f = efNameParts(nm);
+    if (f) peers[f] = true;
+  }
   const devEnt = Object.keys(peers).filter(isDevEnt).sort();               // dev-<i>-<k> = ent peers ON each phone
   const host = Object.keys(peers).filter(nm => !isPhysPeer(nm) && !isDevEnt(nm)).sort();
   // chassis markers: a phone is whichever `dev-<i>` any dev-<i>-<k> belongs to
@@ -2472,6 +2479,12 @@ async function pollQkd(){
   const honest = links.filter(l => l.verdict === 'KEY' && l.chsh > 2);
   const aborts = links.filter(l => l.verdict === 'ABORT' && l.chsh < 2);
   out.links = links;
+  out.discovered = [];
+  if (supState){
+    const cc = (supState.pairs || []).map(p => p.name).filter(n => efNameParts(n));
+    const dd = (supState.devices || []).map(d => d.name).filter(n => efNameParts(n));
+    out.discovered = [...new Set([...cc, ...dd])];
+  }
   out.honest = honest.length;
   out.aborts = aborts.length;
   out.avgChsh = honest.length ? honest.reduce((s, l) => s + (l.chsh || 0), 0) / honest.length : 0;

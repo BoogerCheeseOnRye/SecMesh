@@ -644,11 +644,25 @@ function progressKick(p, why){
 function seedRound(rounds){
   if (seeding){ seedLog += '\nseed already running — skipping\n'; return false; }
   const r = Math.max(400, Math.min(100000, parseInt(rounds, 10) || DEFAULT_ROUNDS));
+  // seed ONLY the peers that answered their /e91 on the last tick — one stuck
+  // adb forward (e.g. a phone reboot) must not derail the whole mesh: qkd-cluster
+  // treats a refused connect as fatal, so a single withdrawn device peer was
+  // leaving the fabric keyless forever.
+  const live = [...PAIRS, ...DPL].filter(p => p.up && !QUARANT.has(p.name));
+  if (live.length < 2){
+    seedLog += '\nseed skipped — fewer than 2 live peers (' + live.length + '): ' + [...PAIRS, ...DPL].filter(p => !p.up).map(p => p.name + ' down').join(', ') + ' — waiting for recovery\n';
+    log('SEED SKIP —', live.length, 'live peer' + (live.length === 1 ? '' : 's'), '(need ≥ 2 to pair)');
+    return false;
+  }
   const args = [CLUSTER, '--peers'];
-  for (const p of PAIRS) args.push(p.name + '=127.0.0.1:' + p.ent + ':' + p.ctl);   // explicit ctl — host census runs control = ent+1, NOT ent+1000
-  for (const d of DPL) args.push(d.name + '=127.0.0.1:' + d.ent + ':' + d.ctl); // device peers: host control = ent+1
+  for (const p of live) if (!p.device) args.push(p.name + '=127.0.0.1:' + p.ent + ':' + p.ctl);   // explicit ctl — host census runs control = ent+1, NOT ent+1000
+  for (const d of live) if (d.device) args.push(d.name + '=127.0.0.1:' + d.ent + ':' + d.ctl); // device peers: host control = ent+1
   args.push('--rounds', String(r), '--keep');
   if (EVE) args.push('--eve', EVE);
+  if (live.length < PAIRS.length + DPL.length){
+    const dead = [...PAIRS, ...DPL].filter(p => !p.up).map(p => p.name);
+    log('seeding', live.length, 'of', PAIRS.length + DPL.length, 'live peers (skipping down:', dead.join(','), ')');
+  }
   seeding = true; seedLog = ''; lastSeedEnd = 0;
   log('seeding fabric', r, 'rounds', '·', args.join(' '));
   const ch = spawn(process.execPath, args, { cwd: __dirname0, stdio: ['ignore', 'pipe', 'pipe'], detached: true });

@@ -143,6 +143,20 @@ endpoints are taken from the meshes' true world positions and folded back into
 the fabric group via `worldToLocal`, so the coils chase the sweeping, tilting
 ring rather than tearing away from it.
 
+**The topology is always visible, even keyless.** `updateEntFabric` unions the
+supervisor's *discovered* peer list (census pairs + enumerated device peers from
+`/peerctl` status) with any links the E91 peers report — so the full 10-node
+coil, all chassis, and every phone's satellite ring render the moment the
+operator presses ⟑ Launch, whether or not a seed has produced links yet. This
+directly fixes the old "pressed Entangle, nothing popped up" failure, which was
+caused by a *keyless* mesh: the supervisor seeded every known peer in one shot
+(host + device), and `qkd-cluster` treats a single refused connect as fatal — one
+stale adb forward (a rebooted phone) therefore nuked the *entire* fabric and the
+console had zero links to draw. The supervisor now **seeds only currently-live
+peers** (`p.up && !quarantined`, bails logging "fewer than 2 live peers"), so a
+single downed peer can no longer key the mesh; that peer simply joins on a later
+round once its forward is healthy.
+
 Clicking either type opens an **honest** card: `◆ PHYSICAL DEVICE` vs
 `◆ ENTANGLED PEER`, and it reports real telemetry from the current fabric (its `KEY`
 verdicts, Bell-CHSH S, round count, bits) read straight from the mesh state — the old
