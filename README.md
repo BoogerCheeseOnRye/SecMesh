@@ -128,10 +128,14 @@ roll *across* them. Because a tilted circle of radius `r` lies entirely on the s
 of radius `r`, the cages stay exact even while the rings precess.
 
 **The bands roll against each other on OPPOSING fixed tilts.** The host entangled ring
-leans +X (`HOST_TILT`), the physical band leans −X (`CH_TILT`), and each phone's
-satellite rings lean ±0.44 alternating by chassis. Steady carousel spins drive the
-coverage — no random axis-swinging — so each ring reads as stable geometry in motion
-instead of a drifting cloud.
+ leans +X (`HOST_TILT`), the physical band leans −X (`CH_TILT`), and each phone's
+ satellite rings lean ±0.44 alternating by chassis. Steady carousel spins drive the
+ coverage — no random axis-swinging — so each ring reads as stable geometry in motion
+ instead of a drifting cloud. (Ring roll rates and per-ring wobble frequencies were
+ boosted ~55–90% on 2026-09 so a ring sweeps full node coverage around its band
+ faster: `HOST_RING_SPIN`/`CH_RING_SPIN` 0.0022→0.0034, `MINI_RING_SPIN` 0.0034→0.0054,
+ host wobble freq 0.30/0.26→0.55/0.48, device wobble freq 0.31/0.27→0.58/0.50 + the
+ whole-fabric carousel yaw 0.0005→0.0012.)
 
 **The MAIN ring subdivides at max nodes too.** The host's `node-*` peers split the
 same way the device satellites do: at ≥ `SAT_SPLIT_AT` (6) they interleave across
@@ -182,6 +186,24 @@ System** button (entanglement deck) tears down every drawn node/chassis/satellit
 line/glow target, zeroes the round/armed state and re-derives the initial setup from
 the live supervisor — the cure for any stale "count=2 while the fabric is full" or
 lingering ghost geometry after a hard refresh.
+
+**Hot-plug adoption lives in the supervisor, not just the console.** `peer-supervisor`
+now re-scans `adb devices -l` every ~8s: a phone plugged *after* launch is appended as
+a NEW bare chassis (`dev-<i>`, stable name/ports for existing devices — no re-slot
+renumbering) and its entangled peers are brought up without touching the live ones.
+Bare chassis are exported in `/peerctl` status (`chassis` array), so a backend-less
+phone (e.g. the user's 6x Pro) shows up as an **offline/dim marker** on the device
+band even though it runs no launch.sh backend. A chassis that never comes up stops
+relaunching over adb after a few strikes and is held as offline-only, so there's no
+relaunch spam on a plain phone.
+
+**Down peers shed their live lines (no more ghost links).** The status log's
+"device down" state is now reflected honestly in the fabric: a host/chassis/satellite
+polling as DOWN stays visible on its ring as **dim, pinched, halo-less topology**, but
+it owns **no drawn lines** — no coil edge, no spokes, no descend line, no monitor
+line, no glow dot. Only peers the supervisor reports as *up* carry live lines, so a
+dead node never has a "ghost link" floating off it into open space and the coil
+collapses to the live subset exactly as the health loop sees it.
 The real telemetry stays honest — the summary line and hub card still report the
 true link / CHSH / bits counts from the fabric, and a drawn edge picks up its
 real KEY/ABORT verdict when that pair exists in the actual mesh. Because the

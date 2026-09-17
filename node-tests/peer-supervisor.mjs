@@ -119,6 +119,55 @@ const DEVICES = initDevices();
 let devPer = Math.max(0, Math.min(24, parseInt(arg('--dev-per', '1'), 10) || 1));
 let DPL = [];                              // live device-peer instances (dev-<i>-<k>)
 let devSyncing = false;
+// LIVE roster: `initDevices()` only snapshots adb at startup, so a phone plugged
+// in AFTER launch was invisible forever. This re-runs `adb devices -l` every ~8s,
+// keeps existing chassis (stable name/ports) and appends a NEW chassis (dev-<i>)
+// for any serial adb just started listing — no supervisor restart needed.
+let lastRosterCheck = 0;
+function syncDevicesRoster(){
+  const now = Date.now();
+  if (now - lastRosterCheck < 8000) return;
+  lastRosterCheck = now;
+  let dm = {};
+  try{ for (const d of adbDevicesL()) dm[d.serial] = d.model; }catch(e){ return; }
+  const bySerial = new Map(DEVICES.map(c => [c.serial, c]));
+  let nextIdx = DEVICES.reduce((m, c) => Math.max(m, (c.idx || 0) + 1), 0);
+  const fresh = [];
+  for (const serial of Object.keys(dm).sort()){
+    let c = bySerial.get(serial);
+    if (!c){
+      c = { name: 'dev-' + nextIdx, idx: nextIdx, serial, model: dm[serial] || null,
+        ent: 22001 + 3 * nextIdx, ctl: 22002 + 3 * nextIdx, st: 22003 + 3 * nextIdx,
+        devEnt: 7200 + 10 * nextIdx, devCtl: 8200 + 10 * nextIdx, devSta: 9200 + 10 * nextIdx };
+      DEVICES.push(c); bySerial.set(serial, c); fresh.push(c);
+      log(c.name, 'roster → plugged', serial, c.model || '?');
+    }
+    c.absent = false; c.model = dm[serial] || c.model;
+    nextIdx = Math.max(nextIdx, (c.idx || 0) + 1);
+  }
+  for (const c of DEVICES){
+    if (!dm[c.serial]){
+      if (!c.absent){ c.absent = true; log(c.name, 'roster → detached', c.serial); }
+    }
+  }
+  if (!fresh.length) return;
+  // bring up entangled peers for the NEW chassis only — existing live peers must
+  // keep their ports + adb forwards untouched (no re-slot renumbering).
+  let g = DPL.reduce((m, p) => Math.max(m, Math.floor((p.ent - 22001) / 3) + 1), 0);
+  const want = [];
+  for (const c of fresh){
+    for (let k = 0; k < devPer; k++){
+      const ent = 22001 + 3 * g, ctl = ent + 1, st = ent + 2;
+      want.push({ name: 'dev-' + c.idx + '-' + k, serial: c.serial, model: c.model, device: true,
+        idx: c.idx, k, ent, ctl, st, url: 'http://127.0.0.1:' + st + '/e91',
+        devEnt: c.devEnt + k, devCtl: c.devCtl + k, devSta: c.devSta + k });
+      g++;
+    }
+  }
+  for (const w of want){ initFields(w); DPL.push(w); }
+  log('roster: added', fresh.length, 'chassis ·', want.length, 'device peer' + (want.length === 1 ? '' : 's'));
+  planDevSync(300);
+}
 // adb reverse: the phone dials peers at 127.0.0.1:<host-ent> — reverse maps the
 // phone's own tcp:<port> back to THIS host (which then forwards on). Without it
 // a phone-initiated dial to a host peer (or another phone) gets ECONNREFUSED,
@@ -157,7 +206,7 @@ async function adoptOrSpawnDevice(p){
   reverseDevice(p);
   const j = await getJson(p.url);
   if (j && j.up){
-    p.up = true; p.since = Date.now(); p.lastSeen = Date.now(); p.strikes = 0;
+    p.up = true; p.since = Date.now(); p.lastSeen = Date.now(); p.strikes = 0; p.everUp = true;
     log(p.name, 'adopted live device peer', p.serial);
     return;
   }
@@ -218,7 +267,7 @@ function planDevSync(delay){
 function initFields(p){
   p.pid = null; p.child = null; p.up = false; p.upS = 0;
   p.restarts = 0; p.strikes = 0; p.rssWarn = 0; p.lastSeen = 0; p.dying = false;
-  p.grace = 0; p.since = 0; p.lastLog = ''; p.stopped = false;
+  p.grace = 0; p.since = 0; p.lastLog = ''; p.stopped = false; p.everUp = false;
 }
 function initPairs(def){ const list = parsePeers(def); for (const p of list) initFields(p); return list; }
 function ensureNodes(n){
@@ -587,7 +636,7 @@ async function tick(){
     const q = QUARANT.get(d.name);
     const dj = await getJson(d.url);
     if (dj && dj.up){
-      d.strikes = 0; d.lastSeen = now;
+      d.strikes = 0; d.lastSeen = now; d.everUp = true;
       if (!d.since) d.since = now;
       d.up = true;
       d.upS = Math.max(0, Math.round((now - d.since) / 1000));
@@ -597,7 +646,15 @@ async function tick(){
       if (now < d.grace) continue;
       d.strikes++;
       if (d.strikes >= 2){
-        if (wdOn && !d.stopped){
+        // a chassis that NEVER comes up (plugged phone with no launch.sh backend,
+        // e.g. the user's plain 6x Pro) must not relaunch over adb forever — hold
+        // it as an offline marker only; plug-in detection stays live.
+        if (!d.everUp && d.strikes >= 4){
+          if (!d.stopped){
+            d.stopped = true;
+            log(d.name, 'device never came up (' + (d.serial || '?') + ' ' + (d.model || '') + ') — no backend on this chassis; showing offline only (held, plug-in detection live)');
+          }
+        } else if (wdOn && !d.stopped){
           d.restarts++;
           log(d.name, 'device DOWN · relaunching via adb (strike ' + d.strikes + ')');
           spawnDevice(d);
@@ -608,6 +665,7 @@ async function tick(){
     }
   }
   pruneQuarantines();
+  syncDevicesRoster();
 
   // keep the fabric keyed — every live peer answers but the mesh shows 0 links
   if (wdOn && !seeding && (PAIRS.length || DPL.length)){
@@ -714,6 +772,16 @@ function statusJson(){
       devEnt: d.devEnt, devCtl: d.devCtl, devSta: d.devSta,
       up: d.up, upS: d.upS, restarts: d.restarts, strikes: d.strikes,
       stopped: d.stopped, quarantined: QUARANT.has(d.name), lastSeen: d.lastSeen })),
+    // BARE chassis markers — every adb phone, INCLUDING backend-less ones (a
+    // plain user phone with no launch.sh). `devices` above only lists instances
+    // that ever spawned; the console draws the chassis ring from this list so a
+    // just-plugged phone appears (offline/dim) even before any backend comes up.
+    chassis: DEVICES.map(c => {
+      const ups = DPL.filter(dn => dn.idx === c.idx && dn.up);
+      return { name: c.name, idx: c.idx, serial: c.serial, model: c.model,
+        up: ups.length > 0, phones: ups.length,
+        held: DPL.some(dn => dn.idx === c.idx && dn.stopped), absent: !!c.absent };
+    }),
     devPer, devHosts: DEVICES.length,
   };
 }

@@ -1191,9 +1191,9 @@ const DEV_R = (EF_CLUSTER / (EF_RING / GLOBE_R)) * 0.90;  // ≈ 1.07
 const HOST_TILT = 0.60;          // main entangled ring leans +X …
 const CH_TILT   = -0.52;         // …the chassis band opposes it (−X) for full 3-D coverage
 const MINI_TILT = 0.44;          // each phone's satellite ring lean (± by chassis serial)
-const HOST_RING_SPIN = 0.0022;   // carousel speeds (rad/frame) — the rings roll, not jitter
-const CH_RING_SPIN   = 0.0022;
-const MINI_RING_SPIN = 0.0034;
+const HOST_RING_SPIN = 0.0034;   // carousel speeds (rad/frame) — the rings roll, not jitter
+const CH_RING_SPIN   = 0.0034;
+const MINI_RING_SPIN = 0.0054;
 // when a ring is at max nodes it would be bunched on one small circle — so split
 // it into TWO co-orbiting rings (inner/outer for satellites, ±lean for the host)
 // with continuously precessing leans for full 3-D coverage.
@@ -1236,8 +1236,8 @@ const _mkRing = (base, amp, freq, ph) => {
 // vs −0.82×) and wobbling their altitude continuously — so the entangled wheel
 // sweeps two great circles instead of bunching on one, with full coverage of the
 // host cage and no collision with the outer chassis band.
-const efRingHostA = _mkRing(HOST_TILT, SAT_WOBBLE * 0.7, 0.30, Math.random() * Math.PI * 2);
-const efRingHostB = _mkRing(-HOST_TILT * 0.82, SAT_WOBBLE * 0.92, 0.26, Math.random() * Math.PI * 2);
+const efRingHostA = _mkRing(HOST_TILT, SAT_WOBBLE * 0.7, 0.55, Math.random() * Math.PI * 2);
+const efRingHostB = _mkRing(-HOST_TILT * 0.82, SAT_WOBBLE * 0.92, 0.48, Math.random() * Math.PI * 2);
 efGroup.add(efRingHostA, efRingHostB);
 const efHostRings = [efRingHostA, efRingHostB];
 const efRingHost = efRingHostA;                 // alias for legacy single-ring readers
@@ -1336,8 +1336,8 @@ function makePhysicalPeer(nm){
   // its own slow precession wobble — at max nodes the phone's entangled peers
   // occupy two co-orbiting bands instead of bunching on one circle.
   const sgn = (_chSerial++ % 2) ? 1 : -1;
-  const ringA = _mkRing(MINI_TILT * sgn, SAT_WOBBLE, 0.31 + 0.05 * (_chSerial % 3), Math.random() * Math.PI * 2);
-  const ringB = _mkRing(-MINI_TILT * 0.8 * sgn, SAT_WOBBLE * 1.15, 0.27 + 0.05 * ((_chSerial + 1) % 3), Math.random() * Math.PI * 2);
+  const ringA = _mkRing(MINI_TILT * sgn, SAT_WOBBLE, 0.58 + 0.09 * (_chSerial % 3), Math.random() * Math.PI * 2);
+  const ringB = _mkRing(-MINI_TILT * 0.8 * sgn, SAT_WOBBLE * 1.15, 0.50 + 0.09 * ((_chSerial + 1) % 3), Math.random() * Math.PI * 2);
   m.add(ringA, ringB);
   m.userData.rings = [ringA, ringB];
   m.userData.ring = ringA;                       // alias so single-ring paths stay sane
@@ -1364,6 +1364,11 @@ function makeDevEntPeer(nm){
 function updateEntFabric(st){
   const peers = {};
   efLinkPairs.length = 0;
+  // peer liveness map (host / device-ent / bare chassis) — DOWN peers stay drawn
+  // as dim topology but shed all live lines (no coil edge, descend or monitor),
+  // so a dead node never owns a "ghost link" in open space.
+  const upMap = st.upMap;
+  const upOf = nm => !upMap || upMap[nm] !== false;
   const seen = new Set();
   for (const l of (st.links || [])){
     if (!l || !l.link) continue;
@@ -1381,7 +1386,7 @@ function updateEntFabric(st){
   }
   const devEnt = Object.keys(peers).filter(isDevEnt).sort();               // dev-<i>-<k> = ent peers ON each phone
   const host = Object.keys(peers).filter(nm => !isPhysPeer(nm) && !isDevEnt(nm)).sort();
-  efHostMembers.length = 0; efHostMembers.push(...host);            // descend-line targets, re-solved per frame
+  efHostMembers.length = 0; efHostMembers.push(...host.filter(upOf));   // descend-lines only from LIVE host peers
   // chassis markers: a phone is whichever `dev-<i>` any dev-<i>-<k> belongs to
   // (plus any legacy bare dev-<i> still named directly in links) — never a bare
   // peer name from links alone, otherwise zero markers appear once every phone
@@ -1465,6 +1470,10 @@ function updateEntFabric(st){
     });
   };
   for (const [nm, m] of [...efPool]) if (!known.has(nm)){ disposeNode(m); efPool.delete(nm); }
+  // liveness flags for the per-frame animator: down peers are pinched + their
+  // halo removed so they read as inert physical infrastructure (still on the
+  // ring), never as active fabric.
+  for (const [nm, m] of efPool) m.userData.dn = !upOf(nm);
   // ── ring-lattice draw ────────────────────────────────────────────────────
   // the fabric's real mesh is COMPLETE (every pair), but drawing every chord
   // turns 50 peers on two radii into a spiderweb. What the eye wants — and what
@@ -1498,10 +1507,11 @@ function updateEntFabric(st){
     for (let i = 0; i < ordered.length; i++)
       for (let h = 1; h <= hop; h++) addEdge(ordered[i], ordered[(i + h) % ordered.length]);
   };
-  coil(hA, 2);                      // ring 1a — host entangled coil (node-*, even)
-  coil(hB, 2);                      // ring 1b — host entangled coil (node-*, odd) — NO cross-ring chords
-  coil(chassis, 2);                 // ring 2 — the phone coil (dev-<i>)
+  coil(hA.filter(upOf), 2);                 // ring 1a — host entangled coil (node-*, even) — LIVE hosts only
+  coil(hB.filter(upOf), 2);                 // ring 1b — host entangled coil (node-*, odd) — NO cross-ring chords
+  coil(chassis.filter(upOf), 2);            // ring 2 — the phone coil (dev-<i>) — live phones only
   for (const ch of Object.keys(chJones).sort()){
+    if (!upOf(ch)) continue;                                        // down chassis: sats are dim, no spokes
     const sats = chJones[ch].slice().sort((a, b) => parseInt(b.match(/-(\d+)$/)[1], 10) - parseInt(a.match(/-(\d+)$/)[1], 10));
     const n = sats.length;
     const split = n >= SAT_SPLIT_AT;
@@ -1510,9 +1520,9 @@ function updateEntFabric(st){
     // keeps a short spoke to its chassis.
     const aList = [], bList = [];
     sats.forEach((nm, k) => (split && (k % 2) ? bList : aList).push(nm));
-    coil(aList, 2);
-    coil(bList, 2);
-    for (const nm of sats) addEdge(nm, ch);                 // short spoke → its chassis
+    coil(aList.filter(upOf), 2);
+    coil(bList.filter(upOf), 2);
+    for (const nm of sats) if (upOf(nm)) addEdge(nm, ch);           // short spoke → its chassis
   }
   updateEntLinks();
 }
@@ -1620,7 +1630,7 @@ function updateMonitors(){
   // devices → nearest host surface node (they monitor the network, and their
   // monitored node rolls along the globe as the band orbits).
   for (const m of efPool.values()){
-    if (!m || !m.visible || !isPhysPeer(m.userData.name)) continue;
+    if (!m || !m.visible || !isPhysPeer(m.userData.name) || m.userData.dn) continue;
     m.getWorldPosition(_efM1);
     const [hx, hz] = toEf(_efM1.x, _efM1.z), hy = _efM1.y;
     let bx = hx, by = hy, bz = hz, bestD2 = Infinity;
@@ -1636,7 +1646,7 @@ function updateMonitors(){
   // satellites → nearest point of their own device's surface dash.
   const dashCache = new Map();                        // chassis name → world-space dash points (this frame)
   for (const m of efPool.values()){
-    if (!m || !m.visible || !isDevEnt(m.userData.name) || !m.userData.sat) continue;
+    if (!m || !m.visible || !isDevEnt(m.userData.name) || !m.userData.sat || m.userData.dn) continue;
     const ch = efPool.get(m.userData.sat.ch);
     if (!ch || !ch.userData || !ch.userData.dash) continue;
     let pts = dashCache.get(ch.userData.name);
@@ -2167,7 +2177,7 @@ function animate(){
   stepViewFit();
   pinSurface();
   draw();
-  efGroup.rotation.y += 0.0005;
+  efGroup.rotation.y += 0.0012;
   const tie = performance.now() / 1000;
   // ── the two bands roll against each other on OPPOSING fixed tilts: the main
   // entangled ring (efRingHost, +X) and the physical band (efPhysGroup, −X).
@@ -2199,11 +2209,12 @@ function animate(){
   efFlushTracks();       // glow the surface targets those monitor lines terminate on
   for (const m of efPool.values()){
     const ph = m.userData.ph;
-    m.rotation.y = Math.sin(tie * 0.5 + ph) * 0.5;
-    m.rotation.x = Math.cos(tie * 0.4 + ph * 1.7) * 0.3;
-    m.scale.setScalar(1 + 0.06 * Math.sin(tie * 1.2 + ph));
+    const dn = m.userData.dn;                          // down peers: inert — pinned still, pinched down, no halo
+    m.rotation.y = dn ? 0 : Math.sin(tie * 0.5 + ph) * 0.5;
+    m.rotation.x = dn ? 0 : Math.cos(tie * 0.4 + ph * 1.7) * 0.3;
+    m.scale.setScalar(dn ? 0.55 : (1 + 0.06 * Math.sin(tie * 1.2 + ph)));
     const def = m.userData.def;
-    if (def){ def.rotation.x = tie * 0.9 + ph; def.rotation.z = tie * 0.6 + ph * 2; }
+    if (def){ def.rotation.x = tie * 0.9 + ph; def.rotation.z = tie * 0.6 + ph * 2; def.visible = !dn; }
   }
   refreshStats();
   renderer.clear();
@@ -2770,10 +2781,22 @@ async function pollQkd(){
   if (supState){
     const cc = (supState.pairs || []).map(p => p.name).filter(n => efNameParts(n));
     const dd = (supState.devices || []).map(d => d.name).filter(n => efNameParts(n));
-    out.discovered = [...new Set([...cc, ...dd, ...liveNames])];
+    const ee = (supState.chassis || []).map(c => c.name).filter(n => efNameParts(n));   // bare chassis — phones with no backend still get a marker
+    out.discovered = [...new Set([...cc, ...dd, ...ee, ...liveNames])];
   } else {
     out.discovered = [...liveNames];
   }
+  // per-peer liveness so the fabric draws honestly: DOWN peers stay as DIM
+  // topology (they are physical), but shed every live line — no coil edge, no
+  // descend, no monitor — so no "ghost link" floats off a dead node. Unknown =
+  // treated as up (never blank a fabric on a fresh status).
+  const upMap = {};
+  if (supState){
+    for (const p of (supState.pairs || [])) if (p && p.name && efNameParts(p.name)) upMap[p.name] = !!p.up;
+    for (const d of (supState.devices || [])) if (d && d.name) upMap[d.name] = !!d.up;
+    for (const c of (supState.chassis || [])) if (c && c.name) upMap[c.name] = !!c.up;
+  }
+  out.upMap = upMap;
   out.honest = honest.length;
   out.aborts = aborts.length;
   out.avgChsh = honest.length ? honest.reduce((s, l) => s + (l.chsh || 0), 0) / honest.length : 0;
