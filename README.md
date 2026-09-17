@@ -128,23 +128,38 @@ of radius `r`, the cages stay exact even while the rings precess.
 
 **The bands roll against each other on OPPOSING fixed tilts.** The host entangled ring
 leans +X (`HOST_TILT`), the physical band leans −X (`CH_TILT`), and each phone's
-satellite ring leans ±0.44 alternating by chassis. Steady carousel spins drive the
+satellite rings lean ±0.44 alternating by chassis. Steady carousel spins drive the
 coverage — no random axis-swinging — so each ring reads as stable geometry in motion
 instead of a drifting cloud.
+
+**Satellite rings subdivide at max nodes.** A phone's `dev-<i>-<k>` peers never bunch
+on one circle: when a device carries ≥ `SAT_SPLIT_AT` (6) satellites, they split by
+interleave across **two co-orbiting bands** — an inner ring (radius 0.80×) and an
+outer ring (radius 1.06×) — each with its own lean and a *continuously* changing
+precession altitude (`ring.rotation.x` wobbles per ring), so the two rings never
+stack flat and the whole device globe gets covered from both bands.
 
 **The draw is a ring lattice, not a chord graph.** The fabric's real mesh is
 *complete* (every peer pairs with every other — see `simulateMesh`), but drawing
 all chords with 50 peers on two radii turns into a spiderweb of lines stretched
 across the whole system. So the console draws **nearest-neighbour coils**: ring 1
 connects `node-*` to its ring neighbours (±1, ±2) around the host; ring 2 does
-the same for the phone chassis; each phone additionally wears a mini-coil
-satellite ring plus a short spoke from every `dev-<i>-<k>` to its own chassis.
+the same for the phone chassis; each phone additionally wears a mini-coil per
+orbital band (inner and outer coiled separately) plus a short spoke from every
+`dev-<i>-<k>` to its own chassis.
 
 **Main-ring monitor lines.** Every `node-*` in the tilted host ring additionally
 drops a pale-blue **descend** line straight down to the *nearest* node crawling
 the host globe's surface (re-solved every frame against the live surface cloud),
 so the view shows, in real time, which entangled peer is linked to / monitoring
 which surface node.
+
+**Device monitor lines.** The adb devices don't just link to each other — each
+`dev-<i>-<k>` satellite descends a pale-teal line to the *nearest point of its
+own device's surface dash*, and every device chassis drops an amber line to the
+nearest host-globe node. Both are re-solved every frame, so as the double ring
+co-orbits (and the chassis band circles) the monitored targets visibly *rotate* —
+the link lines are the device's live "what am I watching" readout.
 The real telemetry stays honest — the summary line and hub card still report the
 true link / CHSH / bits counts from the fabric, and a drawn edge picks up its
 real KEY/ABORT verdict when that pair exists in the actual mesh. Because the
