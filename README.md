@@ -112,10 +112,14 @@ mesh. When it cannot reach the node supervisor or the `2000x`/`2200x` ent peers:
 The fabric view draws **two concentric bands** around the operator's host globe:
 
 - inner (teal wireframe spheres, radius 1.62×globe) — **entangled peers** `node-*`
-  (host/simulated, running the E91 emitter);
-- outer (solid gold octahedra + thin cage, radius 2.30×globe) — **physical devices**
-  `dev-<i>-<k>` attached via adb: they ride their own ring, and each has a faint
-  amber ring guide so the two bands read at a glance.
+  (host/simulated, running the E91 emitter) cluster around the operator's globe;
+- outer (solid gold octahedra + thin cage, radius 2.30×globe) — **one chassis per
+  physical phone** `dev-<i>`, and each phone's own entangled peers `dev-<i>-<k>`
+  (small pale-teal spheres) wheel around **that** chassis in a satellite bead
+  (radius ~0.42×globe) — so a `--dev-per 10` phone reads as one gold device
+  wearing a little cloud of 10 entangled peers, exactly like the host wears
+  `node-*`. A faint amber ring guide marks the chassis band so the two bands read
+  at a glance.
 
 **The angel** — the outer ring is not a static torus. Its peer meshes live in a
 dedicated `efPhysGroup` child of the fabric group, and each frame the controller

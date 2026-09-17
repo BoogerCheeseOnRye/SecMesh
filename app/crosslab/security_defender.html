@@ -1174,12 +1174,15 @@ scene.add(selRing);
 // links flare red. Scales to any number of nodes: with many peers it reads
 // as a map of all the spheres working together across the mesh at a glance.
 const EF_RING = GLOBE_R * 1.62;           // inner band — entangled host/sim peers (node-*)
-const EF_RING_OUTER = GLOBE_R * 2.30;     // outer band — physical adb devices (dev-*): further out from the host
-const isPhysPeer = nm => /^dev-/.test(nm || '');
-const ringFor = nm => isPhysPeer(nm) ? EF_RING_OUTER : EF_RING;
+const EF_RING_OUTER = GLOBE_R * 2.30;     // outer band — the phone chassis markers (dev-<i>)
+const EF_CLUSTER = GLOBE_R * 0.42;        // a phone's entangled peers orbit ITS chassis at this radius
+const isPhysPeer = nm => /^dev-\d+$/.test(nm || '');          // the phone itself — chassis marker on the outer band
+const isDevEnt  = nm => /^dev-\d+-\d+$/.test(nm || '');       // an entangled peer RUNNING on phone dev-<i>
+const chassisOf = nm => { const m = /^(dev-\d+)-\d+$/.exec(nm || ''); return m ? m[1] : null; };
 const efGroup = new THREE.Group();
 scene.add(efGroup);
 const efSphereMat = new THREE.MeshBasicMaterial({ color: 0x39e6b8, wireframe: true, transparent: true, opacity: 0.95, depthWrite: false });
+const efDevMat = new THREE.MeshBasicMaterial({ color: 0x6fe8ff, wireframe: true, transparent: true, opacity: 0.9, depthWrite: false });
 const efHubMat = new THREE.MeshBasicMaterial({ color: 0x9fd8ff, wireframe: true, transparent: true, opacity: 0.7, depthWrite: false });
 const efHub = new THREE.Mesh(new THREE.SphereGeometry(0.30, 12, 12), efHubMat);
 efHub.userData.name = 'control·hub';
@@ -1252,11 +1255,30 @@ function makeEntangledPeer(nm){
   efPool.set(nm, m);
 }
 function makePhysicalPeer(nm){
-  // physical adb device (dev-*) → solid warm-gold octahedron + thin cage: small, solid, distinct
+  // physical adb device (dev-<i>) → solid warm-gold octahedron + thin cage: small, solid, distinct
   const m = new THREE.Mesh(new THREE.OctahedronGeometry(0.62), efPhysMat);
   m.userData.name = nm;
   m.userData.ph = Math.random() * Math.PI * 2;
   const def = new THREE.Mesh(new THREE.OctahedronGeometry(1.05, 0), efPhysCageMat);
+  m.userData.def = def;
+  m.add(def);
+  efPhysGroup.add(m);
+  efPool.set(nm, m);
+}
+function makeDevEntPeer(nm){
+  // entangled peer running ON a phone (dev-<i>-<k>) → small pale-teal wireframe sphere.
+  // It is NOT another device: it rides a satellite orbit around its chassis dev-<i>.
+  const m = new THREE.Mesh(new THREE.SphereGeometry(0.34, 10, 10), efDevMat);
+  m.userData.name = nm;
+  m.userData.ph = Math.random() * Math.PI * 2;
+  m.userData.sat = {
+    ch: chassisOf(nm),
+    r: EF_CLUSTER * (0.82 + Math.random() * 0.3),
+    a: Math.random() * Math.PI * 2,
+    dv: 0.6 + Math.random() * 1.2
+  };
+  const def = new THREE.Mesh(new THREE.SphereGeometry(0.7, 5, 5),
+    new THREE.MeshBasicMaterial({ color: 0x6fe8ff, wireframe: true, transparent: true, opacity: 0.2, depthWrite: false }));
   m.userData.def = def;
   m.add(def);
   efPhysGroup.add(m);
@@ -1274,18 +1296,40 @@ function updateEntFabric(st){
     peers[m[0]] = true; peers[m[1]] = true;
     efLinkPairs.push({ a: m[0], b: m[1], verdict: l.verdict === 'KEY' ? 'KEY' : 'ABORT' });
   }
-  const names = Object.keys(peers).sort();
-  const inner = names.filter(nm => !isPhysPeer(nm)).sort();
-  const outer = names.filter(isPhysPeer).sort();
-  for (const nm of inner){
-    if (!efPool.has(nm)) makeEntangledPeer(nm);
+  const devEnt = Object.keys(peers).filter(isDevEnt).sort();               // dev-<i>-<k> = ent peers ON each phone
+  const host = Object.keys(peers).filter(nm => !isPhysPeer(nm) && !isDevEnt(nm)).sort();
+  // chassis markers: a phone is whichever `dev-<i>` any dev-<i>-<k> belongs to
+  // (plus any legacy bare dev-<i> still named directly in links) — never a bare
+  // peer name from links alone, otherwise zero markers appear once every phone
+  // runs its own entangled peers.
+  const chassis = [...new Set([
+    ...Object.keys(peers).filter(isPhysPeer),
+    ...devEnt.map(chassisOf).filter(Boolean)
+  ])].sort();
+  for (const nm of host)   if (!efPool.has(nm)) makeEntangledPeer(nm);
+  for (const nm of chassis) if (!efPool.has(nm)) makePhysicalPeer(nm);
+  for (const nm of devEnt)  if (!efPool.has(nm)) makeDevEntPeer(nm);
+  positionBand(host, EF_RING);
+  positionBand(chassis, EF_RING_OUTER);
+  // drop a clone-chip cluster around each phone: every dev-<i>-<k> sits on a
+  // small orbit bead around its own chassis (chassis position stays fixed above)
+  const chJones = {};
+  for (const nm of devEnt) (chJones[chassisOf(nm)] = chJones[chassisOf(nm)] || []).push(nm);
+  for (const nm of chassis){ if (!chJones[nm]) chJones[nm] = []; }         // phones with linkless ent peers
+  const chArray = Object.keys(chJones).sort();
+  for (let i = 0; i < chArray.length; i++){
+    const ch = chArray[i];
+    const m = efPool.get(ch); if (!m) continue;
+    const p = chJones[ch];
+    const n = Math.max(1, p.length);
+    p.forEach((nm, k) => {
+      const s = efPool.get(nm); if (!s || !s.userData.sat) return;
+      s.userData.sat.c = i;                          // orbit station index used by animate()
+      s.position.set(m.position.x, m.position.y, m.position.z);   // seed at chassis, animate() supplies the bead
+    });
   }
-  for (const nm of outer){
-    if (!efPool.has(nm)) makePhysicalPeer(nm);
-  }
-  positionBand(inner, EF_RING);
-  positionBand(outer, EF_RING_OUTER);
-  for (const [nm, m] of efPool) if (!names.includes(nm)) m.visible = false;
+  const known = new Set([...host, ...chassis, ...devEnt]);
+  for (const [nm, m] of efPool) if (!known.has(nm)) m.visible = false;
   updateEntLinks();
 }
 // draw the entanglement spokes. Static mesh positions are fine while the inner
@@ -1455,12 +1499,13 @@ function efVerdictSpan(l){
 async function showPeerInfo(m, px, py){
   const nm = m.userData.name;
   const phys = isPhysPeer(nm);
+  const onDev = isDevEnt(nm) ? ' dev-' + chassisOf(nm) : '';
   const head = phys ? '◆ PHYSICAL DEVICE' : '◆ ENTANGLED PEER';
-  const wired = phys ? '<b class="ok">physical adb device</b>' : (IS_STATIC_HOST ? '<b class="ok">in-browser E91</b>' : '<b class="ok">entangled peer</b>');
+  const wired = phys ? '<b class="ok">physical adb device</b>' : (onDev ? ('<b class="ok">entangled peer · on phone' + onDev + '</b>') : (IS_STATIC_HOST ? '<b class="ok">in-browser E91</b>' : '<b class="ok">entangled peer</b>'));
   const mine = (qkState.links || [])
     .filter(l => { const p = efLinkParts(l.link); return p && (p[0] === nm || p[1] === nm); });
   let html = '<div class="tp-head">' + head + '</div><span class="tp-node">' + nm + '</span> · ' + wired +
-    (phys ? '<br>· lives on the outer ring — attached via adb, outside the entangled fabric' : '');
+    (phys ? '<br>· lives on the outer ring — the attached phone itself; its own entangled peers <b>dev-' + (nm.match(/\d+$/) || ['?'])[0] + '-*</b> wheel around it' : '');
   if (!mine.length){
     html += '<br>no honest links yet — press ⟠ Entangle (or ⟑ Launch) to give it a fabric';
   } else {
@@ -1803,6 +1848,24 @@ function animate(){
   efPhysGroup.rotation.z = Math.sin(tie * 0.045) * 0.85;
   efPhysGroup.rotation.x = Math.cos(tie * 0.031) * 0.30;
   updateEntLinks();
+  // satellite drift — each phone's entangled peers wheel around its chassis,
+  // so a 10-peer device reads as a living little double-helix cloud per phone
+  for (const m of efPool.values()){
+    const sat = m.userData.sat, nm2 = m.userData.name;
+    if (sat && isDevEnt(nm2)){
+      const ch = efPool.get(sat.ch);
+      if (ch){
+        sat.a += sat.dv * (tie - (sat._t !== undefined ? sat._t : tie));
+        sat._t = tie;
+        const ca = sat.a;
+        m.position.set(
+          ch.position.x + Math.cos(ca) * sat.r,
+          ch.position.y + Math.sin(ca) * sat.r * 0.55,
+          ch.position.z + Math.sin(ca * 1.7 + 1) * sat.r * 0.35
+        );
+      }
+    }
+  }
   for (const m of efPool.values()){
     const ph = m.userData.ph;
     m.rotation.y = Math.sin(tie * 0.5 + ph) * 0.5;
