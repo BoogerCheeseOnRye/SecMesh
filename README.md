@@ -113,20 +113,24 @@ The fabric view draws **two concentric bands** around the operator's host globe:
 
 - inner (teal wireframe spheres, radius 1.62×globe) — **entangled peers** `node-*`
   (host/simulated, running the E91 emitter) cluster around the operator's globe;
-- outer (solid gold octahedra + thin cage, radius 2.30×globe) — **one chassis per
-  physical phone** `dev-<i>`, and each phone's own entangled peers `dev-<i>-<k>`
-  (small pale-teal spheres) wheel around **that** chassis in a satellite bead
-  (radius ~0.42×globe) — so a `--dev-per 10` phone reads as one gold device
-  wearing a little cloud of 10 entangled peers, exactly like the host wears
-  `node-*`. A faint amber ring guide marks the chassis band so the two bands read
-  at a glance.
+- outer (solid warm-gold **spheres** + thin cage, radius 2.30×globe) — **one chassis per
+  physical phone** `dev-<i>`. Each chassis is now a globe just like the host but at
+  half-ish presence (`DEV_R = EF_CLUSTER / 1.62` ≈ radius 1.19), so it keeps the host's
+  exact 1.62× ring pitch: it wears its own tiny crawling surface dash and a satellite
+  bead of its own entangled peers `dev-<i>-<k>` (small pale-teal spheres) wheeling
+  around it at radius ~0.42×globe — a phone reads as a miniature host, not a diamond.
 
-**The angel** — the outer ring is not a static torus. Its peer meshes live in a
-dedicated `efPhysGroup` child of the fabric group, and each frame the controller
-gives it a full **orbit** (`rotation.y` accumulation) plus a **progressive tilt
-whose axis itself swings** — `rotation.z` rocks side-to-side and `rotation.x`
-fore-aft on slow phases. The net effect is a wheel that precesses through the
-field instead of spinning in a flat plane, literally "a wheel within a wheel."
+**Static wireframe grid spheres mark every ring.** Each ring radius gets a faint,
+transparent grid cage that never rotates — radius 1.62× around the host, radius 2.30×
+around the band, and a mini cage around every chassis — so the moving nodes visibly
+roll *across* them. Because a tilted circle of radius `r` lies entirely on the sphere
+of radius `r`, the cages stay exact even while the rings precess.
+
+**The bands roll against each other on OPPOSING fixed tilts.** The host entangled ring
+leans +X (`HOST_TILT`), the physical band leans −X (`CH_TILT`), and each phone's
+satellite ring leans ±0.44 alternating by chassis. Steady carousel spins drive the
+coverage — no random axis-swinging — so each ring reads as stable geometry in motion
+instead of a drifting cloud.
 
 **The draw is a ring lattice, not a chord graph.** The fabric's real mesh is
 *complete* (every peer pairs with every other — see `simulateMesh`), but drawing
@@ -135,6 +139,12 @@ across the whole system. So the console draws **nearest-neighbour coils**: ring 
 connects `node-*` to its ring neighbours (±1, ±2) around the host; ring 2 does
 the same for the phone chassis; each phone additionally wears a mini-coil
 satellite ring plus a short spoke from every `dev-<i>-<k>` to its own chassis.
+
+**Main-ring monitor lines.** Every `node-*` in the tilted host ring additionally
+drops a pale-blue **descend** line straight down to the *nearest* node crawling
+the host globe's surface (re-solved every frame against the live surface cloud),
+so the view shows, in real time, which entangled peer is linked to / monitoring
+which surface node.
 The real telemetry stays honest — the summary line and hub card still report the
 true link / CHSH / bits counts from the fabric, and a drawn edge picks up its
 real KEY/ABORT verdict when that pair exists in the actual mesh. Because the

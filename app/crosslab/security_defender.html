@@ -1176,6 +1176,15 @@ scene.add(selRing);
 const EF_RING = GLOBE_R * 1.62;           // inner band — entangled host/sim peers (node-*)
 const EF_RING_OUTER = GLOBE_R * 2.30;     // outer band — the phone chassis markers (dev-<i>)
 const EF_CLUSTER = GLOBE_R * 0.42;        // a phone's entangled peers orbit ITS chassis at this radius
+// device globes are the host architecture at half-ish presence: a sphere whose
+// satellite ring keeps EXACTLY the host's 1.62× pitch (EF_CLUSTER / 1.62).
+const DEV_R = EF_CLUSTER / (EF_RING / GLOBE_R);           // ≈ 1.19
+const HOST_TILT = 0.60;          // main entangled ring leans +X …
+const CH_TILT   = -0.52;         // …the chassis band opposes it (−X) for full 3-D coverage
+const MINI_TILT = 0.44;          // each phone's satellite ring lean (± by chassis serial)
+const HOST_RING_SPIN = 0.0022;   // carousel speeds (rad/frame) — the rings roll, not jitter
+const CH_RING_SPIN   = 0.0022;
+const MINI_RING_SPIN = 0.0034;
 const isPhysPeer = nm => /^dev-\d+$/.test(nm || '');          // the phone itself — chassis marker on the outer band
 const isDevEnt  = nm => /^dev-\d+-\d+$/.test(nm || '');       // an entangled peer RUNNING on phone dev-<i>
 const chassisOf = nm => { const m = /^(dev-\d+)-\d+$/.exec(nm || ''); return m ? m[1] : null; };
@@ -1187,19 +1196,29 @@ const efHubMat = new THREE.MeshBasicMaterial({ color: 0x9fd8ff, wireframe: true,
 const efHub = new THREE.Mesh(new THREE.SphereGeometry(0.30, 12, 12), efHubMat);
 efHub.userData.name = 'control·hub';
 efGroup.add(efHub);
-// the "angel" outer band — the physical ring rides in its OWN child group that
-// fully ORBITS within the fabric and progressively TILTS, so the ring of
-// devices sweeps every chord of the field while the host fabric turns beneath.
+// static wireframe GRID SPHERES at every ring radius — they stay perfectly still
+// while the nodes roll across them, so each ring's geometry reads as one solid
+// surface, not a cloud. A *tilted* circle of radius r lies entirely ON the sphere
+// of radius r, so a static cage stays exact even while the ring precesses.
+const gridSphere = (r, s, c, o) => new THREE.LineSegments(
+   new THREE.EdgesGeometry(new THREE.SphereGeometry(r, s, Math.max(5, Math.ceil(s * 0.62)))),
+   new THREE.LineBasicMaterial({ color: c, transparent: true, opacity: o, depthWrite: false }));
+efGroup.add(gridSphere(EF_RING, 14, 0x39e6b8, 0.05));        // host entangled band cage
+efGroup.add(gridSphere(EF_RING_OUTER, 16, 0xffbf5e, 0.05));  // chassis band cage
+// the host entangled ring rides its OWN group: carousel spin + a fixed opposing
+// tilt so every node sweeps a different latitude of the host cage each pass.
+const efRingHost = new THREE.Group();
+efRingHost.rotation.x = HOST_TILT;
+efGroup.add(efRingHost);
+// the "angel" outer band — the physical ring orbits the field on a FIXED tilt
+// (opposing the host ring) with a steady roll: coverage comes from the roll, not
+// from random axis-swinging, so the band looks like a designed wheel.
 const efPhysGroup = new THREE.Group();
+efPhysGroup.rotation.x = CH_TILT;
 efGroup.add(efPhysGroup);
-// band guide circles so the two rings read at a glance: teal = entangled band,
-// amber = physical-device band; the amber circle rides INSIDE the orbiting
-// group so the guide itself wheels with the angel ring.
-const bandCircle = (r, c) => new THREE.LineSegments(
-   new THREE.EdgesGeometry(new THREE.CircleGeometry(r, 80)),
-   new THREE.LineBasicMaterial({ color: c, transparent: true, opacity: 0.11, depthWrite: false }));
-efGroup.add(bandCircle(EF_RING, 0x39e6b8));
-efPhysGroup.add(bandCircle(EF_RING_OUTER, 0xffbf5e));
+// host ring members that carry "descend" monitor lines to the nearest moving
+// surface node on the host globe (re-solved every frame, in real time).
+const efHostMembers = [];
 const efPhysMat = new THREE.MeshBasicMaterial({ color: 0xffbf5e, transparent: true, opacity: 0.95, depthWrite: false });
 const efPhysCageMat = new THREE.MeshBasicMaterial({ color: 0xffbf5e, wireframe: true, transparent: true, opacity: 0.28, depthWrite: false });
 const efPool = new Map();                       // peer name -> mesh
@@ -1243,7 +1262,8 @@ function positionBand(list, radius){
   });
 }
 function makeEntangledPeer(nm){
-  // host / sim (node-*) → hollow teal wireframe sphere (established fabric look)
+  // host / sim (node-*) → hollow teal wireframe sphere (established fabric look).
+  // Children of the host RING group, so the coil sweeps the tilted carousel.
   const m = new THREE.Mesh(new THREE.SphereGeometry(0.55, 12, 12), efSphereMat);
   m.userData.name = nm;
   m.userData.ph = Math.random() * Math.PI * 2;
@@ -1251,37 +1271,60 @@ function makeEntangledPeer(nm){
     new THREE.MeshBasicMaterial({ color: 0x39e6b8, wireframe: true, transparent: true, opacity: 0.22, depthWrite: false }));
   m.userData.def = def;
   m.add(def);
-  efGroup.add(m);
+  efRingHost.add(m);
   efPool.set(nm, m);
 }
+// tiny crawling "surface dash" for a physical device's own globe — mirrors the
+// host's shell of surface nodes at device scale, so a phone reads host-shaped.
+function makeSurfaceDash(R, n){
+  const pos = new Float32Array(n * 3), col = new Float32Array(n * 3);
+  for (let i = 0; i < n; i++){
+    const g = Math.PI * (3 - Math.sqrt(5)) * (i + 0.5), y = 1 - (i / n) * 2;
+    const rr = Math.sqrt(Math.max(0, 1 - y * y));
+    pos[i*3] = R * Math.cos(g) * rr; pos[i*3+1] = R * y; pos[i*3+2] = R * Math.sin(g) * rr;
+    col[i*3] = 0.62; col[i*3+1] = 0.88; col[i*3+2] = 1.0;
+  }
+  const g = new THREE.BufferGeometry();
+  g.setAttribute('position', new THREE.BufferAttribute(pos, 3));
+  g.setAttribute('color', new THREE.BufferAttribute(col, 3));
+  return new THREE.Points(g, new THREE.PointsMaterial({ size: 0.11, vertexColors: true, transparent: true, opacity: 0.8, depthWrite: false }));
+}
+let _chSerial = 0;                       // chassis creation ordinal → alternating mini-ring tilt
 function makePhysicalPeer(nm){
-  // physical adb device (dev-<i>) → solid warm-gold octahedron + thin cage: small, solid, distinct
-  const m = new THREE.Mesh(new THREE.OctahedronGeometry(0.62), efPhysMat);
+  // physical adb device (dev-<i>) → upgraded from a diamond to a SPHERE: a
+  // half-presence host globe (own surface dash + satellite ring at host pitch).
+  const m = new THREE.Mesh(new THREE.SphereGeometry(DEV_R, 14, 10), efPhysMat);
   m.userData.name = nm;
   m.userData.ph = Math.random() * Math.PI * 2;
-  const def = new THREE.Mesh(new THREE.OctahedronGeometry(1.05, 0), efPhysCageMat);
+  m.userData.dash = makeSurfaceDash(DEV_R * 0.98, 18);
+  m.add(m.userData.dash);
+  const def = new THREE.Mesh(new THREE.SphereGeometry(DEV_R * 1.28, 14, 10), efPhysCageMat);
   m.userData.def = def;
   m.add(def);
+  // stable satellite ring: children sit on the ring's XZ plane; the ring spins
+  // like a carousel and its lean alternates per chassis so clusters face 3-D.
+  const ring = new THREE.Group();
+  ring.rotation.x = MINI_TILT * ((_chSerial++ % 2) ? 1 : -1);
+  m.add(ring);
+  m.userData.ring = ring;
+  // static mini grid cage at satellite-ring radius — rides the chassis, NEVER
+  // rotates, so the satellites visibly roll across it (movement vs stillness).
+  m.userData.cage = gridSphere(EF_CLUSTER, 9, 0x6fe8ff, 0.05);
+  m.add(m.userData.cage);
   efPhysGroup.add(m);
   efPool.set(nm, m);
 }
 function makeDevEntPeer(nm){
-  // entangled peer running ON a phone (dev-<i>-<k>) → small pale-teal wireframe sphere.
-  // It is NOT another device: it rides a satellite orbit around its chassis dev-<i>.
+  // entangled peer running ON a phone (dev-<i>-<k>) → small pale-teal wireframe
+  // sphere, attached to ITS chassis's ring by updateEntFabric (stable orbit).
   const m = new THREE.Mesh(new THREE.SphereGeometry(0.34, 10, 10), efDevMat);
   m.userData.name = nm;
   m.userData.ph = Math.random() * Math.PI * 2;
-  m.userData.sat = {
-    ch: chassisOf(nm),
-    r: EF_CLUSTER * (0.82 + Math.random() * 0.3),
-    a: Math.random() * Math.PI * 2,
-    dv: 0.6 + Math.random() * 1.2
-  };
+  m.userData.sat = { ch: chassisOf(nm), r: 0.85 + Math.random() * 0.3 };   // ring radius fraction — set ONCE, stable
   const def = new THREE.Mesh(new THREE.SphereGeometry(0.7, 5, 5),
     new THREE.MeshBasicMaterial({ color: 0x6fe8ff, wireframe: true, transparent: true, opacity: 0.2, depthWrite: false }));
   m.userData.def = def;
   m.add(def);
-  efPhysGroup.add(m);
   efPool.set(nm, m);
 }
 function updateEntFabric(st){
@@ -1304,6 +1347,7 @@ function updateEntFabric(st){
   }
   const devEnt = Object.keys(peers).filter(isDevEnt).sort();               // dev-<i>-<k> = ent peers ON each phone
   const host = Object.keys(peers).filter(nm => !isPhysPeer(nm) && !isDevEnt(nm)).sort();
+  efHostMembers.length = 0; efHostMembers.push(...host);            // descend-line targets, re-solved per frame
   // chassis markers: a phone is whichever `dev-<i>` any dev-<i>-<k> belongs to
   // (plus any legacy bare dev-<i> still named directly in links) — never a bare
   // peer name from links alone, otherwise zero markers appear once every phone
@@ -1326,12 +1370,19 @@ function updateEntFabric(st){
   for (let i = 0; i < chArray.length; i++){
     const ch = chArray[i];
     const m = efPool.get(ch); if (!m) continue;
+    const ring = m.userData && m.userData.ring; if (!ring) continue;
     const p = chJones[ch];
     const n = Math.max(1, p.length);
     p.forEach((nm, k) => {
-      const s = efPool.get(nm); if (!s || !s.userData.sat) return;
-      s.userData.sat.c = i;                          // orbit station index used by animate()
-      s.position.set(m.position.x, m.position.y, m.position.z);   // seed at chassis, animate() supplies the bead
+      const s = efPool.get(nm); if (!s) return;
+      s.userData.sat.ch = ch;                    // re-assert ownership every refresh
+      if (s.parent !== ring) ring.add(s);        // stable home: the chassis ring
+      // settle onto the ring circle (ring-local XZ plane). Radius is the
+      // satellite's stored fraction — never re-randomised, so a refresh (or a
+      // phone reboot reassigning dev-<i>) cannot throw the geometry apart.
+      const R = EF_CLUSTER * (s.userData.sat.r || 1);
+      const a = (k / n) * Math.PI * 2;
+      s.position.set(Math.cos(a) * R, 0, Math.sin(a) * R);
     });
   }
   const known = new Set([...host, ...chassis, ...devEnt]);
@@ -1401,6 +1452,43 @@ function updateEntLinks(){
   efLinkMesh.geometry.setDrawRange(0, pv);
   efLinkMesh.geometry.attributes.position.needsUpdate = true;
   efLinkMesh.geometry.attributes.color.needsUpdate = true;
+}
+// ── host "descend" monitor lines: every node-* in the tilted main ring drops a
+// link STRAIGHT DOWN to the nearest node crawling the host globe's surface, so
+// you can read which entangled peer is watching which surface node in real time.
+const MAX_EF_DESC = 64;                               // 32 monitor lines — covers the whole main ring
+const efDescGeo = new THREE.BufferGeometry();
+efDescGeo.setAttribute('position', new THREE.BufferAttribute(new Float32Array(MAX_EF_DESC * 3), 3));
+const efDescMesh = new THREE.LineSegments(efDescGeo,
+  new THREE.LineBasicMaterial({ color: 0x9fd8ff, transparent: true, opacity: 0.5, depthWrite: false }));
+efGroup.add(efDescMesh);
+const _efDV = new THREE.Vector3();
+function updateHostDescend(){
+  const yaw = efGroup.rotation.y;                     // efGroup tilts only in Y
+  const cy = Math.cos(yaw), sy = Math.sin(yaw);
+  const pos = efDescGeo.attributes.position;
+  const up = Math.min(efHostMembers.length, 32);
+  let pv = 0;
+  for (let i = 0; i < up; i++){
+    const ma = efPool.get(efHostMembers[i]); if (!ma) continue;
+    ma.getWorldPosition(_efDV); efGroup.worldToLocal(_efDV);
+    let best = -1, bestD2 = Infinity;
+    for (let q = 0; q < N; q++){
+      const wx = sim.nodePos[q*3], wy = sim.nodePos[q*3+1], wz = sim.nodePos[q*3+2];
+      const lx = wx * cy + wz * sy, lz = -wx * sy + wz * cy;       // world → efGroup space
+      const dx = lx - _efDV.x, dy = wy - _efDV.y, dz = lz - _efDV.z;
+      const d2 = dx * dx + dy * dy + dz * dz;
+      if (d2 < bestD2){ bestD2 = d2; best = q; }
+    }
+    if (best < 0) continue;
+    pos.array[pv*3] = _efDV.x; pos.array[pv*3+1] = _efDV.y; pos.array[pv*3+2] = _efDV.z;
+    const lx = sim.nodePos[best*3] * cy + sim.nodePos[best*3+2] * sy;
+    const lz = -sim.nodePos[best*3] * sy + sim.nodePos[best*3+2] * cy;
+    pos.array[(pv+1)*3] = lx; pos.array[(pv+1)*3+1] = sim.nodePos[best*3+1]; pos.array[(pv+1)*3+2] = lz;
+    pv += 2;
+  }
+  efDescMesh.geometry.setDrawRange(0, pv);
+  efDescMesh.geometry.attributes.position.needsUpdate = true;
 }
 
 // ── DOM refs ────────────────────────────────────────────────────────────
@@ -1885,33 +1973,22 @@ function animate(){
   draw();
   efGroup.rotation.y += 0.0005;
   const tie = performance.now() / 1000;
-  // ── the angel — the outer ring of physical device peers wheels within the
-  // fabric: a full orbital spin plus a progressive tilt whose axis itself
-  // swings (z rocks side-to-side, x fore-aft). The net tilt axis rotates
-  // continuously, so the ring of devices sweeps every chord of the field —
-  // not a rigid flat orbit — and the spokes re-solve below to chase it.
-  efPhysGroup.rotation.y += 0.0035;
-  efPhysGroup.rotation.z = Math.sin(tie * 0.045) * 0.85;
-  efPhysGroup.rotation.x = Math.cos(tie * 0.031) * 0.30;
-  updateEntLinks();
-  // satellite drift — each phone's entangled peers wheel around its chassis,
-  // so a 10-peer device reads as a living little double-helix cloud per phone
+  // ── the two bands roll against each other on OPPOSING fixed tilts: the main
+  // entangled ring (efRingHost, +X) and the physical band (efPhysGroup, −X).
+  // Coverage comes from the steady carousel roll, not random axis-swinging —
+  // every node traces its ring, which itself lies on a static grid sphere, so
+  // the whole field reads as stable geometry in motion.
+  efRingHost.rotation.y += HOST_RING_SPIN;
+  efPhysGroup.rotation.y += CH_RING_SPIN;
+  efPhysGroup.rotation.x = CH_TILT;
   for (const m of efPool.values()){
-    const sat = m.userData.sat, nm2 = m.userData.name;
-    if (sat && isDevEnt(nm2)){
-      const ch = efPool.get(sat.ch);
-      if (ch){
-        sat.a += sat.dv * (tie - (sat._t !== undefined ? sat._t : tie));
-        sat._t = tie;
-        const ca = sat.a;
-        m.position.set(
-          ch.position.x + Math.cos(ca) * sat.r,
-          ch.position.y + Math.sin(ca) * sat.r * 0.55,
-          ch.position.z + Math.sin(ca * 1.7 + 1) * sat.r * 0.35
-        );
-      }
-    }
+    const ring = m.userData && m.userData.ring;        // per-phone satellite carousels
+    if (ring) ring.rotation.y += MINI_RING_SPIN;
+    const dash = m.userData && m.userData.dash;        // each device's own surface crawls
+    if (dash) dash.rotation.y = tie * 0.10 + (m.userData.ph || 0);
   }
+  updateEntLinks();
+  updateHostDescend();   // main-ring peers → nearest moving surface node (real-time)
   for (const m of efPool.values()){
     const ph = m.userData.ph;
     m.rotation.y = Math.sin(tie * 0.5 + ph) * 0.5;
