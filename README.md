@@ -127,11 +127,21 @@ gives it a full **orbit** (`rotation.y` accumulation) plus a **progressive tilt
 whose axis itself swings** — `rotation.z` rocks side-to-side and `rotation.x`
 fore-aft on slow phases. The net effect is a wheel that precesses through the
 field instead of spinning in a flat plane, literally "a wheel within a wheel."
-Because the ring is in motion, the entanglement **spokes are re-solved every
-frame**: each link's endpoints are taken from the meshes' true world positions
-and folded back into the fabric group via `worldToLocal`, so every strand
-chases the sweeping, tilting ring and the KEY lines cover every chord of the
-field rather than tearing away from it.
+
+**The draw is a ring lattice, not a chord graph.** The fabric's real mesh is
+*complete* (every peer pairs with every other — see `simulateMesh`), but drawing
+all chords with 50 peers on two radii turns into a spiderweb of lines stretched
+across the whole system. So the console draws **nearest-neighbour coils**: ring 1
+connects `node-*` to its ring neighbours (±1, ±2) around the host; ring 2 does
+the same for the phone chassis; each phone additionally wears a mini-coil
+satellite ring plus a short spoke from every `dev-<i>-<k>` to its own chassis.
+The real telemetry stays honest — the summary line and hub card still report the
+true link / CHSH / bits counts from the fabric, and a drawn edge picks up its
+real KEY/ABORT verdict when that pair exists in the actual mesh. Because the
+rings are in motion, the spokes are re-solved every frame: each drawn edge's
+endpoints are taken from the meshes' true world positions and folded back into
+the fabric group via `worldToLocal`, so the coils chase the sweeping, tilting
+ring rather than tearing away from it.
 
 Clicking either type opens an **honest** card: `◆ PHYSICAL DEVICE` vs
 `◆ ENTANGLED PEER`, and it reports real telemetry from the current fabric (its `KEY`
