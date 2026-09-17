@@ -82,11 +82,42 @@ mesh. When it cannot reach the node supervisor or the `2000x`/`2200x` ent peers:
   Every button does exactly what it does in the live dev build — nothing is
   fabricated until you press it.
 - **Mobile gets a start menu** — on screens ≤ 760px the top-bar pills/links collapse
-  into a ☰ **⬡ START** drawer holding every button and live readout (pills clone in,
-  buttons drive the real handlers). The deck also gets a ▾ collapse toggle
-  (persisted; default collapsed on mobile).
+  into a ☰ **⬡ START** drawer holding the live readouts and nav links plus a
+  expand/collapse-streamdeck control (no more duplicate button grids — the always-
+  visible streamdeck is the single source of truth). The deck also gets a ▾ collapse
+  toggle (persisted; default collapsed on mobile).
 - **Opt out/force** for testing: `?static=1` forces the in-browser fabric,
   `?static=0` forces the live-backend path.
+
+### Physical devices vs entangled peers (3D)
+
+The fabric view draws **two concentric bands** around the operator's host globe:
+
+- inner (teal wireframe spheres, radius 1.62×globe) — **entangled peers** `node-*`
+  (host/simulated, running the E91 emitter);
+- outer (solid gold octahedra + thin cage, radius 2.30×globe) — **physical devices**
+  `dev-*` attached via adb: they live further out, outside the entangled fabric, and
+  each has a faint amber ring guide so the two bands read at a glance.
+
+Clicking either type opens an **honest** card: `◆ PHYSICAL DEVICE` vs
+`◆ ENTANGLED PEER`, and it reports real telemetry from the current fabric (its `KEY`
+verdicts, Bell-CHSH S, round count, bits) read straight from the mesh state — the old
+"status unreachable — peer may be down" hover result on a peer with no live URL is
+gone (a quick, bounded server probe still adds uptime when a node host is reachable).
+
+The default camera orbit now zooms out to `maxDistance = 70` (was 30) and the first
+launch/entangle eases the view out to frame both bands.
+
+### Streamdeck launch + bench
+
+- **Min / Med / Max** quick-launch buttons set the peer-count field (2, the
+  hardware-recommended count, or 24) and run an immediate deploy; the **⚙** hardware
+  scan now does something visible too — it writes the recommended count into the
+  field (amber flash) instead of only logging.
+- The fabric **bench has its own field in the deck** (`rounds` input + ⟳ Bench).
+  It stays in lockstep with the test-suite field (`b` hotkey lands here now), so
+  launching, entangling, and benching all use the one value you typed.
+- The ☰ start menu no longer duplicates the streamdeck (see above).
 
 The full live path (supervisor + adb device mesh) is unchanged when `security_defender.html`
 served locally next to `serve.js` — see "Entanglement fabric across devices" above.
