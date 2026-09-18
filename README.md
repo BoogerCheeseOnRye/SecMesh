@@ -197,6 +197,17 @@ band even though it runs no launch.sh backend. A chassis that never comes up sto
 relaunching over adb after a few strikes and is held as offline-only, so there's no
 relaunch spam on a plain phone.
 
+**The control API never blocks on adb.** Every `adb` call inside the supervisor's
+tick/roster/device paths (spawn, forward, reverse, pkill, `devices -l`) is async
+(`execFile`), so a slow or wedged `adb` can't freeze the `:22100` control HTTP — the
+failure mode was empty/suspended status replies that made serve.js and the console
+read the supervisor as "down" (needless relaunch loops, "supervisor launch failed", a
+Dead reset). Verified: the status API answers in ~75-100ms even while the watchdog is
+mid-relaunch of a killed phone backend. The console's **↺ Reset System** now also
+auto-starts the supervisor when it isn't answering, and the Start Supervisor button
+retries once on the first-boot race, so a total shutdown + hard refresh self-heals
+in one press.
+
 **Down peers shed their live lines (no more ghost links).** The status log's
 "device down" state is now reflected honestly in the fabric: a host/chassis/satellite
 polling as DOWN stays visible on its ring as **dim, pinched, halo-less topology**, but
