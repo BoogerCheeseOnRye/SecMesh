@@ -21,7 +21,7 @@
 //     --ctl 22100 --seed-rounds 5000 --auto 1 --rss-hard 380
 //     --quarantine-ms 600000 --peer-mem 90 --eve node-1
 // ---------------------------------------------------------------------------
-import { spawn, spawnSync } from 'node:child_process';
+import { spawn, spawnSync, execFile } from 'node:child_process';
 import http from 'node:http';
 import fs from 'node:fs';
 import os from 'node:os';
@@ -104,32 +104,38 @@ function adbDevicesL(){
     return out;
   }catch(e){ return []; }
 }
-function initDevices(){
-  const spec = arg('--devices', '');
-  if (!spec) return [];
-  const dm = {}; for (const d of adbDevicesL()) dm[d.serial] = d.model;
-  const serials = spec === 'all' ? Object.keys(dm) : spec.split(',').map(s => s.trim()).filter(Boolean);
-  return serials.map((serial, i) => ({
-    name: 'dev-' + i, idx: i, serial, model: dm[serial] || null,
-    ent: 22001 + 3 * i, ctl: 22002 + 3 * i, st: 22003 + 3 * i,
-    devEnt: 7200 + 10 * i, devCtl: 8200 + 10 * i, devSta: 9200 + 10 * i
-  }));
+// ASYNC adb — the health loop and roster scan MUST never block the event loop:
+// a wedged `adb` call was spinning 15-20s of spawnSync inside tick(), freezing
+// the control HTTP server mid-request (empty replies → serve.js + console read
+// it as "supervisor down" → needless relaunch loops → "supervisor launch failed").
+function adbRun(args, ms){
+  return new Promise(res => {
+    try{
+      execFile('adb', args, { encoding: 'utf8', timeout: ms || 15000, maxBuffer: 4 << 20 },
+        (err, stdout, stderr) => res({ err, stdout: stdout || '', stderr: stderr || '' }));
+    }catch(e){ res({ err: e, stdout: '', stderr: String(e) }); }
+  });
 }
-const DEVICES = initDevices();
-let devPer = Math.max(0, Math.min(24, parseInt(arg('--dev-per', '1'), 10) || 1));
-let DPL = [];                              // live device-peer instances (dev-<i>-<k>)
-let devSyncing = false;
-// LIVE roster: `initDevices()` only snapshots adb at startup, so a phone plugged
-// in AFTER launch was invisible forever. This re-runs `adb devices -l` every ~8s,
-// keeps existing chassis (stable name/ports) and appends a NEW chassis (dev-<i>)
-// for any serial adb just started listing — no supervisor restart needed.
-let lastRosterCheck = 0;
-function syncDevicesRoster(){
+async function adbDevicesA(){
+  const r = await adbRun(['devices', '-l']);
+  const out = [];
+  for (const ln of (r.stdout || '').split('\n').slice(1)){
+    const m = ln.match(/^(\S+)\s+device\s+(.*)$/);
+    if (!m) continue;
+    const model = /model:(\S+)/.exec(m[2]);
+    out.push({ serial: m[1], model: model ? model[1] : '?' });
+  }
+  return out;
+}
+async function scanRoster(){
+  try{ return await adbDevicesA(); }catch(e){ return []; }
+}
+async function syncDevicesRoster(){
   const now = Date.now();
   if (now - lastRosterCheck < 8000) return;
   lastRosterCheck = now;
-  let dm = {};
-  try{ for (const d of adbDevicesL()) dm[d.serial] = d.model; }catch(e){ return; }
+  const dm = {};
+  for (const d of await scanRoster()) dm[d.serial] = d.model;
   const bySerial = new Map(DEVICES.map(c => [c.serial, c]));
   let nextIdx = DEVICES.reduce((m, c) => Math.max(m, (c.idx || 0) + 1), 0);
   const fresh = [];
@@ -168,49 +174,69 @@ function syncDevicesRoster(){
   log('roster: added', fresh.length, 'chassis ·', want.length, 'device peer' + (want.length === 1 ? '' : 's'));
   planDevSync(300);
 }
+function initDevices(){
+  const spec = arg('--devices', '');
+  if (!spec) return [];
+  const dm = {}; for (const d of adbDevicesL()) dm[d.serial] = d.model;
+  const serials = spec === 'all' ? Object.keys(dm) : spec.split(',').map(s => s.trim()).filter(Boolean);
+  return serials.map((serial, i) => ({
+    name: 'dev-' + i, idx: i, serial, model: dm[serial] || null,
+    ent: 22001 + 3 * i, ctl: 22002 + 3 * i, st: 22003 + 3 * i,
+    devEnt: 7200 + 10 * i, devCtl: 8200 + 10 * i, devSta: 9200 + 10 * i
+  }));
+}
+const DEVICES = initDevices();
+let devPer = Math.max(0, Math.min(24, parseInt(arg('--dev-per', '1'), 10) || 1));
+let DPL = [];                              // live device-peer instances (dev-<i>-<k>)
+let devSyncing = false;
+// LIVE roster: `initDevices()` only snapshots adb at startup, so a phone plugged
+// in AFTER launch was invisible forever. This re-runs `adb devices -l` every ~8s,
+// keeps existing chassis (stable name/ports) and appends a NEW chassis (dev-<i>)
+// for any serial adb just started listing — no supervisor restart needed.
+let lastRosterCheck = 0;
 // adb reverse: the phone dials peers at 127.0.0.1:<host-ent> — reverse maps the
 // phone's own tcp:<port> back to THIS host (which then forwards on). Without it
 // a phone-initiated dial to a host peer (or another phone) gets ECONNREFUSED,
 // exactly like qkd-cluster --adb failing "control closed".
-function reverseDevice(p){
+async function reverseDevice(p){
   const locEnts = new Set([p.ent]);
   for (const d of DPL) locEnts.add(d.ent);
   for (const q of PAIRS) locEnts.add(q.ent);
-  for (const le of locEnts) spawnSync('adb', ['-s', p.serial, 'reverse', `tcp:${le}`, `tcp:${le}`], { timeout: 10000 });
+  for (const le of locEnts) await adbRun(['-s', p.serial, 'reverse', `tcp:${le}`, `tcp:${le}`], 10000);
 }
-function spawnDevice(p){
+async function spawnDevice(p){
   unquarantine(p);
   p.dying = false; p.grace = Date.now() + 8000; p.stopped = false;
   const cmd = `setsid sh /data/local/tmp/aarkanum/launch.sh --entangle ${p.devEnt} --control ${p.devCtl} --status ${p.devSta} --name ${p.name} </dev/null >/dev/null 2>&1 &`;
-  spawnSync('adb', ['-s', p.serial, 'shell', cmd], { timeout: 20000 });
+  await adbRun(['-s', p.serial, 'shell', cmd], 20000);
   for (const [loc, dev] of [[p.ent, p.devEnt], [p.ctl, p.devCtl], [p.st, p.devSta]]){
-    spawnSync('adb', ['-s', p.serial, 'forward', `tcp:${loc}`, `tcp:${dev}`], { timeout: 10000 });
+    await adbRun(['-s', p.serial, 'forward', `tcp:${loc}`, `tcp:${dev}`], 10000);
   }
-  reverseDevice(p);
+  await reverseDevice(p);
   log(p.name, 'device spawned via adb', p.serial, '→ host', p.ent + ':' + p.ctl + ':' + p.st);
 }
-function killDevice(p){
+async function killDevice(p){
   if (!p) return;
   p.dying = true; p.up = false; p.upS = 0; p.since = 0;
   if (p.serial){
     // name-scoped pkill — the phone runs many entangle peers (dev-<i>-<k>); the
     // trailing space pins the exact --name so dev-0-1 never matches dev-0-10.
-    spawnSync('adb', ['-s', p.serial, 'shell', 'pkill -f " --name ' + p.name + ' "'], { timeout: 10000 });
+    await adbRun(['-s', p.serial, 'shell', 'pkill -f " --name ' + p.name + ' "'], 10000);
     for (const loc of [p.ent, p.ctl, p.st]){
-      spawnSync('adb', ['-s', p.serial, 'forward', '--remove', 'tcp:' + loc], { timeout: 10000 });
+      await adbRun(['-s', p.serial, 'forward', '--remove', 'tcp:' + loc], 10000);
     }
   }
   log(p.name, 'device peer stopped via adb', p.serial);
 }
 async function adoptOrSpawnDevice(p){
-  reverseDevice(p);
+  await reverseDevice(p).catch(() => {});
   const j = await getJson(p.url);
   if (j && j.up){
     p.up = true; p.since = Date.now(); p.lastSeen = Date.now(); p.strikes = 0; p.everUp = true;
     log(p.name, 'adopted live device peer', p.serial);
     return;
   }
-  spawnDevice(p);
+  await spawnDevice(p).catch(e => log(p.name, 'spawnDevice error', e && e.message || e));
 }
 function configureDevicePeers(per){
   per = Math.max(0, Math.min(24, parseInt(per, 10) || 0));
@@ -227,7 +253,7 @@ function configureDevicePeers(per){
   }
   const has = new Map(DPL.map(p => [p.name, p]));
   for (const p of DPL){
-    if (!want.some(w => w.name === p.name)) killDevice(p);
+    if (!want.some(w => w.name === p.name)) killDevice(p).catch(() => {});
   }
   DPL.length = 0;
   for (const w of want){
@@ -657,7 +683,7 @@ async function tick(){
         } else if (wdOn && !d.stopped){
           d.restarts++;
           log(d.name, 'device DOWN · relaunching via adb (strike ' + d.strikes + ')');
-          spawnDevice(d);
+          await spawnDevice(d).catch(e => log(d.name, 'relaunch error', e && e.message || e));
         } else if (d.stopped){
           log(d.name, 'device down — held stopped by operator (prompt start to revive)');
         }
@@ -665,7 +691,7 @@ async function tick(){
     }
   }
   pruneQuarantines();
-  syncDevicesRoster();
+  await syncDevicesRoster().catch(() => {});
 
   // keep the fabric keyed — every live peer answers but the mesh shows 0 links
   if (wdOn && !seeding && (PAIRS.length || DPL.length)){
@@ -824,19 +850,19 @@ const server = http.createServer((req, res) => {
 
   if (action === 'start'){
     for (const x of pick){ if (!x.up && !x.pid){ killPeer(x); spawnPeer(x); } else log(x.name, 'start: already up'); }
-    for (const x of pickDevs){ if (!x.up){ killDevice(x); spawnDevice(x); } else log(x.name, 'start: already up'); }
+    for (const x of pickDevs){ if (!x.up){ killDevice(x).catch(() => {}); spawnDevice(x).catch(() => {}); } else log(x.name, 'start: already up'); }
     log('start', nm); send(res, 200, { ok:true });
     return;
   }
   if (action === 'stop'){
     for (const x of pick){ x.stopped = true; killPeer(x); }
-    for (const x of pickDevs){ x.stopped = true; killDevice(x); }
+    for (const x of pickDevs){ x.stopped = true; killDevice(x).catch(() => {}); }
     log('stop', nm, '(manual — watchdog will hold); use ⚡ start to revive'); send(res, 200, { ok:true });
     return;
   }
   if (action === 'restart'){
     for (const x of pick){ unquarantine(x); killPeer(x); spawnPeer(x); }
-    for (const x of pickDevs){ unquarantine(x); killDevice(x); spawnDevice(x); }
+    for (const x of pickDevs){ unquarantine(x); killDevice(x).catch(() => {}); spawnDevice(x).catch(() => {}); }
     log('reboot', nm); send(res, 200, { ok:true });
     return;
   }
@@ -849,8 +875,8 @@ const server = http.createServer((req, res) => {
     lastRecover = Date.now();
     for (const x of [...pick, ...pickDevs]){ unquarantine(x); }
     for (const x of pick) killPeer(x);
-    for (const x of pickDevs) killDevice(x);
-    setTimeout(() => { for (const x of pick) spawnPeer(x); for (const x of pickDevs) spawnDevice(x); }, 400);
+    for (const x of pickDevs) killDevice(x).catch(() => {});
+    setTimeout(() => { for (const x of pick) spawnPeer(x); for (const x of pickDevs) spawnDevice(x).catch(() => {}); }, 400);
     setTimeout(() => seedRound(u.searchParams.get('rounds') || DEFAULT_ROUNDS), 1600);
     log('recover — stop all → start all → seed');
     send(res, 200, { ok:true, recovering:true });

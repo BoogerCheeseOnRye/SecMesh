@@ -2989,11 +2989,20 @@ async function launchSup(){
   const btn = document.getElementById('qkSupLaunch');
   if (btn){ btn.disabled = true; btn.textContent = '▶ starting…'; }
   const j = await ctlSup('launch');
-  if (j && j.ok){
-    logEv('', 'supervisor ' + (j.started ? 'auto-started · ' : '') + 'online — watchdog ' + (j.watchdog ? 'ON' : 'off'));
+  if (!(j && j.ok)){
+    // first boot can race serve.js's 2s probe (supervisor binds ~200ms after the
+    // spawn, but a fresh `adb devices` scan can make it miss the window) — one
+    // retry usually lands it; the final status poll below confirms either way.
+    await new Promise(r => setTimeout(r, 1200));
+    const j2 = await ctlSup('launch');
+    if (j2 && j2.ok){
+      logEv('', 'supervisor online — watchdog ' + (j2.watchdog ? 'ON' : 'off'));
+    } else {
+      logEv('defer', 'supervisor launch failed: ' + (j2 && j2.error || 'no response'));
+      if (btn) btn.textContent = '▶ Start Supervisor';
+    }
   } else {
-    logEv('defer', 'supervisor launch failed: ' + (j && j.error || 'no response'));
-    if (btn) btn.textContent = '▶ Start Supervisor';
+    logEv('', 'supervisor ' + (j.started ? 'auto-started · ' : '') + 'online — watchdog ' + (j.watchdog ? 'ON' : 'off'));
   }
   setTimeout(() => { supLaunching = false; pollSup(); }, 2200);
 }
@@ -3129,6 +3138,10 @@ if ($qkSysReset){
     logEv('', 'SYSTEM RESET → fabric cleared (nodes · chassis · satellites · monitor lines) · rediscovering initial setup…');
     $qkSysReset.className = 'pad active';
     await pollSup();
+    if (!supState || !supState.pairs){
+      logEv('defer', 'supervisor not answering — auto-starting it, then rediscovering devices…');
+      await launchSup();
+    }
     const want = supState && supState.desired;
     if (want) try{ $('qkNodes').value = want; }catch(_){}
     await pollQkd();
