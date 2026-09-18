@@ -131,24 +131,36 @@ of radius `r`, the cages stay exact even while the rings precess.
  leans +X (`HOST_TILT`), the physical band leans −X (`CH_TILT`), and each phone's
  satellite rings lean ±0.44 alternating by chassis. Steady carousel spins drive the
  coverage — no random axis-swinging — so each ring reads as stable geometry in motion
- instead of a drifting cloud. (Ring roll rates and per-ring wobble frequencies were
- boosted ~55–90% on 2026-09 so a ring sweeps full node coverage around its band
- faster: `HOST_RING_SPIN`/`CH_RING_SPIN` 0.0022→0.0034, `MINI_RING_SPIN` 0.0034→0.0054,
- host wobble freq 0.30/0.26→0.55/0.48, device wobble freq 0.31/0.27→0.58/0.50 + the
- whole-fabric carousel yaw 0.0005→0.0012.)
+ instead of a drifting cloud. (Ring roll rates and precession rates were boosted
+ ~55–90% on 2026-09 so a ring sweeps full node coverage around its band faster:
+ `HOST_RING_SPIN`/`CH_RING_SPIN` 0.0022→0.0034, `MINI_RING_SPIN` 0.0034→0.0054,
+ `HOST_PREC_A`/`HOST_PREC_B` 0.0052/0.0048, `MINI_PREC_A`/`MINI_PREC_B` 0.0062/0.0052.)
+
+**Every ring precesses CONTINUOUSLY in the same direction (no back-and-forth).**
+Each leaned ring is built by `_mkRing` as two nested groups: an outer **pylon** that
+keeps a FIXED lean axis and rotates steadily every frame (`prec.rate`), and an inner
+**wheel** child (the actual node ring) that rolls in-plane (`prec.roll`). Because the
+pylon turns the leaned wheel around the up-axis at a constant rate, the ring's normal
+traces a full great-circle cone — the field SWEEPS in one direction at every altitude
+(never the old `sin(tie·freq)·amp` wobble that rocked back and forth), so nodes get
+full 3-D coverage while the geometry reads as continuously flowing. Nodes are always
+parented to the inner **wheel** (`ringOf(...)`) so they keep the ring lean; parenting
+to the pylon instead would flatten the tilt to zero. The main host ring subdivides
+into two wheels (A +B) with different rates so they lap each other lazily.
 
 **The MAIN ring subdivides at max nodes too.** The host's `node-*` peers split the
 same way the device satellites do: at ≥ `SAT_SPLIT_AT` (6) they interleave across
 **two co-orbiting rings on the same host cage**, leaning opposite ways (+`HOST_TILT`
-vs −0.82×) with their own continuously precessing altitude (`ring.rotation.x`
-wobbles per ring) and slightly different roll rates — so the entangled wheel sweeps
-two great circles covering the whole globe instead of bunching on one small circle.
+vs −0.82×) with their own same-direction precession (`HOST_PREC_A`/`HOST_PREC_B`) and
+slightly different roll rates — so the two leaning wheels sweep two great circles at
+their own speeds, covering the whole globe instead of bunching on one small circle.
 
 **Satellite rings subdivide and step away from the device.** A phone's `dev-<i>-<k>`
 peers never bunch on one circle: when a device carries ≥ `SAT_SPLIT_AT` satellites,
 they split by interleave across **two co-orbiting bands** — an inner ring (radius 0.84×)
-and an outer ring (radius 1.113×, both 5% further out than before) — each with its own
-lean and a continuously changing precession altitude, while the device sphere itself is
+and an outer ring (radius 1.113×, both 5% further out than before) — each building
+its own leaned wheel with a same-direction precession (`MINI_PREC_A`/`MINI_PREC_B`),
+while the device sphere itself is
 10% smaller (`DEV_R`) and the mini grid cage (now `EFC_CAGE` = 1.33×) still contains
 the whole outer band, so the rings roll *outside* the compacted body with visible air
 between the solid globe and the moving wheels.
@@ -223,6 +235,32 @@ endpoints are taken from the meshes' true world positions and folded back into
 the fabric group via `worldToLocal`, so the coils chase the sweeping, tilting
 ring rather than tearing away from it.
 
+**Resource-management sweep — orphans are dim, never live.** The `/peerctl` status
+is the sole **authority** for what the fabric draws as governed. Any peer that still
+answers `/e91` but is NOT listed in the supervisor authority (a chassis auto-scale
+retired, a device was detached, or a **zombie peer** from an old deployment still
+answers through a stale `adb forward` wearing a foreign name) is marked **orphan**:
+it stays drawn as dim physical topology but sheds every live line (coil edge, descend,
+monitor) the instant `upMap` is rebuilt in `pollQkd` — a node nobody manages must not
+render as an entangled, governed node. The sweep only applies once the authority has
+atoms (a fresh boot never blanks the fabric). The keep-last fabric window now re-solves
+with the fresh `upMap` too, so a peer that just went down sheds immediately instead of
+glowing as a ghost for up to 20 s.
+
+**Slot identity guard stops foreign-name adoption.** The supervisor pairs physical
+phones to device slots and refuses to adopt a peer that answers `/e91` under a
+*different* name: on a mismatch it re-seats the `adb forward`s once, and if the phone
+still self-identifies wrongly it holds the slot DOWN rather than draw an impostor as
+live. Combined with an **coverage test** (`node-tests/cluster-coverage-test.mjs`,
+read-only) that asserts the invariant *every live `/e91` name ∈ authority (pairs ∪
+devices ∪ chassis)*, this is what closed the ghost-line incident: five zombie
+`dev-0-1..4` peers from an old `devPer=5` deployment on V+ 5G were answering retired
+slots through stale forwards; re-seating + the identity guard dropped them, the
+end-anchored `pkill` (` --name dev-3-10$`, NOT a trailing space which never matched an
+end-of-cmdline name) cleared the remaining S6 Lite zombie, the supervisor respawned
+honest peers on the freed slots, and the test now reports **0 orphans, 5/5 device
+slots honest, ALL PASS in ~600 ms**.
+
 **The topology is always visible, even keyless.** `updateEntFabric` unions the
 supervisor's *discovered* peer list (census pairs + enumerated device peers from
 `/peerctl` status) with any links the E91 peers report — so the full 10-node
@@ -288,6 +326,7 @@ node custom-probe.mjs   # custom experiments: save → command centre + picker +
 node player-probe.mjs   # clip player infocard: frames + full run data embedded + SOM script syntax
 node mesh-selfcheck.mjs # defense A/B: system ON vs OFF on 127.0.0.1, real probes
 node qkd-selfcheck.mjs  # 4-node entanglement fabric (E91): pairwise Bell-CHSH + conference key + Eve abort + stealth-Eve leak probe
+node cluster-coverage-test.mjs # LIVE cluster sweep (read-only): supervisor + every peer /e91 — ghost/orphan + identity invariant (needs the supervisor up)
 node agent-pen.mjs      # agentic autonomy pen bench: rogue impostor + control-API abuse + /e91 fuzz + forged-telemetry rejection
 node tls-hybrid.mjs     # PQ-hybrid TLS gate: AEAD+PFS-only floor, TLSv1.2 downgrade rejection, X25519MLKEM768 negotiable
 node sweep-novel.mjs    # novel-vector sweep: 3 unseen attack shapes (jittered flood / overdrive / telegr) — behavior repels more than baseline

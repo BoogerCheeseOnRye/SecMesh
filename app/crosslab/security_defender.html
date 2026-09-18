@@ -1194,13 +1194,21 @@ const MINI_TILT = 0.44;          // each phone's satellite ring lean (± by chas
 const HOST_RING_SPIN = 0.0034;   // carousel speeds (rad/frame) — the rings roll, not jitter
 const CH_RING_SPIN   = 0.0034;
 const MINI_RING_SPIN = 0.0054;
+// CONTINUOUS PRECESSION — each ring keeps a FIXED lean and the WHOLE tilted
+// plane rotates in ONE direction every frame (the plane's normal traces a full
+// great-circle cone). No `sin()` wobble, no back-and-forth — "the ring keeps
+// rotating the same way" at every altitude, so nodes sweep full 3-D coverage
+// while the in-plane carousel roll adds its own steady drift.
+const HOST_PREC_A = 0.0052;      // rad/frame — host ring A precession rate (stable sweep)
+const HOST_PREC_B = 0.0048;      // ring B slightly slower → the two wheels lap each other
+const MINI_PREC_A = 0.0062;      // per-phone satellite rings precess a touch faster
+const MINI_PREC_B = 0.0052;
 // when a ring is at max nodes it would be bunched on one small circle — so split
 // it into TWO co-orbiting rings (inner/outer for satellites, ±lean for the host)
 // with continuously precessing leans for full 3-D coverage.
 const SAT_SPLIT_AT = 6;          // ≤ this many nodes: single ring; above: two rings
 const SAT_RING_IN  = 0.84;       // inner ring radius factor (× sat.r × EF_CLUSTER) — 5% further out
 const SAT_RING_OUT = 1.113;      // outer ring radius factor (1.06 × 1.05)
-const SAT_WOBBLE   = 0.26;       // rings lean continuously (rad, per-ring precession wobble)
 const EFC_CAGE     = 1.33;       // mini grid cage radius factor — enough to hold the outer band (1.113×1.15)
 const isPhysPeer = nm => /^dev-\d+$/.test(nm || '');          // the phone itself — chassis marker on the outer band
 const isDevEnt  = nm => /^dev-\d+-\d+$/.test(nm || '');       // an entangled peer RUNNING on phone dev-<i>
@@ -1222,22 +1230,29 @@ const gridSphere = (r, s, c, o) => new THREE.LineSegments(
    new THREE.LineBasicMaterial({ color: c, transparent: true, opacity: o, depthWrite: false }));
 efGroup.add(gridSphere(EF_RING, 14, 0x39e6b8, 0.05));        // host entangled band cage
 efGroup.add(gridSphere(EF_RING_OUTER, 16, 0xffbf5e, 0.05));  // chassis band cage
-// a ring group that both SPINS and continuously changes its lean: rotation.x
-// = base + sin(tie·freq + ph)·amp (applied in animate), so nested rings sweep
-// without ever piling flat.
-const _mkRing = (base, amp, freq, ph) => {
-  const r = new THREE.Group();
-  r.userData.wob = { base, amp, freq, ph };
-  r.rotation.x = base;
-  return r;
+// a precession ring: the outer GROUP is the pylon that owns the lean AXIS and
+// rotates steadily in ONE direction (`prec.rate` per frame) — the normal of the
+// leaned wheel traces a great-circle cone, so the ring never rocks back, it
+// SWEEPS. The inner `ring` child keeps the fixed lean and rolls in-plane
+// (`prec.roll`). Nodes must be added to the INNER ring (`ringOf`) so the lean
+// applies to them — parenting to the pylon would drop the tilt entirely.
+const ringOf = g => (g && g.userData && g.userData.ring) || g;
+const _mkRing = (lean, prec, roll, ph) => {
+  const p = new THREE.Group();
+  p.userData.prec = { rate: prec, roll };
+  p.userData.ring = new THREE.Group();
+  p.userData.ring.rotation.x = lean;
+  p.add(p.userData.ring);
+  if (ph) p.rotation.y = ph;               // starting phase of the sweep (rad)
+  return p;
 };
 // the host entangled ring rides its OWN carousel: at max nodes it subdivides
 // into TWO co-orbiting rings on the SAME cage — leaning opposite ways (+HOST_TILT
-// vs −0.82×) and wobbling their altitude continuously — so the entangled wheel
-// sweeps two great circles instead of bunching on one, with full coverage of the
-// host cage and no collision with the outer chassis band.
-const efRingHostA = _mkRing(HOST_TILT, SAT_WOBBLE * 0.7, 0.55, Math.random() * Math.PI * 2);
-const efRingHostB = _mkRing(-HOST_TILT * 0.82, SAT_WOBBLE * 0.92, 0.48, Math.random() * Math.PI * 2);
+// vs −0.82×) and PRECESSING continuously in the same sense — so the entangled
+// wheel sweeps two great circles instead of bunching on one, with full coverage
+// of the host cage and no collision with the outer chassis band.
+const efRingHostA = _mkRing(HOST_TILT, HOST_PREC_A, HOST_RING_SPIN, Math.random() * Math.PI * 2);
+const efRingHostB = _mkRing(-HOST_TILT * 0.82, HOST_PREC_B, HOST_RING_SPIN * 0.85, Math.random() * Math.PI * 2);
 efGroup.add(efRingHostA, efRingHostB);
 const efHostRings = [efRingHostA, efRingHostB];
 const efRingHost = efRingHostA;                 // alias for legacy single-ring readers
@@ -1302,7 +1317,7 @@ function makeEntangledPeer(nm){
     new THREE.MeshBasicMaterial({ color: 0x39e6b8, wireframe: true, transparent: true, opacity: 0.22, depthWrite: false }));
   m.userData.def = def;
   m.add(def);
-  efRingHost.add(m);
+  ringOf(efRingHost).add(m);   // the INNER leaned wheel — the pylon's tilt must reach the ring
   efPool.set(nm, m);
 }
 // tiny crawling "surface dash" for a physical device's own globe — mirrors the
@@ -1336,8 +1351,8 @@ function makePhysicalPeer(nm){
   // its own slow precession wobble — at max nodes the phone's entangled peers
   // occupy two co-orbiting bands instead of bunching on one circle.
   const sgn = (_chSerial++ % 2) ? 1 : -1;
-  const ringA = _mkRing(MINI_TILT * sgn, SAT_WOBBLE, 0.58 + 0.09 * (_chSerial % 3), Math.random() * Math.PI * 2);
-  const ringB = _mkRing(-MINI_TILT * 0.8 * sgn, SAT_WOBBLE * 1.15, 0.50 + 0.09 * ((_chSerial + 1) % 3), Math.random() * Math.PI * 2);
+  const ringA = _mkRing(MINI_TILT * sgn, MINI_PREC_A, MINI_RING_SPIN, Math.random() * Math.PI * 2);
+  const ringB = _mkRing(-MINI_TILT * 0.8 * sgn, MINI_PREC_B, MINI_RING_SPIN * 0.8, Math.random() * Math.PI * 2);
   m.add(ringA, ringB);
   m.userData.rings = [ringA, ringB];
   m.userData.ring = ringA;                       // alias so single-ring paths stay sane
@@ -1423,7 +1438,7 @@ function updateEntFabric(st){
       list.forEach((nm, k) => {
         const s = efPool.get(nm); if (!s) return;
         s.userData.sat.ch = ch;                 // re-assert ownership every refresh
-        if (s.parent !== ring) ring.add(s);     // stable home: the chassis ring
+        if (s.parent !== ringOf(ring)) ringOf(ring).add(s);   // the INNER leaned wheel — satellites keep the ring lean
         // settle onto the ring circle (ring-local XZ plane). Radius uses the
         // satellite's stored fraction — never re-randomised, so a refresh (or a
         // phone reboot reassigning dev-<i>) cannot throw the geometry apart.
@@ -1446,7 +1461,7 @@ function updateEntFabric(st){
     const cnt = Math.max(1, list.length);
     list.forEach((nm, k) => {
       const s = efPool.get(nm); if (!s) return;
-      if (s.parent !== ring) ring.add(s);
+      if (s.parent !== ringOf(ring)) ringOf(ring).add(s);   // host peers live on the leaned wheel, not the pylon
       const a = (k / cnt) * Math.PI * 2;
       s.position.set(Math.cos(a) * EF_RING, 0, Math.sin(a) * EF_RING);
     });
@@ -2179,15 +2194,16 @@ function animate(){
   draw();
   efGroup.rotation.y += 0.0012;
   const tie = performance.now() / 1000;
-  // ── the two bands roll against each other on OPPOSING fixed tilts: the main
+  // ── the bands roll against each other on OPPOSING fixed tilts: the main
   // entangled ring (efRingHost, +X) and the physical band (efPhysGroup, −X).
-  // Coverage comes from the steady carousel roll, not random axis-swinging —
-  // every node traces its ring, which itself lies on a static grid sphere, so
-  // the whole field reads as stable geometry in motion.
+  // Every ring PRECESSES CONTINUOUSLY in the SAME sense — the pylon rotates the
+  // leaned wheel around the up-axis at `prec.rate` while `prec.roll` keeps the
+  // in-plane carousel drifting — so the whole field sweeps smoothly in one
+  // direction (never a back-and-forth wobble) and reads as stable geometry.
   for (let hi = 0; hi < efHostRings.length; hi++){
-    const r = efHostRings[hi], wob = r.userData && r.userData.wob;
-    if (wob) r.rotation.x = wob.base + Math.sin(tie * wob.freq + wob.ph) * wob.amp;   // continuously-changing lean
-    r.rotation.y += HOST_RING_SPIN * (hi === 1 ? 0.85 : 1.0);                          // the two wheels roll apart
+    const p = efHostRings[hi], prec = p.userData.prec;
+    p.rotation.y += prec.rate;                          // steady same-sense precession
+    ringOf(p).rotation.y += prec.roll;                  // in-plane roll (separate wheel drift)
   }
   efPhysGroup.rotation.y += CH_RING_SPIN;
   efPhysGroup.rotation.x = CH_TILT;
@@ -2195,9 +2211,9 @@ function animate(){
     const rings = m.userData && m.userData.rings;       // per-phone satellite carousels (2 when at max nodes)
     if (rings){
       for (let i = 0; i < rings.length; i++){
-        const r = rings[i], wob = r.userData && r.userData.wob;
-        if (wob) r.rotation.x = wob.base + Math.sin(tie * wob.freq + wob.ph) * wob.amp;   // continuously-changing lean
-        r.rotation.y += MINI_RING_SPIN * (i === 1 ? 0.8 : 1.0);                            // differing roll
+        const p = rings[i], prec = p.userData.prec;
+        p.rotation.y += prec.rate;                      // same-sense precession, differing rates
+        ringOf(p).rotation.y += prec.roll;
       }
     }
     const dash = m.userData && m.userData.dash;        // each device's own surface crawls
@@ -2796,6 +2812,16 @@ async function pollQkd(){
     for (const d of (supState.devices || [])) if (d && d.name) upMap[d.name] = !!d.up;
     for (const c of (supState.chassis || [])) if (c && c.name) upMap[c.name] = !!c.up;
   }
+  // RESOURCE-MANAGEMENT SWEEP — a peer that STILL answers /e91 but is NOT part
+  // of the supervisor authority (auto-scale retired it, a chassis was detached,
+  // or a stale `adb forward` lets a zombie wear a foreign name) is an UNMANAGED
+  // orphan. It stays drawn as DIM physical topology but sheds every live line
+  // (coil edge, descend, monitor) — the fabric must not show a governed-looking
+  // node that no manager controls. Only applied once the supervisor has atoms,
+  // so a fresh boot never blanks the fabric.
+  const authorityPresent = supState && (((supState.pairs || []).length + (supState.devices || []).length + (supState.chassis || []).length) > 0);
+  if (authorityPresent)
+    for (const nm of liveNames) if (!(nm in upMap)) upMap[nm] = false;   // orphan = dim, no lines
   out.upMap = upMap;
   out.honest = honest.length;
   out.aborts = aborts.length;
@@ -2804,7 +2830,12 @@ async function pollQkd(){
   const keys = honest.filter(l => l.key).map(l => l.key).sort();
   out.conference = keys.length ? await sha256hex(keys.join('|')) : null;
   if (!out.links.length && qkState && qkState.links.length && Date.now() - qkLastGood < 20000){
-    return;   // keep the last-known fabric on the globe through a transient hiccup (e.g. a heavy self-test window) — don't blank it
+    // keep the last-known fabric on the globe through a transient hiccup (e.g. a
+    // heavy self-test window) — but RE-SOLVE it with the fresh upMap so a peer
+    // that just went down (or was retired) sheds its lines immediately instead of
+    // glowing as a ghost for up to 20 s.
+    updateEntFabric(Object.assign({}, qkState, { upMap }));
+    return;
   }
   if (out.links.length) qkLastGood = Date.now();
   qkState = out;

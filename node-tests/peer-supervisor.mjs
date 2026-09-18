@@ -221,19 +221,53 @@ async function killDevice(p){
   if (p.serial){
     // name-scoped pkill — the phone runs many entangle peers (dev-<i>-<k>); the
     // trailing space pins the exact --name so dev-0-1 never matches dev-0-10.
-    await adbRun(['-s', p.serial, 'shell', 'pkill -f " --name ' + p.name + ' "'], 10000);
+    await adbRun(['-s', p.serial, 'shell', 'pkill -f " --name ' + p.name + '$"'], 10000);   // $ anchor: --name is the LAST launch.sh arg (a trailing space never matched)
     for (const loc of [p.ent, p.ctl, p.st]){
       await adbRun(['-s', p.serial, 'forward', '--remove', 'tcp:' + loc], 10000);
     }
   }
   log(p.name, 'device peer stopped via adb', p.serial);
 }
+// A device peer slot is owned by (name, serial, devSta). Stale `adb forward`s from
+// an OLDER devPer deployment let a zombie peer (different name/serial) answer a slot
+// that belongs to another chassis — adopting it by port alone draws a GHOST node
+// with live lines and starves the real chassis's peer. Re-seat = free the conflicting
+// slot whoever owns it, then force the CURRENT serial's forward into place.
+async function reseatDeviceForwards(d){
+  const want = new Map([[d.ent, d.devEnt], [d.ctl, d.devCtl], [d.st, d.devSta]]);
+  let list = '';
+  try{ list = (await adbRun(['forward', '--list'], 10000)).stdout || ''; }catch(e){}
+  for (const ln of list.split('\n')){
+    const m = ln.trim().match(/^(\S+)\s+(tcp:\d+)\s+(\S+)$/);
+    if (!m) continue;
+    const locPort = parseInt(m[2].slice(4), 10);
+    if (want.has(locPort) && (m[1] !== d.serial || m[3] !== 'tcp:' + want.get(locPort)))
+      await adbRun(['-s', m[1], 'forward', '--remove', m[2]], 8000);   // free the slot no matter whose it was
+  }
+  for (const [loc, dev] of want)
+    await adbRun(['-s', d.serial, 'forward', 'tcp:' + loc, 'tcp:' + dev], 8000);
+  await reverseDevice(d).catch(() => {});
+}
 async function adoptOrSpawnDevice(p){
   await reverseDevice(p).catch(() => {});
+  const ident = j => (j && j.node) || '';
   const j = await getJson(p.url);
-  if (j && j.up){
+  if (j && j.up && (!ident(j) || ident(j) === p.name)){
     p.up = true; p.since = Date.now(); p.lastSeen = Date.now(); p.strikes = 0; p.everUp = true;
     log(p.name, 'adopted live device peer', p.serial);
+    return;
+  }
+  if (j && j.up && ident(j) && ident(j) !== p.name){
+    log(p.name, 'SLOT IDENTITY MISMATCH at adopt — /e91 says', ident(j), '· forcing forward to', p.serial, ':' + p.devSta);
+    await reseatDeviceForwards(p);
+    const j2 = await getJson(p.url);
+    if (j2 && j2.up && ident(j2) === p.name){
+      p.up = true; p.since = Date.now(); p.lastSeen = Date.now(); p.strikes = 0; p.everUp = true;
+      log(p.name, 'adopted correct identity after re-seat', p.serial);
+      return;
+    }
+    log(p.name, 'still mismatched after re-seat (' + (ident(j2) || 'no answer') + ') — holding down (no spawn of a wrong-named peer)');
+    p.stopped = true;
     return;
   }
   await spawnDevice(p).catch(e => log(p.name, 'spawnDevice error', e && e.message || e));
@@ -356,6 +390,69 @@ async function getJson(url, ms){
     return await r.json();
   }catch(e){ return null; }
   finally{ clearTimeout(t); }
+}
+// guaranteed yield to the event loop — lets the control HTTP server (same thread)
+// accept + answer between the long serialized adb/fetch chains in tick().
+const lite = () => new Promise(r => setImmediate(r));
+// SNAPSHOT serving: statusJson() is re-computed once per tick (and after every
+// mutating action) into a cached JSON string; the HTTP handler returns the cached
+// byte string, so a request is NEVER blocked behind a mid-tick adb/fetch stall.
+// A loop-lag watermark surfaces event-loop starvation in the ring log instead of
+// as silent empty replies (the "supervisor down" false alarm that fed a respawn
+// loop — a second instance even took 5+ /e91-answering adb forward slots).
+let snapJson = '', snapAt = 0, lastLoop = Date.now();
+function publishSnap(){
+  const lag = Date.now() - lastLoop;
+  if (lag > 4000) ring('warn', 'loop lag ' + lag + 'ms — status served from ' + Math.round(lag / 1000) + 's-stale snapshot');
+  try{
+    snapJson = JSON.stringify(statusJson());
+    snapAt = Date.now();
+  }catch(e){ logWarn('snapshot error', e && e.message || e); }
+}
+// RESOURCE-MANAGEMENT SWEEP — dead peers must DIE. A peer withdrawn from the
+// roster (auto-scale retire, devPer shrink, detach) still leaves TWO ghosts:
+//   (1) the host-side `adb forward` slot (its /e91 keeps answering) → the console
+//       fabric sees an orphan live peer and draws bright lines to a node nobody
+//       governs — this was the "ghost node link lines" (blue + orange).
+//   (2) the phone-side peer process itself (still keyed, still burning battery/ram).
+// `reapStaleForwards` removes every forward slot this supervisor does not own;
+// `reapZombiePeers` name-scoped pkills phone peers `dev-<c>-<k>` with k ≥ devPer.
+let lastReap = 0;
+async function reapStaleForwards(){
+  if (Date.now() - lastReap < 15000) return;
+  lastReap = Date.now();
+  let r;
+  try{ r = await adbRun(['forward', '--list'], 10000); }catch(e){ return; }
+  const owned = new Set();
+  for (const p of PAIRS) for (const q of [p.ent, p.ctl, p.st]) owned.add('tcp:' + q);
+  for (const h of HONEYS) for (const q of [h.ent, h.ctl, h.st]) owned.add('tcp:' + q);
+  for (const d of DPL) for (const q of [d.ent, d.ctl, d.st]) owned.add('tcp:' + q);
+  let n = 0;
+  for (const ln of (r.stdout || '').split('\n')){
+    const m = ln.trim().match(/^(\S+)\s+(tcp:\d+)\s+(\S+)$/);
+    if (!m || owned.has(m[2])) continue;                 // local slot owned → keep
+    await adbRun(['-s', m[1], 'forward', '--remove', m[2]], 10000);
+    n++;
+  }
+  if (n) log('resource sweep — removed', n, 'stale adb forward' + (n === 1 ? '' : 's'), '(orphan slots: retired hosts / withdrawn device peers)');
+}
+let sweptPer = -1;
+let sweepDevicePeers = true;
+async function reapZombiePeers(){
+  if (sweptPer === devPer) return;                       // only when the dev-per size changed
+  sweptPer = devPer;
+  for (const c of DEVICES){
+    if (c.absent) continue;
+    for (let k = devPer; k < 24; k++){
+      const nm = 'dev-' + c.idx + '-' + k;
+      const out = await adbRun(['-s', c.serial, 'shell', 'pgrep -f " --name ' + nm + '$"'], 6000);
+      if (out.stdout && /^\d+\s*$/m.test(String(out.stdout).trim())){
+        await adbRun(['-s', c.serial, 'shell', 'pkill -f " --name ' + nm + '$"'], 6000);   // $ anchor: --name is the last launch.sh arg (ID was found above, so the process is really there)
+        log(c.name, 'swept zombie peer', nm, '(' + c.serial + ')');
+      }
+    }
+  }
+  log('resource sweep — devPer ' + devPer + ' · zombie device-peers reaped');
 }
 
 // ── device stats ────────────────────────────────────────────────────────────
@@ -655,12 +752,27 @@ async function tick(){
         }
       }
     }
+    await lite();
   }
   // ── device (adb phone) peers — health + relaunch over adb ─────────────
   for (const d of DPL){
     if (d.dying) continue;
     const q = QUARANT.get(d.name);
     const dj = await getJson(d.url);
+    if (dj && dj.up && dj.node && dj.node !== d.name){
+      // SLOT-IDENTITY GUARD — a zombie peer wearing a foreign name must NOT count
+      // as this slot's live peer: it would draw a ghost node + live lines in the
+      // console and starve the real chassis. Re-seat the forward once per cell.
+      if (!d.reseatOnce){
+        d.reseatOnce = true;
+        log(d.name, 'slot identity → /e91 says', dj.node, '· re-seating forwards to', d.serial, ':' + d.devSta);
+        await reseatDeviceForwards(d).catch(() => {});
+      }
+      d.up = false; d.upS = 0; d.since = 0;
+      await lite();
+      continue;
+    }
+    d.reseatOnce = false;
     if (dj && dj.up){
       d.strikes = 0; d.lastSeen = now; d.everUp = true;
       if (!d.since) d.since = now;
@@ -689,6 +801,7 @@ async function tick(){
         }
       }
     }
+    await lite();
   }
   pruneQuarantines();
   await syncDevicesRoster().catch(() => {});
@@ -717,6 +830,11 @@ async function tick(){
 
   // honeytoken decoys — prove identity, count snares, hunt honeytoken use
   for (const h of HONEYS) await honeyTick(h);
+
+  // resource-management sweep + fresh status snapshot at tick end
+  if (sweepDevicePeers){ sweepDevicePeers = false; await reapZombiePeers(); }
+  else await reapStaleForwards();
+  publishSnap();
 }
 function progressKick(p, why){
   KICK_HIST[p.name] = (KICK_HIST[p.name] || []).concat([Date.now()]);
@@ -826,21 +944,29 @@ const server = http.createServer((req, res) => {
     return;
   }
 
-  if (action === 'status'){ send(res, 200, statusJson()); return; }
+  if (action === 'status'){
+    let body = snapJson;
+    if (!body || Date.now() - snapAt > 60000){ publishSnap(); body = snapJson; }
+    res.writeHead(200, { 'Content-Type': 'application/json; charset=utf-8' });
+    res.end(body);
+    return;
+  }
   if (action === 'auto'){
     const on = u.searchParams.get('on');
-    if (on === '0' || on === '1'){ autoOn = on === '1'; log('autonomous scale', autoOn ? 'ON' : 'OFF'); }
+    if (on === '0' || on === '1'){ autoOn = on === '1'; log('autonomous scale', autoOn ? 'ON' : 'OFF'); publishSnap(); }
     send(res, 200, { ok:true, auto: autoOn });
     return;
   }
   if (action === 'log'){
     const n = Math.max(1, Math.min(200, parseInt(u.searchParams.get('n'), 10) || 40));
+    const lag = Date.now() - lastLoop;
+    if (lag > 4000) ring('warn', 'loop lag ' + lag + 'ms — control API still answering (snapshot)');
     send(res, 200, { lines: supRing.slice(-n) });
     return;
   }
   if (action === 'wd'){
     const on = u.searchParams.get('on');
-    if (on === '0' || on === '1'){ wdOn = on === '1'; log('watchdog', wdOn ? 'ON' : 'OFF'); }
+    if (on === '0' || on === '1'){ wdOn = on === '1'; log('watchdog', wdOn ? 'ON' : 'OFF'); publishSnap(); }
     send(res, 200, { ok:true, watchdog: wdOn });
     return;
   }
@@ -851,24 +977,24 @@ const server = http.createServer((req, res) => {
   if (action === 'start'){
     for (const x of pick){ if (!x.up && !x.pid){ killPeer(x); spawnPeer(x); } else log(x.name, 'start: already up'); }
     for (const x of pickDevs){ if (!x.up){ killDevice(x).catch(() => {}); spawnDevice(x).catch(() => {}); } else log(x.name, 'start: already up'); }
-    log('start', nm); send(res, 200, { ok:true });
+    log('start', nm); publishSnap(); send(res, 200, { ok:true });
     return;
   }
   if (action === 'stop'){
     for (const x of pick){ x.stopped = true; killPeer(x); }
     for (const x of pickDevs){ x.stopped = true; killDevice(x).catch(() => {}); }
-    log('stop', nm, '(manual — watchdog will hold); use ⚡ start to revive'); send(res, 200, { ok:true });
+    log('stop', nm, '(manual — watchdog will hold); use ⚡ start to revive'); publishSnap(); send(res, 200, { ok:true });
     return;
   }
   if (action === 'restart'){
     for (const x of pick){ unquarantine(x); killPeer(x); spawnPeer(x); }
     for (const x of pickDevs){ unquarantine(x); killDevice(x).catch(() => {}); spawnDevice(x).catch(() => {}); }
-    log('reboot', nm); send(res, 200, { ok:true });
+    log('reboot', nm); publishSnap(); send(res, 200, { ok:true });
     return;
   }
   if (action === 'seed'){
     const ok = seedRound(u.searchParams.get('rounds'));
-    send(res, ok ? 200 : 409, { ok, seeding: true });
+    publishSnap(); send(res, ok ? 200 : 409, { ok, seeding: true });
     return;
   }
   if (action === 'recover'){
@@ -878,8 +1004,7 @@ const server = http.createServer((req, res) => {
     for (const x of pickDevs) killDevice(x).catch(() => {});
     setTimeout(() => { for (const x of pick) spawnPeer(x); for (const x of pickDevs) spawnDevice(x).catch(() => {}); }, 400);
     setTimeout(() => seedRound(u.searchParams.get('rounds') || DEFAULT_ROUNDS), 1600);
-    log('recover — stop all → start all → seed');
-    send(res, 200, { ok:true, recovering:true });
+    log('recover — stop all → start all → seed'); publishSnap(); send(res, 200, { ok:true, recovering:true });
     return;
   }
   if (action === 'deploy'){
@@ -889,10 +1014,11 @@ const server = http.createServer((req, res) => {
     log('deploy →', want, 'peers', '· user floor set to', want);
     for (const p of PAIRS){ unquarantine(p); if (!p.up && !p.pid) spawnPeer(p); }
     const dps = configureDevicePeers(u.searchParams.get('devPer'));
+    sweepDevicePeers = true;
     planDevSync(300);
     if (u.searchParams.get('seed') !== '0')
       planSeed(u.searchParams.get('rounds') || DEFAULT_ROUNDS, 2500);
-    send(res, 200, { ok:true, nodes: want, devicePeers: dps, devPer, devHosts: DEVICES.length, seeding, autoCap: lastStats ? autoCap(lastStats) : null });
+    publishSnap(); send(res, 200, { ok:true, nodes: want, devicePeers: dps, devPer, devHosts: DEVICES.length, seeding, autoCap: lastStats ? autoCap(lastStats) : null });
     return;
   }
   send(res, 400, { ok:false, error: 'unknown action ' + action });
@@ -909,6 +1035,12 @@ const server = http.createServer((req, res) => {
   }
   setInterval(tick, TICK_MS);
   server.listen(CTL, '127.0.0.1', () => log('control API on 127.0.0.1:' + CTL));
+  setInterval(() => { lastLoop = Date.now(); }, 1000);      // loop-lag watermark for the snap/ring diagnostics
+  setTimeout(async () => {
+    try{ await reapStaleForwards(); }catch(e){}
+    try{ await reapZombiePeers(); }catch(e){}
+  }, 3000);
+  publishSnap();
   log('watchdog tier-1 up · peers', PAIRS.map(p => p.name + ':' + p.st).join(' '), '· watchdog', wdOn ? 'ON' : 'OFF',
       '· auto-scale', autoOn ? 'ON' : 'OFF', '· logfile', LOGFILE,
       '· signed control', SUP_SECRET ? 'ON' : 'OFF (open)',
