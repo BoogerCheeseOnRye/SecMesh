@@ -660,7 +660,8 @@
     <input id="qkBenchRounds" value="4000" inputmode="numeric" spellcheck="false" aria-label="rounds per link, fabric bench">
     <button class="benchBtn" id="qkBenchGo" title="re-run every link of the fabric at this round count">⟳ Bench</button>
   </div>
-  <div class="benchBit">device <b id="qkHw">…</b> → suggest ≤ <b id="qkHwRec">—</b> peers · each peer = 3 ports (entangle · control · status)</div>
+  <div class="benchBit">device <b id="qkHw">…</b> → suggest ≤ <b id="qkHwRec">—</b> peers · <b id="qkHwRounds">—</b> rounds/link · each peer = 3 ports (entangle · control · status)</div>
+  <div class="benchBit" id="qkProfRow" style="display:none">preset <b id="qkProfile">—</b> · <span class="hlink" id="qkProfReload" title="re-pull the active preset from the tray config drawer and re-apply its guards/strategy here">re-apply</span></div>
 
   <div id="efTele" class="efTele">
     <div id="efSum" class="efSum"></div>
@@ -1616,9 +1617,9 @@ function updateHostDescend(){
   efDescMesh.geometry.attributes.position.needsUpdate = true;
 }
 // ── device monitor lines: satellites descend to the nearest point of THEIR
-// device's surface dash, and each device chassis descends to the nearest node
-// crawling the host globe — so the on-device rings visibly rotate what they
-// watch as they co-orbit (a monitor target swaps whenever a nearer one rolls by).
+// device's surface dash, and each device chassis watches the nearest LIVE
+// physical device's surface — the orange lines terminate on real phones, never
+// on the abstract host-globe lattice (those read as ghost nodes in open space).
 const MAX_EF_MON = 160;                               // 80 monitor lines (42 in the 4-phone 40-sat deployment)
 const efMonGeo = new THREE.BufferGeometry();
 efMonGeo.setAttribute('position', new THREE.BufferAttribute(new Float32Array(MAX_EF_MON * 3), 3));
@@ -1642,36 +1643,46 @@ function updateMonitors(){
     pv += 2;
     return true;
   };
-  // devices → nearest host surface node (they monitor the network, and their
-  // monitored node rolls along the globe as the band orbits).
-  for (const m of efPool.values()){
-    if (!m || !m.visible || !isPhysPeer(m.userData.name) || m.userData.dn) continue;
+  // devices → nearest point on the nearest OTHER live physical device's surface
+  // (the fabric's real interconnects; a chassis watches its closest neighbour,
+  // so the watched spot rolls along the phone as the band orbits). Shared dash
+  // cache also feeds the satellite descend lines below.
+  const physList = [...efPool.values()].filter(m => m && m.visible && isPhysPeer(m.userData.name) && !m.userData.dn);
+  const dashCache = new Map();                        // chassis mesh → world-space dash points (this frame)
+  const dashPts = ch => {
+    const hit = dashCache.get(ch);
+    if (hit) return hit;
+    let pts = [];
+    if (ch && ch.userData && ch.userData.dash){
+      const g = ch.userData.dash.geometry.attributes.position;
+      ch.updateWorldMatrix(true, false);
+      for (let i = 0; i < g.count; i++){ _efM2.set(g.array[i*3], g.array[i*3+1], g.array[i*3+2]); ch.localToWorld(_efM2); pts.push(_efM2.clone()); }
+    }
+    dashCache.set(ch, pts);
+    return pts;
+  };
+  for (const m of physList){
     m.getWorldPosition(_efM1);
     const [hx, hz] = toEf(_efM1.x, _efM1.z), hy = _efM1.y;
     let bx = hx, by = hy, bz = hz, bestD2 = Infinity;
-    for (let q = 0; q < N; q++){
-      const [lx, lz] = toEf(sim.nodePos[q*3], sim.nodePos[q*3+2]), ly = sim.nodePos[q*3+1];
-      const dx = lx - hx, dy = ly - hy, dz = lz - hz, d2 = dx*dx + dy*dy + dz*dz;
-      if (d2 < bestD2){ bestD2 = d2; bx = lx; by = ly; bz = lz; }
+    for (const other of physList){
+      if (other === m) continue;
+      for (const p of dashPts(other)){
+        const [lx, lz] = toEf(p.x, p.z), ly = p.y;
+        const dx = lx - hx, dy = ly - hy, dz = lz - hz, d2 = dx*dx + dy*dy + dz*dz;
+        if (d2 < bestD2){ bestD2 = d2; bx = lx; by = ly; bz = lz; }
+      }
     }
-    if (bestD2 === Infinity) continue;
-    _efTrack.push([bx, by, bz]);                          // glow the chassis' watched surface node too
+    if (bestD2 === Infinity) continue;          // solo device — no other chassis to watch
+    _efTrack.push([bx, by, bz]);                // glow the watched surface point so it never reads as a ghost
     if (!push(hx, hy, hz, bx, by, bz, MON_CH_COL)) return;
   }
   // satellites → nearest point of their own device's surface dash.
-  const dashCache = new Map();                        // chassis name → world-space dash points (this frame)
   for (const m of efPool.values()){
     if (!m || !m.visible || !isDevEnt(m.userData.name) || !m.userData.sat || m.userData.dn) continue;
     const ch = efPool.get(m.userData.sat.ch);
     if (!ch || !ch.userData || !ch.userData.dash) continue;
-    let pts = dashCache.get(ch.userData.name);
-    if (!pts){
-      pts = [];
-      const g = ch.userData.dash.geometry.attributes.position;
-      ch.updateWorldMatrix(true, false);
-      for (let i = 0; i < g.count; i++){ _efM2.set(g.array[i*3], g.array[i*3+1], g.array[i*3+2]); ch.localToWorld(_efM2); pts.push(_efM2.clone()); }
-      dashCache.set(ch.userData.name, pts);
-    }
+    const pts = dashPts(ch);
     m.getWorldPosition(_efM1);
     const [hx, hz] = toEf(_efM1.x, _efM1.z), hy = _efM1.y;
     let bx = hx, by = hy, bz = hz, bestD2 = Infinity;
@@ -3213,21 +3224,29 @@ function hwScan(){
   const cores = navigator.hardwareConcurrency || 4;
   const memV = navigator.deviceMemory;                       // GB — Chromium only
   const rec = Math.max(1, Math.min(12, Math.round(cores / 2) || 1));
-  return { cores, mem: (memV ? '~' + memV + 'GB' : 'mem n/a'), rec };
+  // bench-length suggestion for THIS device: the fabric re-runs every link at
+  // this many rounds, so a small box gets a real S̄ in reasonable time and a big
+  // box can buy more bits (≈ n/9 per link → longer runs = more key material).
+  let rounds = cores >= 12 ? 16000 : cores >= 8 ? 12000 : cores >= 4 ? 8000 : 4000;
+  if (memV && memV <= 2) rounds = Math.max(4000, rounds >> 1);   // RAM-starved → shorter benches
+  return { cores, mem: (memV ? '~' + memV + 'GB' : 'mem n/a'), rec, rounds };
 }
 function paintHw(){
   const s = hwScan();
   $('qkHw').textContent = s.cores + ' core' + (s.cores === 1 ? '' : 's') + ' · ' + s.mem;
   $('qkHwRec').textContent = s.rec;
+  $('qkHwRounds').textContent = s.rounds;
 }
 paintHw();
 $('qkScanBtn').addEventListener('click', () => {
   paintHw();
-  const rec = hwScan().rec;
-  $('qkNodes').value = rec;
+  const s = hwScan();
+  $('qkNodes').value = s.rec;
   $('qkNodes').style.borderColor = 'var(--amber)';
-  setTimeout(() => { $('qkNodes').style.borderColor = ''; }, 700);
-  logEv('', '⚙ hw scan → ' + $('qkHw').textContent + ' · suggest ≤ ' + rec + ' peers (≈ ½ core per peer) → count field set to ' + rec + ' — press ⟑ Launch');
+  $('qkBenchRounds').value = s.rounds;            // lockstep field (syncBenchRounds mirrors it to qkRounds)
+  $('qkBenchRounds').style.borderColor = 'var(--amber)';
+  setTimeout(() => { $('qkNodes').style.borderColor = ''; $('qkBenchRounds').style.borderColor = ''; }, 700);
+  logEv('', '⚙ hw scan → ' + $('qkHw').textContent + ' · suggest ≤ ' + s.rec + ' peers (≈ ½ core per peer) · ' + s.rounds + ' rounds/link — count + bench fields set · press ⟑ Launch');
 });
 function quickLaunch(n){
   n = Math.max(1, Math.min(24, Math.floor(n) || 2));
@@ -3239,6 +3258,33 @@ function quickLaunch(n){
 $('qkDepMin').addEventListener('click', () => { paintHw(); quickLaunch(2); });
 $('qkDepMed').addEventListener('click', () => { paintHw(); quickLaunch(hwScan().rec); });
 $('qkDepMax').addEventListener('click', () => { paintHw(); quickLaunch(24); });
+// ── fabric preset (tray "Config…" drawer) → console guards/strategy/badge ───
+// serve.js owns the chosen profile (persisted, applied to the supervisor on
+// spawn). The console pulls it at boot so the deck shows the badge and the
+// defense layer (guards / firewall / auto-strategy) matches the drawer — the
+// fabric side (peer count + bench rounds) lives in the supervisor itself.
+let profState = null;
+async function applyFabricConfig(){
+  let j = null;
+  try{
+    const c = new AbortController(); const to = setTimeout(() => c.abort(), 5000);
+    const r = await fetch('/config', { signal: c.signal }); clearTimeout(to);
+    if (r.ok) j = await r.json();
+  }catch(e){}
+  const cur = (j && j.current) || null;
+  const row = $('qkProfRow');
+  if (!cur || !cur.profile){ if (row) row.style.display = 'none'; return; }
+  profState = cur;
+  if (row) row.style.display = '';
+  $('qkProfile').textContent = cur.profile + ' · ' + cur.nodes + ' peers · ' + cur.rounds + ' r/link · ' + cur.guards + ' guards · ' + cur.defStrat;
+  CFG.defenderCount = Math.max(1, Math.min(80, +cur.guards || CFG.defenderCount));
+  CFG.firewall = Math.max(0.1, Math.min(1, +cur.fire || CFG.firewall));
+  if (sim.auto && CFG.autoDefense && cur.defStrat){ sim.auto.strategy = cur.defStrat; sim.auto.prepped = false; }
+  refreshDeck();
+  logEv('', 'fabric preset → ' + cur.profile + ' · ' + cur.guards + ' guards · ' + cur.defStrat + ' (tray Config drawer)');
+}
+if ($('qkProfReload')) $('qkProfReload').addEventListener('click', applyFabricConfig);
+applyFabricConfig();
 $('qkDeploy').addEventListener('click', async () => {
   const n = Math.max(1, Math.min(24, Math.floor(+$('qkNodes').value) || 2));
   $('qkNodes').value = n;

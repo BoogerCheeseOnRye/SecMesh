@@ -1,6 +1,7 @@
 const http = require('http');
 const fs = require('fs');
 const path = require('path');
+const os = require('os');
 const { spawn } = require('child_process');
 
 const ROOT = process.env.SERVE_ROOT ? path.resolve(process.env.SERVE_ROOT) : __dirname;
@@ -65,12 +66,17 @@ function spawnSup(){
     try{ fs.mkdirSync(path.dirname(logf), { recursive: true }); }catch(e){}
     const out = fs.openSync(logf, 'a');
     const args = [SUP_SCRIPT];
-    // optional explicit fabric: SUP_PEERS='' = bare supervisor (no peers yet) — the
-    // console's ⟑ Deploy then chooses the count. Unset = supervisor defaults (5 census peers).
-    if (process.env.SUP_PEERS !== undefined) args.push('--peers', process.env.SUP_PEERS);
+    const spec = fabricSpec();
+    // explicit fabric override: SUP_PEERS env wins only when no profile is set
+    // (a user-chosen tray profile is the authoritative peer count).
+    if (process.env.SUP_PEERS !== undefined && !FABRIC_CFG.profile) args.push('--peers', process.env.SUP_PEERS);
+    else args.push('--peers', peerArgs(spec));
     // attach every physically connected adb phone to the fabric (2200x family);
     // harmless when no devices are attached — the supervisor just scans an empty list.
     if (process.env.SUP_ADB !== '0') args.push('--devices', 'all');
+    if (FABRIC_CFG.profile || process.env.SUP_PEERS === undefined)
+      args.push('--dev-per', String(FABRIC_CFG.devPer != null ? FABRIC_CFG.devPer : '1'));
+    args.push('--seed-rounds', String(spec.rounds), '--auto', String(spec.auto), '--rss-hard', String(spec.rssHard));
     const ch = spawn(process.execPath, args, { cwd: REPO, stdio: ['ignore', out, out], detached: true });
     ch.unref();
     console.log('peer-supervisor: spawning pid', ch.pid, '→ log', logf);
@@ -155,6 +161,61 @@ async function ensureSup(){
   return { ok: false, error: 'peer-supervisor did not come up on ' + SUPER };
 }
 
+// ── fabric config presets (tray "Config…" drawer / streamdeck "profile") ────
+// Low / Medium / High scale the entangled-node count, bench rounds, guard count
+// and the supervisor management strategy. The chosen profile is persisted to
+// ~/.config/secmesh/config.json so it survives serve.js restarts, and is baked
+// into every supervisor spawn (`--peers`, `--seed-rounds`, `--auto`, `--rss-hard`).
+// The console also reads /config to apply guards + defense strategy + the bench
+// default. `nodes` only grows where it genuinely improves the fabric: the
+// supervisor's autoscaler re-clamps the peer count to real RAM anyway.
+const FABRIC_PRESETS = {
+  low:    { profile: 'low',    label: 'Low — conservation', nodes: 2, rounds: 4000,  guards: 2, defStrat: 'perimeter', fire: 0.7, auto: 0, rssHard: 300 },
+  medium: { profile: 'medium', label: 'Medium — balanced',  nodes: 5, rounds: 8000,  guards: 4, defStrat: 'sweep',      fire: 0.7, auto: 1, rssHard: 380 },
+  high:   { profile: 'high',   label: 'High — firepower',   nodes: 9, rounds: 16000, guards: 6, defStrat: 'pursuit',    fire: 0.7, auto: 1, rssHard: 480 },
+};
+const CFG_FILE = path.join(os.homedir(), '.config', 'secmesh', 'config.json');
+let FABRIC_CFG = { profile: null };
+function fabricSpec(over){
+  over = over || FABRIC_CFG || {};
+  const p = FABRIC_PRESETS[over.profile] || null;
+  const base = p || { profile: 'default', label: 'Default (unset)', nodes: 5, rounds: 8000, guards: 6, defStrat: 'sweep', fire: 0.7, auto: 1, rssHard: 380 };
+  return {
+    profile: over.profile || base.profile,
+    label: base.label,
+    nodes: over.nodes != null ? Math.max(1, Math.min(24, +over.nodes)) : base.nodes,
+    rounds: over.rounds != null ? Math.max(400, Math.min(100000, +over.rounds)) : base.rounds,
+    guards: over.guards != null ? Math.max(1, Math.min(80, +over.guards)) : base.guards,
+    defStrat: over.defStrat || base.defStrat,
+    fire: over.fire != null ? +over.fire : base.fire,
+    auto: over.auto != null ? (+over.auto ? 1 : 0) : base.auto,
+    rssHard: over.rssHard != null ? Math.max(128, +over.rssHard) : base.rssHard,
+  };
+}
+function loadFabricConfig(){
+  try{ FABRIC_CFG = JSON.parse(fs.readFileSync(CFG_FILE, 'utf8')); }catch(e){ FABRIC_CFG = { profile: null }; }
+  const s = fabricSpec();
+  console.log('fabric config:', s.profile, '·', s.nodes, 'peers ·', s.rounds, 'rounds ·', s.guards, 'guards ·', s.defStrat);
+  return s;
+}
+function saveFabricConfig(profile){
+  if (!FABRIC_PRESETS[profile]) return null;
+  FABRIC_CFG = Object.assign({}, FABRIC_PRESETS[profile], { profile });
+  const s = fabricSpec();
+  const persist = { profile: s.profile, nodes: s.nodes, rounds: s.rounds, guards: s.guards, defStrat: s.defStrat, fire: s.fire, auto: s.auto, rssHard: s.rssHard };
+  try{
+    fs.mkdirSync(path.dirname(CFG_FILE), { recursive: true });
+    fs.writeFileSync(CFG_FILE, JSON.stringify(persist, null, 2));
+  }catch(e){}
+  return s;
+}
+function peerArgs(spec){
+  const list = [];
+  for (let k = 0; k < spec.nodes; k++) list.push('node-' + k + '=' + (20001 + 3 * k) + ':' + (20002 + 3 * k) + ':' + (20003 + 3 * k));
+  return list.join(';');
+}
+const SECMESH_CFG_BOOT = loadFabricConfig();
+
 
 const MIME = {
     '.html': 'text/html; charset=utf-8',
@@ -184,6 +245,33 @@ const MIME = {
     try { urlPath = decodeURIComponent(new URL(req.url, 'http://x').pathname); }
     catch { urlPath = req.url; }
     if (urlPath === '/') urlPath = '/index.html';
+
+    if (urlPath === '/config'){
+      if (req.method === 'POST' || req.method === 'PUT'){
+        let profile = '';
+        try { profile = (new URL(req.url, 'http://x').searchParams.get('profile') || '').toLowerCase(); } catch(e){}
+        const spec = saveFabricConfig(profile);
+        if (!spec){
+          res.writeHead(400, { 'Content-Type': 'application/json; charset=utf-8' });
+          res.end(JSON.stringify({ ok: false, error: 'unknown profile "' + profile + '" — use low | medium | high' }));
+          return;
+        }
+        console.log('fabric config →', spec.profile, '·', spec.nodes, 'peers ·', spec.rounds, 'rounds ·', spec.guards, 'guards ·', spec.defStrat);
+        secStopped = false;                          // a chosen profile means the fabric should be up
+        rebootSecmesh().then(s => {
+          res.writeHead(s && s.ok ? 200 : 502, { 'Content-Type': 'application/json; charset=utf-8' });
+          res.end(JSON.stringify(Object.assign({ ok: !!(s && s.ok), applied: spec }, s || {})));
+        });
+        return;
+      }
+      res.writeHead(200, { 'Content-Type': 'application/json; charset=utf-8' });
+      res.end(JSON.stringify({
+        ok: true,
+        current: fabricSpec(),
+        presets: Object.keys(FABRIC_PRESETS).map(k => { const p = FABRIC_PRESETS[k]; return { profile: p.profile, label: p.label, nodes: p.nodes, rounds: p.rounds, guards: p.guards, defStrat: p.defStrat, auto: p.auto }; }),
+      }));
+      return;
+    }
 
     if (urlPath === '/peerctl'){
       let action = 'status';

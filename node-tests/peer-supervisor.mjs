@@ -62,6 +62,7 @@ const SEED_QUIET = 30000;    // no autoscale decisions right after a seed
 const BAT_PARK = parseInt(arg('--battery-park', '20'), 10);      // park a phone's peers below this % …
 const BAT_RESUME = parseInt(arg('--battery-resume', '35'), 10);  // … and only revive peers once it climbs past this
 const BAT_TTL = 30000;       // per-phone battery cache TTL (dumpsys battery poll, not every tick)
+const BOOT_AT = Date.now();  // supervisor process start → status `upS` (fabric/supervisor uptime)
 
 // ── mesh model ──────────────────────────────────────────────────────────────
 function parsePeers(def){
@@ -984,11 +985,16 @@ function statusJson(){
       const ups = DPL.filter(dn => dn.idx === c.idx && dn.up);
       const b = BAT_CACHE.get(c.serial);
       return { name: c.name, idx: c.idx, serial: c.serial, model: c.model,
-        up: ups.length > 0, phones: ups.length, parked: DPL.some(dn => dn.idx === c.idx && dn.parked),
+        up: ups.length > 0, phones: ups.length,
+        upS: ups.reduce((m, dn) => Math.max(m, dn.upS || 0), 0),   // longest-lived peer on this chassis
+        parked: DPL.some(dn => dn.idx === c.idx && dn.parked),
         battery: b ? { level: b.level, charging: b.charging } : null,
         held: DPL.some(dn => dn.idx === c.idx && dn.stopped), absent: !!c.absent };
     }),
     devPer, devHosts: DEVICES.length,
+    rounds: DEFAULT_ROUNDS, rssHard: RSS_HARD,
+    batteryPark: BAT_PARK, batteryResume: BAT_RESUME,
+    upS: Math.round((Date.now() - BOOT_AT) / 1000),
   };
 }
 function send(res, code, obj){
