@@ -10,6 +10,11 @@
 //   · RSS leak guard   — any peer over --rss-hard MB is rebooted; repeat ⇒ quarantine
 //   · quarantine       — thrashing/leaking peers rest, watchdog stops fighting them
 //   · autonomous scale — grows/shrinks the mesh to fit device headroom (hysteresis)
+//   · battery-aware     — per-phone battery sampled via `dumpsys battery` (30 s cache);
+//                         a chassis that is critically low AND discharging gets its
+//                         peers PARKED (killed, not respawned) until it climbs back
+//                         above --battery-resume — the mesh must never be the thing
+//                         that drains a phone to empty (resource/battery throttle)
 //   · keyed fabric     — if every peer answers but the mesh shows 0 links 60+s,
 //                        it re-seeds so the globe never sits silent
 //   · rotating log     — app/logs/supervisor.log (1 MB cap, one backup) + status tail
@@ -54,6 +59,9 @@ const TICK_MS = 3000;
 const GROW_HOLD = 3;         // ticks of good headroom before +1 peer
 const SHRINK_HOLD = 12;      // ticks of pressure before retiring (hysteresis)
 const SEED_QUIET = 30000;    // no autoscale decisions right after a seed
+const BAT_PARK = parseInt(arg('--battery-park', '20'), 10);      // park a phone's peers below this % …
+const BAT_RESUME = parseInt(arg('--battery-resume', '35'), 10);  // … and only revive peers once it climbs past this
+const BAT_TTL = 30000;       // per-phone battery cache TTL (dumpsys battery poll, not every tick)
 
 // ── mesh model ──────────────────────────────────────────────────────────────
 function parsePeers(def){
@@ -126,6 +134,39 @@ async function adbDevicesA(){
     out.push({ serial: m[1], model: model ? model[1] : '?' });
   }
   return out;
+}
+// ── battery-aware resource throttle ──────────────────────────────────────────
+// The fabric must never be the thing that drains a phone to empty. Each chassis's
+// battery is sampled (cached 30 s) and a phone that is critically low AND
+// discharging gets its device peers PARKED — killed and not respawned — until it
+// climbs back above --battery-resume (or starts charging). Host pairs are already
+// budgeted by RAM in autoScale; this clamp extends the same "don't be the load
+// that hurts the hardware" to the phones' batteries.
+const BAT_CACHE = new Map();   // serial → { level, charging, at }
+function batteryParse(s){
+  const st = String(s || '');
+  const lv = /^\s*level:\s*(\d+)/m.exec(st);
+  return {
+    level: lv ? parseInt(lv[1], 10) : -1,
+    charging: /AC powered:\s*true/m.test(st) || /USB powered:\s*true/m.test(st) || /status:\s*[25]/m.test(st)
+  };
+}
+async function batteryOf(c){   // c = chassis { serial, name, ... } — cache-backed
+  const now = Date.now();
+  const hit = BAT_CACHE.get(c.serial);
+  if (hit && now - hit.at < BAT_TTL) return hit;
+  const r = await adbRun(['-s', c.serial, 'shell', 'dumpsys battery'], 8000);
+  const b = Object.assign(batteryParse(r.stdout), { at: now });
+  BAT_CACHE.set(c.serial, b);
+  return b;
+}
+function chassisOf(peer){ return DEVICES.find(c => c.idx === peer.idx); }
+function deviceParked(c){    // parked = critically low AND discharging (cached read only — no adb here)
+  if (!c) return false;
+  const b = BAT_CACHE.get(c.serial);
+  if (!b || b.level < 0) return false;
+  if (b.charging) return false;
+  return b.level <= BAT_PARK;
 }
 async function scanRoster(){
   try{ return await adbDevicesA(); }catch(e){ return []; }
@@ -314,7 +355,7 @@ function planDevSync(delay){
     devSyncing = false;
     const fresh = [];
     for (const p of DPL){
-      if (!p.up && !p.dying && !p.stopped) fresh.push(p);
+      if (!p.up && !p.dying && !p.stopped && !deviceParked(chassisOf(p))) fresh.push(p);
     }
     for (const p of fresh){
       try{ await adoptOrSpawnDevice(p); }catch(e){ log(p.name, 'dev sync error', e.message); }
@@ -327,7 +368,7 @@ function planDevSync(delay){
 function initFields(p){
   p.pid = null; p.child = null; p.up = false; p.upS = 0;
   p.restarts = 0; p.strikes = 0; p.rssWarn = 0; p.lastSeen = 0; p.dying = false;
-  p.grace = 0; p.since = 0; p.lastLog = ''; p.stopped = false; p.everUp = false;
+  p.grace = 0; p.since = 0; p.lastLog = ''; p.stopped = false; p.everUp = false; p.parked = false;
 }
 function initPairs(def){ const list = parsePeers(def); for (const p of list) initFields(p); return list; }
 function ensureNodes(n){
@@ -755,8 +796,27 @@ async function tick(){
     await lite();
   }
   // ── device (adb phone) peers — health + relaunch over adb ─────────────
+  // battery-aware throttle: refresh the per-chassis battery cache (30 s TTL) once
+  // per tick, then park/unpark any peer whose phone is critically low + draining.
+  for (const c of DEVICES) if (!c.absent) await batteryOf(c).catch(() => {});
   for (const d of DPL){
     if (d.dying) continue;
+    const parked = deviceParked(chassisOf(d));
+    if (parked && !d.parked){
+      d.parked = true; d.stopped = true;
+      log(d.name, 'BATTERY — chassis at ' + BAT_CACHE.get(d.serial).level + '% and discharging → parking peer (not respawned until it charges)');
+      await killDevice(d).catch(() => {});
+      await lite();
+      continue;
+    }
+    if (!parked && d.parked){
+      d.parked = false; d.stopped = false;
+      log(d.name, 'BATTERY — chassis charged to ' + BAT_CACHE.get(d.serial).level + '% → un-parking peer');
+      d.grace = Date.now() + 8000;
+      await spawnDevice(d).catch(() => {});
+      await lite();
+      continue;
+    }
     const q = QUARANT.get(d.name);
     const dj = await getJson(d.url);
     if (dj && dj.up && dj.node && dj.node !== d.name){
@@ -915,15 +975,17 @@ function statusJson(){
       name: d.name, serial: d.serial, model: d.model, ent: d.ent, ctl: d.ctl, status: d.st,
       devEnt: d.devEnt, devCtl: d.devCtl, devSta: d.devSta,
       up: d.up, upS: d.upS, restarts: d.restarts, strikes: d.strikes,
-      stopped: d.stopped, quarantined: QUARANT.has(d.name), lastSeen: d.lastSeen })),
+      stopped: d.stopped, parked: !!d.parked, quarantined: QUARANT.has(d.name), lastSeen: d.lastSeen })),
     // BARE chassis markers — every adb phone, INCLUDING backend-less ones (a
     // plain user phone with no launch.sh). `devices` above only lists instances
     // that ever spawned; the console draws the chassis ring from this list so a
     // just-plugged phone appears (offline/dim) even before any backend comes up.
     chassis: DEVICES.map(c => {
       const ups = DPL.filter(dn => dn.idx === c.idx && dn.up);
+      const b = BAT_CACHE.get(c.serial);
       return { name: c.name, idx: c.idx, serial: c.serial, model: c.model,
-        up: ups.length > 0, phones: ups.length,
+        up: ups.length > 0, phones: ups.length, parked: DPL.some(dn => dn.idx === c.idx && dn.parked),
+        battery: b ? { level: b.level, charging: b.charging } : null,
         held: DPL.some(dn => dn.idx === c.idx && dn.stopped), absent: !!c.absent };
     }),
     devPer, devHosts: DEVICES.length,

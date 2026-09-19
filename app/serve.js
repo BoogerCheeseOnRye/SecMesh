@@ -81,14 +81,77 @@ function spawnSup(){
   return true;
 }
 
+// ── secmesh lifecycle control (tray / console "Reboot" + "Turn Off") ─────────
+// Reboot = everything down, then a fresh self-healing supervisor (which re-adopts
+// hosts + phones, re-seats forwards and re-runs the zombie sweep). Turn Off = the
+// whole fabric down but serve.js + the tray STAY UP so the user can Start again.
+let secStopped = false;             // tray "Turn Off" latch — control calls won't lazy-revive
+function supPids(){
+  try{
+    return String(spawnSync('pgrep', ['-f', 'peer-supervisor.mjs'], { encoding: 'utf8', timeout: 5000 }).stdout || '')
+      .trim().split('\n').map(x => parseInt(x, 10)).filter(n => n > 0);
+  }catch(e){ return []; }
+}
+async function killSup(waitMs){
+  for (const pid of supPids()){ try{ process.kill(pid, 'SIGTERM'); }catch(e){} }
+  const t0 = Date.now();
+  while (Date.now() - t0 < (waitMs || 4000) && supPids().length) await new Promise(r => setTimeout(r, 150));
+}
+async function stopSecmesh(){
+  // 1. phone peers — name-agnostic kill on every attached device
+  const devices = String(spawnSync('adb', ['devices'], { encoding: 'utf8', timeout: 10000 }).stdout || '');
+  for (const ln of devices.split('\n').slice(1)){
+    const ser = ln.trim().split(/\s+/)[0];
+    if (ser) try{ spawnSync('adb', ['-s', ser, 'shell', 'pkill -f entangle-peer.mjs'], { timeout: 12000 }); }catch(e){}
+  }
+  // 2. host entangle peers, then the supervisor itself
+  try{ spawnSync('pkill', ['-f', 'entangle-peer.mjs'], { timeout: 10000 }); }catch(e){}
+  for (const pid of supPids()){ try{ process.kill(pid, 'SIGTERM'); }catch(e){} }
+  await killSup();
+  secStopped = true;
+  console.log('secmesh: fabric stopped (phones + host peers + supervisor) — tray stays up for Start');
+  return secStopped;
+}
+async function rebootSecmesh(){
+  await stopSecmesh();               // everything down …
+  secStopped = false;                // … then a fresh, self-healing fabric
+  cleanStaleForwards();
+  return ensureSup();                // { ok, started }
+}
+// taskbar icon (IceWM SystemTray) — appears when secmesh is active. Left-click
+// opens the console; right-click menu: Status / Reboot / Turn Off / Start.
+let trayLaunched = false;
+function spawnTray(){
+  if (!process.env.DISPLAY) return;                       // headless (self-checks) → no icon
+  const upid = '/tmp/' + process.env.USER + '/' + 'secmesh-tray.pid';
+  try{
+    if (fs.existsSync(upid)){                             // one icon per login session (staleness-aware)
+      const old = parseInt(fs.readFileSync(upid, 'utf8'), 10);
+      if (old > 0 && Number.isFinite(old)){ try{ process.kill(old, 0); return; }catch(e){} }
+      fs.unlinkSync(upid);
+    }
+  }catch(e){}
+  try{                                                        // never draw a 2nd icon if a tray daemon already runs
+    const out = spawnSync('pgrep', ['-f', 'assets/secmesh'], { encoding: 'utf8' });
+    if (out && out.status === 0 && String(out.stdout).trim()) return;
+  }catch(e){}
+  const sh = path.join(__dirname, 'secmesh-tray.sh');
+  if (!fs.existsSync(sh)) return;
+  const ch = spawn('bash', [sh, String(PORT)], { cwd: ROOT, stdio: ['ignore', process.stdout, process.stderr], detached: true });
+  ch.unref();
+  trayLaunched = true;
+  console.log('secmesh taskbar icon: spawn', sh, 'pid', ch.pid);
+}
+
 async function ensureSup(){
   if (await probeSup()) return { ok: true, started: false };
   spawnSup();
-  // give it a few beats to bind the control API; supervisor boots in ~200 ms
-  for (let i = 0; i < 5; i++){
+  // supervisor cold-starts slowly (adb battery sampling, peer spawns) — give it room
+  for (let i = 0; i < 30; i++){
     await new Promise(r => setTimeout(r, 400));
-    if (await probeSup()) return { ok: true, started: true };
+    if (await probeSup(1200)) return { ok: true, started: true };
   }
+  if (supPids().length) return { ok: true, started: true, pending: true };   // booting but alive — status will report up
   return { ok: false, error: 'peer-supervisor did not come up on ' + SUPER };
 }
 
@@ -127,10 +190,27 @@ const MIME = {
       try { action = (new URL(req.url, 'http://x').searchParams.get('action') || 'status').toLowerCase(); } catch(e){}
       // "start everything": bring the tier-1 watchdog up if it isn't answering, then report status
       if (action === 'launch' || action === 'ensure'){
+        secStopped = false;
+        spawnTray();                       // the icon belongs to serve.js being active, not the probe
         cleanStaleForwards();
         ensureSup().then(s => {
           res.writeHead(s.ok ? 200 : 502, { 'Content-Type': 'application/json; charset=utf-8' });
           res.end(JSON.stringify(s));
+        });
+        return;
+      }
+      if (action === 'stop'){
+        stopSecmesh().then(s => {
+          res.writeHead(200, { 'Content-Type': 'application/json; charset=utf-8' });
+          res.end(JSON.stringify({ ok: true, stopped: true, note: 'fabric stopped · tray Start / Reboot to resume' }));
+        });
+        return;
+      }
+      if (action === 'restart'){
+        cleanStaleForwards();
+        rebootSecmesh().then(s => {
+          if (s && s.ok){ spawnTray(); res.writeHead(200, { 'Content-Type': 'application/json; charset=utf-8' }); res.end(JSON.stringify(Object.assign({ ok: true }, s))); }
+          else { res.writeHead(502, { 'Content-Type': 'application/json; charset=utf-8' }); res.end(JSON.stringify({ ok: false, error: 'reboot failed: ' + ((s && s.error) || 'supervisor down') })); }
         });
         return;
       }
@@ -147,6 +227,11 @@ const MIME = {
       // fold the common "supervisor isn't running" failure into a lazy boot on the first control call
       probeSup(2500).then(up => {
         if (up){ forward(); return; }
+        if (secStopped){
+          res.writeHead(503, { 'Content-Type': 'application/json; charset=utf-8' });
+          res.end(JSON.stringify({ ok:false, stopped:true, error: 'secmesh is stopped (tray: Start, or ?action=launch) — not auto-reviving' }));
+          return;
+        }
         ensureSup().then(s => {
           if (!s.ok){ res.writeHead(502, { 'Content-Type': 'application/json; charset=utf-8' }); res.end(JSON.stringify({ ok:false, error: s.error })); return; }
           forward();
@@ -451,5 +536,8 @@ server.listen(PORT, '0.0.0.0', () => {
   // boot-time supervisor check: belt + suspenders — if tier-1 isn't answering at
   // startup we launch it now, so the console's fabric row is usable immediately.
   cleanStaleForwards();
-  ensureSup().then(s => console.log('peer-supervisor @ boot:', s.ok ? ('ready' + (s.started ? ' (auto-started)' : '')) : ('NOT up: ' + s.error)));
+  ensureSup().then(s => {
+    console.log('peer-supervisor @ boot:', s.ok ? ('ready' + (s.started ? ' (auto-started)' : '')) : ('NOT up: ' + s.error));
+    spawnTray();                       // icon whenever serve.js is active (tray is its own lifecycle)
+  });
 });
