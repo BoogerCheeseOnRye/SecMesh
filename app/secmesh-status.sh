@@ -56,9 +56,25 @@ for c in chassis:
         batt = '<span color=\"%s\">%s %d%%</span>' % (col, fill, lvl)
     else:
         batt = '—'
+    # per-device CARD: model, peer uptime, parking/offline tag, then all sensors
+    m = (c.get('model') or '?')
     tag = ' \u26a0 parked' if c.get('parked') else (' \u2716 offline' if c.get('absent') else '')
-    up_txt = (' · up <b>%s</b>' % fmt(c.get('upS'))) if (c.get('upS') and c.get('phones')) else ''
-    rows.append('  %s \u00b7 %s%s%s    %s' % (c.get('name','?'), (c.get('model') or '?'), tag, up_txt, batt))
+    up_txt = (' · <b>%s</b> peer up' % fmt(c.get('upS'))) if (c.get('upS') and c.get('phones')) else ''
+    rows.append('<b>%s</b>  %s%s%s' % (c.get('name','?'), m, tag, up_txt))
+    b = c.get('battery') or {}
+    if b and b.get('level') is not None and b.get('level') >= 0:
+        lvl = b.get('level')
+        fill = '\u25cf' if b.get('charging') else '\u25cb'
+        col = '#2ecc71' if (lvl >= 35 or b.get('charging')) else ('#e6743b' if lvl >= 20 else '#e74c3c')
+        batt = '<span color=\"%s\">%s %d%%</span>' % (col, fill, lvl)
+        sens = []
+        if b.get('tempC') is not None:  sens.append('<span color=\"#8e8f96\">%s %.1f\u00b0C</span>' % ('\U0001f321', b['tempC']))
+        if b.get('voltageMv') is not None:  sens.append('<span color=\"#8e8f96\">%d mV</span>' % b['voltageMv'])
+        if b.get('currentMa') is not None:  sens.append('<span color=\"#8e8f96\">%s %d mA</span>' % ('\U0001f50b', b['currentMa']))
+        rows.append('    %s %s' % (batt, ' \u00b7 '.join(sens) if sens else ''))
+    else:
+        rows.append('    \u2014')
+    rows.append('')
 rows.append('')
 st = d.get('stats')
 if st and isinstance(st, dict):
@@ -73,6 +89,6 @@ if er:
     rows.append('<span color=\"#e74c3c\">⚠ %s</span>' % re.sub(r'<[^>]+>', '', er)[:160])
 print('<span size=\"large\"><b>SecMesh fabric</b></span>\n' + '\n'.join(rows))
 " > /tmp/secmesh-status.txt 2>/dev/null || echo 'unreachable' > /tmp/secmesh-status.txt
-yad --title="SecMesh — Status" --info --width=520 --height=320 --button="Close:0" \
+yad --title="SecMesh — Status" --info --mouse --button="Close:0" \
     --text="$(cat /tmp/secmesh-status.txt)" 2>/dev/null &
 exit 0

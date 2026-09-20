@@ -147,9 +147,15 @@ const BAT_CACHE = new Map();   // serial → { level, charging, at }
 function batteryParse(s){
   const st = String(s || '');
   const lv = /^\s*level:\s*(\d+)/m.exec(st);
+  const tp = /^\s*temperature:\s*(\d+)/m.exec(st);     // 0.1 °C units
+  const vt = /^\s*voltage:\s*(\d+)/m.exec(st);         // mV
+  const cr = /^\s*current now:\s*(-?\d+)/m.exec(st);   // µA (MATCHES dumpsys battery, not avg)
   return {
     level: lv ? parseInt(lv[1], 10) : -1,
-    charging: /AC powered:\s*true/m.test(st) || /USB powered:\s*true/m.test(st) || /status:\s*[25]/m.test(st)
+    charging: /AC powered:\s*true/m.test(st) || /USB powered:\s*true/m.test(st) || /status:\s*[25]/m.test(st),
+    tempC: tp ? parseInt(tp[1], 10) / 10 : null,
+    voltageMv: vt ? parseInt(vt[1], 10) : null,
+    currentMa: cr ? Math.round(parseInt(cr[1], 10) / 1000) : null   // +ve = charging, −ve = draining
   };
 }
 async function batteryOf(c){   // c = chassis { serial, name, ... } — cache-backed
@@ -988,7 +994,8 @@ function statusJson(){
         up: ups.length > 0, phones: ups.length,
         upS: ups.reduce((m, dn) => Math.max(m, dn.upS || 0), 0),   // longest-lived peer on this chassis
         parked: DPL.some(dn => dn.idx === c.idx && dn.parked),
-        battery: b ? { level: b.level, charging: b.charging } : null,
+        battery: b ? { level: b.level, charging: b.charging,
+          tempC: b.tempC, voltageMv: b.voltageMv, currentMa: b.currentMa } : null,
         held: DPL.some(dn => dn.idx === c.idx && dn.stopped), absent: !!c.absent };
     }),
     devPer, devHosts: DEVICES.length,
