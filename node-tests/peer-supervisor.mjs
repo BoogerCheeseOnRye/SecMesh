@@ -396,7 +396,7 @@ function ensureNodes(n){
 }
 
 // ── state ───────────────────────────────────────────────────────────────────
-let wdOn = true, seeding = false, seedLog = '', lastRecover = 0, lastError = '';
+let wdOn = true, seeding = false, seedLog = '', lastRecover = 0, lastError = '', errAt = 0;   // lastError at (ms epoch) — lets the UI grey a stale ⚠
 let meshKeyedAt = Date.now(), lastSeedEnd = 0, lastStats = null, pendingSeed = null;
 let autoOn = AUTO_ON, userFloor = 2, growHold = 0, shrinkHold = 0, lastScale = 0;
 const KICK_HIST = {};                    // name -> [kick timestamps]
@@ -886,7 +886,7 @@ async function tick(){
       meshKeyedAt = Date.now();
     } else if ([...PAIRS, ...DPL].every(p => p.up || p.stopped || QUARANT.has(p.name)) && Date.now() - meshKeyedAt > 60000){
       meshKeyedAt = Date.now();
-      lastError = 'auto-seed ⚠ mesh was keyless > 60 s';
+      errAt = Date.now();       lastError = 'auto-seed ⚠ mesh was keyless > 60 s';
       log('DEGRADED — peers up, 0 live links for 60+ s · auto-seed to keep the fabric keyed');
       planSeed(adaptiveRounds(DEFAULT_ROUNDS), 500);
     }
@@ -965,7 +965,7 @@ function statusJson(){
     signed: !!SUP_SECRET,
     autoCap: s ? autoCap(s) : null,
     seedLog: seedLog.split('\n').slice(-10).join('\n'),
-    lastRecover, lastError, lastScale,
+    lastRecover, errAt, lastError, lastScale,
     quarantines: quarantineInfo(),
     supLog: supRing.slice(-6).join('|'),
     stats: s ? { totalMB: s.totalMB, availMB: s.availMB, usedPct: s.usedPct, load1: s.load1, cores: s.cores,
