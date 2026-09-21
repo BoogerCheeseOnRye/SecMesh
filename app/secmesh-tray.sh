@@ -48,7 +48,7 @@ while :; do
       --text="SecMesh (${st})" \
       --tooltip="${tip}" \
       --command="setsid xdg-open '${CONSOLE}' >/dev/null 2>&1 &" \
-      --menu="Open Console!setsid xdg-open '${CONSOLE}' >/dev/null 2>&1 &|Status!${DIR}/secmesh-status.sh ${PORT}|Config…!${DIR}/secmesh-config.sh ${PORT}|Reboot SecMesh!${DIR}/secmesh-ctl.sh reboot ${PORT}|Turn Off SecMesh!${DIR}/secmesh-ctl.sh stop ${PORT}|Start SecMesh!${DIR}/secmesh-ctl.sh start ${PORT}|Quit Tray Icon!rm -f '${UPID}'; pkill -f 'secmesh-tray.sh'" \
+      --menu="Open Console!setsid xdg-open '${CONSOLE}' >/dev/null 2>&1 &|SecMesh UI…!${DIR}/secmesh-ui.sh ${PORT}|Setup Wizard…!${DIR}/secmesh-setup.sh ${PORT}|Reboot SecMesh!${DIR}/secmesh-ctl.sh reboot ${PORT}|Turn Off SecMesh!${DIR}/secmesh-ctl.sh stop ${PORT}|Start SecMesh!${DIR}/secmesh-ctl.sh start ${PORT}|Quit Tray Icon!rm -f '${UPID}'; pkill -f 'secmesh-tray.sh'"
       >/dev/null 2>&1 &
   YPID=$!
   while kill -0 "$YPID" 2>/dev/null; do
