@@ -30,7 +30,10 @@ except Exception:
 # /usr/local/bin/yad is a bash wrapper that spawns the real /usr/bin/yad as a
 # child, so killing one PID orphans the other. Both carry the icon path, so
 # matching on it reaps wrapper + real binary + any orphans in one shot.
-kill_icons(){ pkill -f 'assets/secmesh' 2>/dev/null; sleep 0.4; }
+# The match is tightened to the notification's OWN marker ("--text=SecMesh")
+# so the actions panel / setup wizard (which also use secmesh-on.png) are
+# never reaped by a state-change redraw.
+kill_icons(){ pkill -f 'secmesh-\(on\|off\|warn\)\.png --text=SecMesh' 2>/dev/null; sleep 0.4; }
 cleanup(){ rm -f "$UPID"; kill_icons; }
 trap cleanup EXIT INT TERM
 
@@ -38,8 +41,8 @@ while :; do
   echo $$ > "$UPID"          # heartbeat — pidfile always tracks the live daemon
   st=$(poll_state)
   case "$st" in
-    up)                ic="secmesh-on.png";  tip="SecMesh — fabric up (right-click for menu)" ;;
-    stopped)           ic="secmesh-off.png"; tip="SecMesh — stopped (right-click → Start)" ;;
+    up)                ic="secmesh-on.png";  tip="SecMesh — fabric up (click for menu)" ;;
+    stopped)           ic="secmesh-off.png"; tip="SecMesh — stopped (click → Start)" ;;
     *)                 ic="secmesh-warn.png"; tip="SecMesh — supervisor down (${st})" ;;
   esac
   kill_icons                                                 # stale/duplicate icons never survive a redraw
@@ -47,8 +50,7 @@ while :; do
       --image="${DIR}/assets/${ic}" \
       --text="SecMesh (${st})" \
       --tooltip="${tip}" \
-      --command="setsid xdg-open '${CONSOLE}' >/dev/null 2>&1 &" \
-      --menu="Open Console!setsid xdg-open '${CONSOLE}' >/dev/null 2>&1 &|SecMesh UI…!${DIR}/secmesh-ui.sh ${PORT}|Setup Wizard…!${DIR}/secmesh-setup.sh ${PORT}|Reboot SecMesh!${DIR}/secmesh-ctl.sh reboot ${PORT}|Turn Off SecMesh!${DIR}/secmesh-ctl.sh stop ${PORT}|Start SecMesh!${DIR}/secmesh-ctl.sh start ${PORT}|Quit Tray Icon!rm -f '${UPID}'; pkill -f 'secmesh-tray.sh'"
+      --command="setsid bash '${DIR}/secmesh-menupop.sh' ${PORT}" \
       >/dev/null 2>&1 &
   YPID=$!
   while kill -0 "$YPID" 2>/dev/null; do
