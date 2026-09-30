@@ -41,7 +41,7 @@ ACTION=$(yad --center --title="SecMesh — Actions" --width=400 --height=330 \
     "Pause SecMesh"       "${DIR}/secmesh-ctl.sh stop ${PORT}" \
     "Start SecMesh"       "${DIR}/secmesh-ctl.sh start ${PORT}" \
     "Quit tray icon"      "rm -f /tmp/${USER}/secmesh-tray.pid; pkill -f 'secmesh-tray.sh'" \
-    2>/dev/null | tail -n1)
+    2>/dev/null | grep -v '^$' | tail -n1)
 rc=$?
 [ "$rc" = 0 ] && [ -n "$ACTION" ] && setsid sh -c "$ACTION" >/dev/null 2>&1 &
 exit 0
