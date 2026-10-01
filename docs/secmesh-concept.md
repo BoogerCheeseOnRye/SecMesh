@@ -228,3 +228,26 @@ node node-tests/secmesh-exp.mjs groupF   # single group (overload boundary)
 Interactive version: run `app/` with `PORT=8081 node serve.js`, open
 `/crosslab/physics_simulator.html`, enable *Security System* → *Security demo*,
 and drive Threat/Firewall/Defenders live.
+## Novel-ideas sweep (2026-09-29, seeded from research)
+
+Where the mesh could go next — all grounded in the existing CHSH/key-divergence suite:
+
+- **Finite-key, not just CHSH.** Our "S ≈ 2.89 yet key-diverging aligned-Eve" result is the
+  discrete-variable finite-key problem: with short keys, CHSH alone can't certify secrecy —
+  you need a per-instance bound on Eve's guessing probability. Tractable lead: adopt a
+  finite-size min-entropy / EUR-style bound (arXiv 1008.2596, 2601.03829) computed on the
+  *measured* block instead of an asymptotic threshold, so the existing "watch the
+  key-divergence margin" heuristic becomes a real stopping rule.
+- **Side-channel-aware proof, not a new machine.** arXiv 2606.29943 / PRR 6.013266 show
+  finite-key security survives source flaws + bit/basis side-channel leakage up to
+  ε_side ≈ 1e-3. Implication: improve OUR parameter-estimation lanes (bias/visibility
+  leakage) rather than adding hardware — tighter ε lanes raise the tolerated-corruption
+  bar without changing the topology.
+- **Numerical vs analytical security.** arXiv 2605.12984 gives a numerical finite-key
+  framework valid against coherent attacks and non-IID signals. Our simulator could run it
+  as an oracle: feed the measured correlations in, get a secret-key-rate bound out, and
+  gate the run on that instead of single S threshold.
+- **Decoy-style dimension check.** arXiv 2606.29943: basis correlations widen the
+  effective state dimension → vulnerable to USD (unambiguous state discrimination). Our
+  side-channel `aligned` Eve is in exactly this family; add a used-basis-corr lane to the
+  existing entropy probe to detect it earlier.
