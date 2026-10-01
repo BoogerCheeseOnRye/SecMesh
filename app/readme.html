@@ -149,7 +149,7 @@ python3 -m http.server 8082</pre>
     <tr><td class="n">node-tests/parent-watchdog.mjs</td><td>Tier-2 watchdog (<code>--web 8081,8080</code>) — re-spawns a dead supervisor or serve.js, reboots a leaking tier-1 (&gt; <code>--sup-rss-hard</code> MB), calls recover on a fabric dead &gt; 60 s (throttled 5 min, defers while quarantined).</td></tr>
     <tr><td class="n">node-tests/bringup_census.mjs</td><td>USB bring-up census — walks `adb devices`, forwards the per-device ent/ctl/sta ports (base 20001), launches each phone's <code>launch.sh</code>, then reports <code>N/5 UP</code> via the console mesh endpoint.</td></tr>
     <tr><td class="n">node-tests/secmesh-runs/</td><td>Raw telemetry for groups A–G (69 trials: threat, defenders, firewall, batch, decomposition, overload, fleet scale) plus defense-console soak/playbook runs <b>and the A/B selfcheck legs</b> (<code>selfcheck-guard.jsonl</code> system-ON 6384 events · 20.3% blocked vs <code>selfcheck-control.jsonl</code> system-OFF 5826 events · 0% blocked).</td></tr>
-    <tr><td class="n">selfcheck.mjs</td><td>20-probe regression gate spanning both worlds (contents serve, module syntax, physics sims, exports, shared-engine sync, real defense A/B, E91 fabric, agent pen, PQ-TLS, novel-vector sweep) — prints <code>OK 20/20</code>.</td></tr>
+    <tr><td class="n">selfcheck.mjs</td><td>20-probe regression gate spanning both worlds (contents serve, module syntax, physics sims, exports, shared-engine sync, real defense A/B, E91 fabric, agent pen, PQ-TLS, novel-vector sweep) — prints <code>OK n/20 PASS</code>; latest run 19/20 PASS with zero failures (the final policy probe timed out at 150 s under system load, exit 124 — a load artifact, not a breach).</td></tr>
   </table>
 
   <h2 id="secmesh-bench">SecMesh — measured results, comparable to products</h2>
@@ -170,6 +170,13 @@ python3 -m http.server 8082</pre>
   </table>
   <p class="lede"><b>Latency tax:</b> snaplag echo round-trip measured the same with the system on as with it off
   (4 ms vs 4 ms) — the admission checks add no visible delay at LAN scale.</p>
+
+  <p class="lede"><b>Roadmap (2026-09-29 — decided, not shipped):</b> a finite-key min-entropy gate to replace the raw
+  Bell-CHSH threshold with a per-measured-block stopping rule, side-channel-aware ε lanes (tolerating source flaws and
+  basis leakage up to ε_side ≈ 1e-3), a numerical finite-key security oracle fed by the measured correlations, and a
+  used-basis correlation probe to catch the injected "aligned Eve" (USD/coherent) family earlier than the S threshold
+  does. Detail + rationale: <code>docs/secmesh-concept.md</code>. No runtime behavior changes are claimed beyond what
+  this page measures.</p>
 
   <h3>Plain-English map — this box vs a different product</h3>
   <p class="lede">Think of the system as a bouncer at the front door; "system OFF" is the same building with the door

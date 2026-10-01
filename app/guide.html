@@ -464,6 +464,26 @@ galactic:    { gravity: 0.8, darkEnergy: 0.3, curvature: 0.7, inflation: 0.1, al
       <i>admission layer</i>: who passes the front door. They don't compete, and the numbers above wouldn't move if you
       swapped the hash — the table is about the door, crypto about the safe inside.</div>
 
+    <h3>4d·2 · Roadmap — next (not yet shipped, as of 2026-09-29)</h3>
+    <p>These directions are <b>decided and documented, but not implemented yet</b> — listed here so the "what's next"
+      is public, and so nobody mistakes the roadmap for the measured figures above. Full rationale in
+      <code>docs/secmesh-concept.md</code> §Novel-ideas sweep.</p>
+    <ul>
+      <li><b>Finite-key gate (replaces the raw CHSH threshold).</b> Today the fabric aborts when Bell-CHSH S drops
+        (Eve → S ≈ 0.6), and the watchdog watches the key-divergence margin. Next step is a per-instance
+        finite-size min-entropy / EUR-style bound computed on the <i>measured block</i> — a real stopping rule with
+        a probability, instead of a threshold.</li>
+      <li><b>Side-channel-aware ε lanes.</b> Adopt a finite-key security statement that tolerates source flaws and
+        bit/basis side-channel leakage up to ε_side ≈ 1e-3, and tighten our own parameter-estimation lanes
+        (bias/visibility leakage) — improving the tolerated-corruption bar without changing the topology.</li>
+      <li><b>Numerical security oracle.</b> Feed the measured correlations into a numerical finite-key framework
+        (valid against coherent, non-IID attacks) and gate the run on its secret-key-rate bound instead of a single
+        S threshold.</li>
+      <li><b>Basis-correlation lane.</b> Basis correlations widen the effective state dimension and make the system
+        visible to USD (unambiguous state discrimination) — exactly our injected "aligned Eve" family. Add a
+        used-basis correlation probe to the existing entropy watch to catch it earlier.</li>
+    </ul>
+
     <h3 id="qkd">4g · Entanglement fabric — the quantum-key cluster</h3>
     <p>An E91 (Ekert) protocol <i>simulator</i> that can actually run on your phones as a cluster. Real photon entanglement
       can't travel over a wire, so — exactly as the physics engine is an honest approximation of matter — the <b>quantum
