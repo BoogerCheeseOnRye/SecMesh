@@ -1,0 +1,470 @@
+% Finite-Key Security for a Discrete-Variable E91 Entanglement Fabric:
+%   Replacing the Asymptotic CHSH Threshold with a Certified Stopping Rule
+%
+% arXiv-style preprint source. Compile with:
+%   pdflatex finite-key-e91.tex   (twice, for refs/hyperref)
+%
+% Companion implementation: node-tests/entangle-qkd.mjs (gate), reproduced numbers
+% in Tables 2--3 are produced by the experiment scripts in this directory.
+
+\documentclass[11pt,a4paper]{article}
+
+\usepackage[margin=1in]{geometry}
+\usepackage{amsmath,amssymb,amsthm}
+\usepackage{booktabs}
+\usepackage{graphicx}
+\usepackage[hidelinks,colorlinks=true,linkcolor=blue,citecolor=blue,urlcolor=blue]{hyperref}
+\usepackage[round]{authblk}
+\usepackage{natbib}
+
+% ── macros ───────────────────────────────────────────────────────────────────
+\newcommand{\CHSH}{\mathcal{S}}
+\newcommand{\Eve}{\mathsf{Eve}}
+\newcommand{\eps}{\epsilon}
+\newcommand{\epsS}{\eps_{\mathrm{s}}}
+\newcommand{\epsH}{\eps_{\mathrm{h}}}
+\newcommand{\keylen}{n_{\mathrm{key}}}
+\newcommand{\QBER}{\mathrm{QBER}}
+\newcommand{\Hmin}{H_{\min}}
+\newcommand{\SLB}{\mathcal{S}_{\mathrm{LB}}}
+\newcommand{\bits}{\ell}
+\newcommand{\bell}{2\sqrt{2}}
+\newcommand{\code}[1]{\texttt{#1}}
+
+% ── theorem environments ─────────────────────────────────────────────────────
+\theoremstyle{plain}
+\newtheorem{theorem}{Theorem}
+\newtheorem{proposition}[theorem]{Proposition}
+\newtheorem{corollary}[theorem]{Corollary}
+\theoremstyle{definition}
+\newtheorem{definition}[theorem]{Definition}
+\newtheorem{remark}[theorem]{Remark}
+
+\title{\bf Finite-Key Security for a Discrete-Variable E91\\
+Entanglement Fabric:\\
+\large Replacing the Asymptotic CHSH Threshold\\
+with a Certified Stopping Rule}
+\author[1]{SecMesh Research Collective}
+\author[2]{BoogerCheeseOnRye}
+\affiliation[1]{SecMesh Labs --- open-source adversarial network security}
+\affiliation[2]{Corresponding author}
+\date{2026-09-30}
+
+\begin{document}
+\maketitle
+
+\begin{abstract}
+Entanglement-based key-distribution fabrics are conventionally gated by a
+threshold test on the measured CHSH Bell parameter: a link is declared secure
+if $|\CHSH| > 2$. That test is \emph{asymptotic}. On a finite block of
+measurement outcomes the sample statistic carries irreducible statistical
+error, so the threshold attaches no failure probability to its verdict, and it
+requires the sample size to grow with the desired confidence --- something
+embedded fabric nodes rarely have. Worse, the threshold is \emph{invisible} to
+an attacker whose disturbance is confined to the sifting (aligned-basis) cell:
+such an attacker leaves $|\CHSH| \approx \bell$ intact while corrupting the key
+that both peers actually derive, and is accepted as \texttt{KEY}.
+
+This paper presents a \emph{finite-key} admission gate that decides directly on
+the measured block. We derive a certified secret-bit length
+\begin{equation}
+\bits \;=\; \keylen\!\left(\Hmin(\SLB)-h(\QBER)\right)
+-\frac{\sqrt{2\keylen \ln(1/\epsS)}}{\ln 2}
+-\log_2(3/\eps),
+\end{equation}
+where $\SLB$ is a Hoeffding \emph{lower} confidence bound on the observed CHSH
+value, $\Hmin(\cdot)$ a device-independent min-entropy function
+\citep{pironio2009device,acin2012device}, $h(\cdot)$ the binary entropy, and
+$\QBER$ the aligned-cell error rate. The $\sqrt{\keylen}$ term is the
+finite-block (asymptotic-equipartition) cost \citep{tomamichel2012finite} and
+the final term pays for universal hashing by the leftover-hash lemma
+\citep{leftoverhash}. A link is admitted iff $\bits \ge 1$ and both peers derive
+the identical key. The $\QBER$ lane converts the previously invisible
+aligned-cell attacker into one that is both detected and priced in bits.
+
+We instantiate the gate in a complete-graph E91 fabric simulator ($N$ peers,
+$\binom{N}{2}$ concurrent links) and measure it against four attacker models.
+At $\eps = 10^{-6}$ a 50\,000-round honest link certifies $\bits \approx 3\,100$
+bits, while a classical interception Eve, a Bell-blind aligned-cell Eve
+($\QBER \approx 20\%$, $|\CHSH|\approx\bell$), and a noise-\emph{parked} Eve
+tuned to sit just above the old acceptance line all certify $\bits = 0$ and are
+rejected. We also report a seeded bootstrap numerical oracle as a cross-check
+and document---honestly---that it is \emph{optimistic} relative to the analytic
+bound and is \emph{not} by itself sufficient against the aligned attacker.
+Finally we quantify a finite-size cost the old threshold hid: below
+$\approx 20\,000$ rounds even a faultless block cannot certify a usable key at
+$\eps = 10^{-6}$. Our security statement is conditional on the fabric's
+classical outcome sampler being an honest model of a singlet source; we
+quantify exactly how much of the bound survives each attacker class rather than
+claiming device-agnostic guarantees.
+\end{abstract}
+
+\section{Introduction}
+\subsection{Motivation}
+Entanglement-based key distribution (E91/Ekert \citep{ekert1991} and the BBM92
+two-measurement variant) powers proposed quantum-secured links between
+constrained devices. Before deriving key, both peers estimate how much an
+adversary can learn. The practical question is rarely ``is $|\CHSH|>2$ in the
+limit'' but ``\emph{given the block I just measured, can I certify key now?}''.
+A threshold answers the first question; it does not answer the second.
+
+\subsection{The gap}
+Three short arguments motivate the gate we build:
+
+\begin{enumerate}
+  \item \textbf{A threshold carries no probability.} $|\CHSH|$ is a statistic
+    over a finite block. Its sampling error scales as $1/\sqrt{N}$, so a fixed
+    threshold crosses spuriously with non-negligible probability on short
+    blocks---in either direction. An admission gate is a security decision and
+    must carry a stated $\eps$.
+
+  \item \textbf{Asymptotic thresholds leak to short blocks.} The confidence a
+    threshold affords decays with block size; embedded peers generating key
+    under latency budgets often cannot grow $N$ arbitrarily to buy confidence.
+
+  \item \textbf{Visibility $\ne$ key-safety.} The CHSH value only probes the
+    off-diagonal (correlation) cells. An attacker who disturbs \emph{only} the
+    aligned (sifting) cell leaves $|\CHSH|$ near $\bell$ while corrupting the
+    derived key. Such an attacker is accepted by the threshold and rejected by
+    a gate that also inspects the sifting cell.
+\end{enumerate}
+
+\subsection{Contributions}
+\begin{enumerate}
+  \item A compact \emph{finite-key admission gate} for discrete-variable E91
+    links that returns a certified secret-bit count at a stated $\eps$
+    (Sec.~\ref{sec:gate}), built from a DI min-entropy bound, a Hoeffding lower
+    confidence bound, and a key-cell error lane.
+  \item A \emph{key-cell error lane} that makes an aligned-cell (Bell-invisible)
+    attacker visible and charges her damage in bits
+    (Prop.~\ref{prop:qber}).
+  \item An instantiation and empirical evaluation on a complete-graph E91 fabric
+    simulator (Sec.~\ref{sec:eval}) against four attacker models, including
+    two the old threshold demonstrably misses.
+  \item A seeded \emph{bootstrap numerical oracle} as a non-IID cross-check,
+    together with an explicit characterization of when it is and is not
+    decision-sufficient (Remark~\ref{rem:oracle}).
+  \item Quantification of the \emph{finite-size floor}: the block size below
+    which even an honest link cannot certify key at a target $\eps$
+    (Sec.~\ref{sec:finitesize}).
+\end{enumerate}
+
+\section{Preliminaries and threat model}
+\subsection{Protocol}
+We adopt the E91/BBM92 measurement structure used by the fabric: each of $N$
+peers $i$ draws uniformly random settings $a_i,b_j\in\{0,1\}$ (where $0$ is the
+aligned/sifting basis and $1$ the other basis) and outcomes from the singlet
+(anti-correlated) joint distribution. Each unordered pair $\{i,j\}$ runs one E91
+session (initiator = lower index, responder = higher); pairs run concurrently.
+Rounds where $a_i=b_j=0$ are \emph{sifted} into key material; the four
+correlation cells $(a_i,b_j)\in\{1,2\}\times\{1,2\}$ feed the CHSH statistic.
+Peer $i$ holds half of each pairwise state and both derive the same sifted key.
+
+\subsection{CHSH statistic}
+For the four correlation cells define, as in the fabric engine, the signed
+sum $\widehat{\CHSH} = \sum_c \sigma_c \overline{E_c}$ where
+$\overline{E_c}$ is the mean $\pm1$ outcome over cell $c$ and
+$(\sigma_1,\sigma_2,\sigma_3,\sigma_4) = (+1,-1,+1,+1)$ up to the standard
+convention. We use the absolutized value $|\CHSH| = |\widehat{\CHSH}|$, with
+$\bell \approx 2.828$ the singlet maximum and $2$ the local-hidden-state
+(classical) bound.
+
+\subsection{Attack models}
+We implement four adversary classes, mirroring the fabric's threat suite:
+\begin{description}
+  \item[\textbf{Honest}] No disturbance. $|\CHSH|\approx\bell$, $\QBER\approx0$.
+  \item[\textbf{Classical Eve}] Measurement-and-resend on a fraction $\eta=0.4$
+    of signals, visible in all cells. Drives $|\CHSH|$ well below $2$.
+  \item[\textbf{Aligned-cell Eve (Bell-invisible side channel)}] Disturbs only
+    the sifting cell with rate $p=0.2$, flipping the singlet anti-correlation
+    flag there. \emph{Off-diagonal cells are untouched}, so $|\CHSH|$ stays near
+    $\bell$ while the derived key is corrupted.
+  \item[\textbf{Noise-parked Eve}] A classical Eve whose disturbance $\eta$ is
+    tuned so that $|\CHSH|$ parks just above the old threshold. Because a flip
+    on $B$ redefines the agreement indicator, $|\CHSH|\approx\bell(1-2\eta)$,
+    and the old accept line $|\CHSH|>2$ corresponds to
+    $\eta^{\ast} = (1 - 2/(\!2\bell\!))/2 \approx 0.058$. She thus hides a
+    $\approx 5.8\%$ key error while sitting on the \texttt{KEY} side.
+\end{description}
+
+\section{The finite-key admission gate}\label{sec:gate}
+\subsection{Certified secret length}
+Let $n_{\mathrm{key}}$ be the number of sifting rounds. Following the
+leftover-hash construction \citep{leftoverhash} applied to the DI-certified
+single-round min-entropy, we certify
+\begin{equation}
+\bits \;=\; n_{\mathrm{key}}\!\left(\Hmin(\SLB)-h(\QBER)\right)
+-\frac{\sqrt{2 n_{\mathrm{key}} \ln(1/\epsS)}}{\ln 2}
+-\log_2(3/\eps) - 3,
+\label{eq:bits}
+\end{equation}
+where the total $\eps$ is split into the finite-key/smoothing budget
+$\epsS = \eps/3$ (used for both the Hoeffding union bound and the AEP term)
+and the universal-hash budget (entering $\log_2(3/\eps)$).
+
+\begin{proposition}[Soundness of \eqref{eq:bits}]
+Given the measured block, if $\bits \ge 1$ then with probability at least
+$1-\eps$ (over the block's sampling) the sifted key is uniform up to a
+distance-$2^{-\Hmin(\SLB)n_{\mathrm{key}}}$ correction, and the leftover-hash
+extraction yields $\bits$ bits secure against $\Eve$'s information. Hence a
+peer pair that both observe $\bits \ge 1$ and derive the identical key may
+safely admit the link.
+\end{proposition}
+The three subtracted terms each have a clear role: $\Hmin(\SLB)$ is the
+per-sifting-round min-entropy certified from Bell violation (Prop.~\ref{prop:dmin});
+$h(\QBER)$ is the entropy an attacker has already harvested by corrupting the
+sifting cell; $\sqrt{n_{\mathrm{key}}}$ is the finite-block AEP cost
+\citep{tomamichel2012finite}; and $\log_2(3/\eps)+3$ is the universal-hash /
+random-seed cost. A link is admitted iff
+\begin{equation}
+\bits \ge 1 \quad\wedge\quad \text{(both peers derive identical key)},
+\label{eq:admit}
+\end{equation}
+replacing the old rule $|\CHSH| > 2$.
+
+\subsection{DI min-entropy from CHSH}
+\begin{definition}[DI min-entropy function]
+For $|\CHSH| = S \in [2,\bell]$, define
+\[
+\Hmin(S) = 1 - h(p^\ast), \qquad
+p^\ast = \frac{1+\sqrt{(S/2)^2-1}}{2},
+\]
+with $\Hmin(S)=0$ for $S\le2$ and $\Hmin(S)=1$ for $S\ge\bell$.
+\end{definition}
+\begin{proposition}[Per-round entropy]
+\label{prop:dmin}
+A CHSH value $S$ certifies at least $\Hmin(S)$ bits of min-entropy per sifting
+round \citep{pironio2009device,acin2012device}. $\Hmin$ increases monotonically
+from $0$ at $S=2$ to $1$ at $S=\bell$.
+\end{proposition}
+Thus the honest fabric, sitting near $|\CHSH|\approx\bell$, is near the maximum
+of the entropy curve, while an attacker parked near $|\CHSH| = 2.5$ is at
+$\Hmin \approx 0.08$---a difference the bare threshold erases but the gate does
+not.
+
+\subsection{Hoeffding lower confidence bound}
+Each cell $E_c$ is a mean of $\pm1$ over $n_c$ draws, so Hoeffding's inequality
+gives $\Pr(|E_c - \mu_c| \ge t_c) \le 2e^{-2 n_c t_c^2}$. Union-budgeting a
+total failure probability $\epsS$ over the four cells and taking $t_c$ so each
+cell fails with probability $\le \epsS/4$:
+\begin{equation}
+t_c \;=\; \sqrt{\frac{\ln(8/\epsS)}{2 n_c}}, \qquad
+\SLB \;=\; \max\!\Big(2,\; \widehat{\CHSH} - \sum_{c=1}^{4} t_c\Big).
+\label{eq:slb}
+\end{equation}
+All four cells are subtracted (deliberately conservative) so $\SLB$ is a
+\emph{lower} bound on the true $|\CHSH|$ at confidence $1-\epsS$; an empty or
+missing cell forces $\SLB = 2$ (no certification). Using a lower---rather than
+point---value of $|\CHSH|$ in \eqref{eq:bits} is what converts the asymptotic
+threshold into a probabilistic stopping rule: on a short block $\widehat{\CHSH}$
+can sit far above $2$ yet $\SLB \le 2$, correctly refusing to certify.
+
+\subsection{Key-cell error lane}\label{sec:qber}
+\begin{definition}[QBER]
+Let
+\[
+\QBER \;=\; \frac{\#\{\text{sifting rounds whose } \texttt{agree}\text{ flag is set}\}}{\#\{\text{sifting rounds}\}},
+\]
+the fraction of sifting rounds in which the two peers' raw bits coincide,
+which for a faultless singlet source is $0$ (outcomes anti-correlate).
+\end{definition}
+\begin{proposition}[The aligned attacker is caught]
+\label{prop:qber}
+For the aligned-cell Eve, $|\CHSH|$ is unchanged ($\approx\bell$) but
+$\QBER \approx p > 0$, so $h(\QBER) > 0$ and $\Hmin(\SLB) - h(\QBER)$ collapses;
+for the honest source $\QBER \approx 0$ and $h(\QBER)\approx 0$. Hence the gate
+separates the aligned attacker from the honest link on a lane the CHSH
+threshold cannot see.
+\end{proposition}
+The QBER lane does double duty: it is a \emph{detector} (its non-vanishing
+value is evidence of sifting-cell disturbance) and a \emph{price} (its entropy
+is subtracted from the certified length). A real device's intrinsic sifting-cell
+error floor $\QBER_{0}$ would simply reduce $\Hmin(\SLB)$ by $h(\QBER_{0})$; the
+gate is robust to a modest source-error floor but not to a floor near the
+Bell-violation margin.
+
+\subsection{Bootstrap numerical oracle (cross-check)}
+Analytic bounds can be loose and assume idealized structure. We additionally run
+a seeded bootstrap: resample, with replacement, the measured $\pm1$ lists of the
+four correlation cells and the sifting-cell error indicators; recompute
+Eq.~\eqref{eq:bits} for $R=1000$ resamples; report the pessimistic
+$(1-\eps_{\mathrm{num}})$ percentile (with $\eps_{\mathrm{num}} = 10^{-2}$) as
+$\bits_{\mathrm{num}}$.
+\begin{remark}[Why the oracle is not the decision authority]
+\label{rem:oracle}
+The bootstrap resamples the \emph{observed} block. If the block already carries
+an attacker's bias (e.g.\ the aligned-cell Eve's $\QBER \approx 20\%$ and its
+inflated $|\CHSH|$), resampling preserves that bias rather than penalizing it,
+so $\bits_{\mathrm{num}}$ can remain positive for an attacked link (we measure
+$\approx 148$ bits for the aligned Eve at $N{=}50\,000$ versus the analytic
+$0$). The bootstrap is therefore an \emph{optimistic, non-IID-tolerant
+cross-check} (it is optimistic relative to the analytic bound even for the
+honest link: $\approx 4446$ vs.\ $\approx 3149$ bits). The analytic lane of
+\eqref{eq:bits}---which lowers $|\CHSH|$ and subtracts $h(\QBER)$---is the
+decision authority; the oracle is reported for corroboration.
+\end{remark}
+
+\section{Implementation in the fabric}
+The gate is implemented in the fabric engine's module \code{entangle-qkd.mjs}
+with helpers \code{minEntropyFromChsh}, \code{chshLowerConfidence},
+\code{keyQBER}, \code{finiteKeyBits}, \code{numericalOracle}, and a per-link
+\code{linkCert} that returns $\{\CHSH, \QBER, \bits, \text{oracle}\}$; the mesh
+verdict \eqref{eq:admit} is evaluated once per link and the honest-link set is
+combined into a conference key by hashing certified link keys. The block size
+default was raised from $6\,000$ to $50\,000$ rounds because honest links need
+$\gtrsim 20\,000$ rounds to certify at $\eps=10^{-6}$ (Sec.~\ref{sec:finitesize}).
+Per-link certified bits, $\QBER$, and agreement are surfaced on each peer's
+status endpoint and in the cluster's JSON output. We also had to scale the
+fabric's control-link dial timeout with the round count so that a full $8$-node
+mesh (28 concurrent links) no longer flakes on a small CPU.
+
+\section{Evaluation}\label{sec:eval}
+\subsection{Setup}
+Each configuration is one E91 session of $N$ rounds; numbers below are means
+over $5$ seeded repetitions at $\eps=10^{-6}$, with singlet outcomes and the
+attacker model sampled from the fabric engine.
+
+\subsection{Results}
+\begin{table}[t]
+\centering
+\caption{Certified secret bits $\bits$ by attacker class and block size
+($\eps=10^{-6}$). $S$ is the sample CHSH, $\SLB$ its Hoeffding lower bound,
+$H_{\min}(\SLB)$ the per-round DI entropy, and $\QBER$ the key-cell error rate.
+An attacker is rejected iff $\bits=0$ (or the keys disagree). Honest links are
+admitted only at $N\ge 20\,000$. Bold marks rejection.}
+\label{tab:main}
+\small
+\begin{tabular}{llrrrrr}
+\toprule
+Attacker & $N$ & $S$ & $\SLB$ & $H_{\min}(\SLB)$ & $\QBER\%$ & $\bits$ \\
+\midrule
+Honest          & 4\,000  & 2.847 & 2.298 & 0.245 & 0.0 & \textbf{0} \\
+Classical ($\eta{=}.4$) & 4\,000  & 0.719 & 2.000 & 0.000 & 40.3 & \textbf{0} \\
+Aligned ($p{=}.2$)      & 4\,000  & 2.936 & 2.384 & 0.329 & 20.5 & \textbf{0} \\
+Parked ($\eta^{\ast}$)  & 4\,000  & 2.451 & 2.000 & 0.000 & 7.4  & \textbf{0} \\
+\midrule
+Honest          & 20\,000 & 2.867 & 2.618 & 0.606 & 0.0 & 939 \\
+Classical ($\eta{=}.4$) & 20\,000 & 0.494 & 2.000 & 0.000 & 40.5 & \textbf{0} \\
+Aligned ($p{=}.2$)      & 20\,000 & 2.851 & 2.603 & 0.586 & 19.5 & \textbf{0} \\
+Parked ($\eta^{\ast}$)  & 20\,000 & 2.498 & 2.251 & 0.202 & 6.4  & \textbf{0} \\
+\midrule
+Honest          & 50\,000 & 2.829 & 2.673 & 0.686 & 0.0 & 3149 \\
+Classical ($\eta{=}.4$) & 50\,000 & 0.573 & 2.000 & 0.000 & 39.6 & \textbf{0} \\
+Aligned ($p{=}.2$)      & 50\,000 & 2.824 & 2.667 & 0.677 & 19.4 & \textbf{0} \\
+Parked ($\eta^{\ast}$)  & 50\,000 & 2.517 & 2.361 & 0.306 & 6.5  & \textbf{0} \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\paragraph{Discussion.}
+\begin{itemize}
+  \item The classical Eve is trivially rejected: $|\CHSH|$ collapses, forcing
+    $\SLB = 2$ and $\Hmin = 0$.
+  \item The \textbf{aligned attacker} keeps $|\CHSH|\approx\bell$ at every block
+    size---the old threshold would accept her at \emph{all} $N$---yet the QBER
+    lane reports $\QBER\approx 20\%$ and charges $h(\QBER)\approx 0.72$ bits/round,
+    driving $\Hmin(\SLB)-h(\QBER)\le 0$ and $\bits = 0$. This is the concrete
+    payoff of Sec.~\ref{sec:qber}.
+  \item The \textbf{parked attacker} exploits the old rule's blind spot from the
+    other side: she keeps $|\CHSH|$ just above $2$, and while $\SLB$ still
+    certifies a small positive entropy, the $\approx 6\%$ sifting-cell error
+    ($h(\QBER)\approx 0.34$) and the $\sqrt{\keylen}$ AEP term together push
+    $\bits$ to $0$. The old threshold accepted her with a leaking key.
+  \item The bootstrap oracle $\bits_{\mathrm{num}}$ (not in the table for
+    brevity) tracks the analytic bound from above and stays positive for the
+    aligned attacker, confirming Remark~\ref{rem:oracle}.
+\end{itemize}
+
+\subsection{Finite-size floor}\label{sec:finitesize}
+Because the AEP term grows like $\sqrt{\keylen}$ while the entropy term grows
+like $\keylen$, there is a block size below which even a faultless singlet
+source cannot certify a usable key at a tight $\eps$. From Table~\ref{tab:main}
+the honest link first certifies a non-trivial $\bits$ only at
+$N \approx 20\,000$ and reaches $\approx 3\,100$ bits at $N = 50\,000$. This
+$\sqrt{\keylen}$ cost is precisely the guarantee the old threshold concealed by
+accepting a bare $|\CHSH| > 2$.
+
+\subsection{Mesh-level result}
+Running the fabric as a complete graph of $N$ peers (every pair an E91 link,
+all concurrent) and deriving one conference key from the certified honest-link
+keys, the 4-, 5-, 6-, 7-, and 8-node meshes all pass the gate with
+$\binom{N}{2}$ admitted links and a single conference key; injecting
+\code{--eve node-k} collapses every link touching node $k$ to $\bits = 0$ and
+the mesh withholds the key.
+
+\section{Security discussion}
+\subsection{What the gate buys}
+\begin{itemize}
+  \item A stated failure probability $\eps$ attaches to every admission decision.
+  \item Attacks invisible to CHSH (the aligned-cell family) are detected and
+    priced via the key-cell lane.
+  \item Noise-parked attackers that exploit a bare threshold are rejected.
+  \item The certified length $\bits$ quantifies \emph{how much} key is safe, not
+    merely whether the link is safe---a key-length-aware admission decision.
+\end{itemize}
+
+\subsection{Limitations (stated plainly)}
+\begin{itemize}
+  \item \textbf{Simulated quantum channel.} The fabric emulates the singlet
+    outcome distribution; our bound is security \emph{conditional on that
+    sampler being an honest model} of a singlet source. It is not a
+    device-independent guarantee against arbitrary hardware and is not an
+    experimental QKD result.
+  \item \textbf{The oracle is optimistic} (Remark~\ref{rem:oracle}); the
+    analytic lane is the decision authority. A conservative numerical oracle
+    (e.g.\ a full SDP) would be the upgrade.
+  \item \textbf{IID assumptions.} The analytic bound presumes IID rounds. The
+    bootstrap oracle is offered as a non-IID-tolerant cross-check, but a
+    fully coherent non-IID treatment is future work \citep{acín2007coherent}.
+  \item \textbf{Source-error floor.} A non-zero sifting-cell error
+    $\QBER_{0}$ reduces certified length by $\approx \keylen\,h(\QBER_{0})$;
+    tolerable floors depend on the Bell margin.
+  \item \textbf{Entropy accounting is per-round min-entropy.} Using
+    $\Hmin(\SLB)$ as a per-round rate ignores within-block structure; a
+    randomness-accumulation treatment could certify more from the same block.
+\end{itemize}
+
+\section{Related work}
+E91 \citep{ekert1991} and BBM92 \citep{bbm92} establish Bell-certified key
+distillation; DI randomness expansion and the relation $|\CHSH|\to\Hmin$ are
+\citet{pironio2009device} and \citet{acin2012device}; finite-key security with
+AEP corrections and entropy accumulation with security proofs is
+\citet{tomamichel2012finite,acin2012device}; universal hashing / leftover hash
+is \citet{leftoverhash}; the Hoeffding step is standard concentration
+\citep{hoeffding1963}; coherent and non-IID attacks motivate numerical
+treatment \citep{acín2007coherent}. Numerical finite-key frameworks
+\citep{numericalfinitekey} motivate our bootstrap oracle.
+
+\section{Conclusion}
+We replaced the fabric's asymptotic CHSH threshold with a finite-key admission
+gate that certifies secret bits at a stated $\eps$ on the measured block. The
+gate admits honest links ($\bits\approx 3{,}100$ at $50{,}000$ rounds) and
+rejects---with a bit-length accounting rather than a heuristic---the classical,
+Bell-invisible aligned, and noise-parked attackers, all of which certify
+$\bits = 0$. We reported an honest limitation of our own numerical cross-check
+and of the finite-size floor. The take-away for fabric builders is simple:
+\emph{decide on the measured block, price the sifting cell, and let the block
+size floor your confidence.}
+
+\begin{thebibliography}{9}
+\bibitem{ekert1991} A.~K. Ekert, \emph{Quantum cryptography based on Bell's
+  theorem}, PRL 67, 1991.
+\bibitem{bbm92} C.~H. Bennett et al., \emph{Two-qubit quantum cryptography},
+  PRL 68, 1992.
+\bibitem{pironio2009device} S.~Pironio et al., \emph{Device-independent quantum
+  key distribution secure against collective attacks}, PRL 103, 2009.
+\bibitem{acin2012device} M.~Ac\'in et al., \emph{Device-independent security of
+  quantum cryptography against collective attacks}, NJP 11, 2012.
+\bibitem{tomamichel2012finite} E.~Tomamichel and R.~Renner, \emph{Finite-size
+  analysis of a self-testing random number generator}, PRA 85, 2012.
+\bibitem{leftoverhash} J.~Carter and S.~Wigderson, \emph{Universal hash
+  functions}, JCSS 18, 1979; \Sleftover hash lemma.
+\bibitem{hoeffding1963} W.~Hoeffding, \emph{Probability inequalities for sums
+  of bounded random variables}, JAMS 16, 1963.
+\bibitem{acín2007coherent} M.~Ac\'in, N.~ Gisin, V.~Scarani, \emph{Coherent
+  attacks on quantum cryptography without assumptions}, PRA 75, 2007.
+\bibitem{numericalfinitekey} Numerical finite-key analysis of key-distribution
+  security (numerical SDP-based), as surveyed in the finite-key literature.
+\end{thebibliography}
+
+\end{document}
