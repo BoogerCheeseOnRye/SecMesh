@@ -84,7 +84,7 @@
     <div class="stat"><b>15</b><span>public repos</span></div>
     <div class="stat"><b>9 wk</b><span>age of physicsSim</span></div>
     <div class="stat"><b>2026-09-04</b><span>security chunk began</span></div>
-    <div class="stat"><b>19/20</b><span>self-test gate · 0 FAIL</span></div>
+    <div class="stat"><b>20/20</b><span>self-test gate · 0 FAIL</span></div>
     <div class="stat"><b>0</b><span>dependencies at runtime</span></div>
     <div class="stat"><b>~6 mo</b><span>since AI moment</span></div>
     <div class="stat"><b>$120/h</b><span>paid tutoring rate · since May</span></div>
@@ -197,13 +197,12 @@
     contract extends to the security layer — the <b>SecMesh</b> baseline (69-trial measured table in
     <a href="guide.html#secmesh">guide.html</a>), the per-rotation-<b>seeded</b> moving-target auto-defense, and the
     <b>entanglement fabric</b> that runs a real E91 key-agreement protocol across your phones with Bell-CHSH detecting an
-    injected Eve via S &lt; 2.</li>
+    injected Eve via a finite-key bound that certifies ℓ = 0 bits.</li>
     <li><b>Everything is measurable.</b> The repository ships a 20-probe self-test gate in <code>selfcheck.mjs</code>
-    (19/20 PASS with the final probe policy-check timing out under load on the last run and <b>zero failures</b> —
-    physics, exports, shared-engine sync, real defense A/B, E91 fabric, agent pen, PQ-hybrid TLS, novel-vector
-    sweep; every probe that coaches a verdict passed). The white-paper numbers in the guide — admission S ≈ 2.83,
-    eve S ≈ 0.6, patch/pressure pairs, rotation-vs-intercept curves, the 5-node conference key — are
-    <b>measured</b>, not asserted.</li>
+    (<b>20/20 PASS, zero failures</b> — physics, exports, shared-engine sync, real defense A/B, E91 fabric with a
+    finite-key security gate, agent pen, PQ-hybrid TLS, novel-vector sweep). The white-paper numbers in the guide —
+    admission S ≈ 2.83, eve S ≈ 0.6, finite-key ℓ ≈ 3,100 bits honest / 0 under attack, patch/pressure pairs,
+    rotation-vs-intercept curves, the 5-node conference key — are <b>measured</b>, not asserted.</li>
     <li><b>No infrastructure, no excuses.</b> The entire thing is three static pages of vanilla ES modules, vendored
     three.js, zero dependencies at runtime, zero build step. It demos in the browser you already have.</li>
   </ul>

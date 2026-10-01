@@ -46,17 +46,26 @@ function collect(name){
   for (let k = i + 1; k < ARGS.length && !ARGS[k].startsWith('--'); k++) out.push(ARGS[k]);
   return out;
 }
-const ROUNDS = +argValue('rounds', 6000);
+const ROUNDS = +argValue('rounds', 50000);
 const NODES  = Math.max(2, +argValue('nodes', 4) || 4);
 const EVE    = collect('eve');             // e.g. node-2
 const OUT    = argValue('out', null);
-const PORTS  = (argValue('port', '20001') || '').split(',').map(Number);
+const PORTS  = (function(){
+  const i = ARGS.indexOf('--port');
+  if (i < 0 || !ARGS[i + 1]) return [];    // no explicit --port
+  return ARGS[i + 1].split(',').map(Number);
+})();
 const REMOTE_DIR = argValue('dir', '/data/data/com.termux/files/home/aarkanum-labs-test');
 
 function respOnce(sock){
   return new Promise((res, rej) => {
     let buf = '';
-    const to = setTimeout(() => { sock.destroy(); rej(new Error('dial timeout')); }, 30000);
+    // The whole link runs inside the dial reply: msg round-trips plus ROUNDS of
+    // cell simulation + key sifting. A fixed short timeout flakes out as the
+    // mesh grows (n links per node scale as O(N) on a 4-core Atom), so scale
+    // with ROUNDS and leave a generous headroom.
+    const budget = Math.max(30000, 10000 + ROUNDS * 2);
+    const to = setTimeout(() => { sock.destroy(); rej(new Error('dial timeout')); }, budget);
     sock.on('data', chunk => {
       buf += chunk.toString();
       const nl = buf.indexOf('\n');
@@ -91,8 +100,9 @@ async function waitPort(host, port, tries = 60){
 const children = [];
 async function spawnSelf(count){
   const nodes = [];
+  const base = PORTS[0] || 26001;
   for (let i = 0; i < count; i++){
-    const ent = PORTS[i] || 20001 + i, ctl = ent + 1000, sta = ent + 2000;
+    const ent = PORTS[i] || base + i * 5, ctl = ent + 1000, sta = ent + 2000;
     const child = spawn(process.execPath, [path.join(HERE, 'entangle-peer.mjs'),
       '--entangle', String(ent), '--control', String(ctl), '--status', String(sta), '--name', 'node-' + i],
       { stdio: 'ignore' });
@@ -166,7 +176,8 @@ async function driveMesh(nodes){
     const reply = await ctlSend(init.control.split(':')[0], +init.control.split(':')[1],
       { op: 'dial', id, peer: resp.entangle, n: ROUNDS, eve });
     results.push({ link: id, init: init.name, resp: resp.name, eve,
-      chsh: reply.chsh, verdict: reply.verdict, keyBits: reply.keyBits, key: reply.key, error: reply.error });
+      chsh: reply.chsh, verdict: reply.verdict, keyBits: reply.keyBits, key: reply.key,
+      certBits: reply.certBits, qber: reply.qber, agreed: reply.agreed, error: reply.error });
     return { id, reply };
   });
   await Promise.all(jobs);
@@ -212,7 +223,7 @@ async function main(){
   for (const r of results){
     const ev = r.eve ? ` · EVE η=${r.eve}` : '';
     const v = r.verdict === 'KEY' ? 'KEY ' : 'ABORT';
-    console.log(`  ${r.link.padEnd(14)} ${v}  S=${(r.chsh ?? 0).toFixed(3)}${ev}  keyBits→ ${r.key ? r.key.slice(0, 16) + '…' : '—'}`);
+    console.log(`  ${r.link.padEnd(14)} ${v}  S=${(r.chsh ?? 0).toFixed(3)}${ev}  cert=${r.certBits ?? 0}b qber=${((r.qber ?? 0) * 100).toFixed(1)}%  keyBits→ ${r.key ? r.key.slice(0, 16) + '…' : '—'}`);
   }
   console.log(`  conference key  ${conf ? conf.slice(0, 24) + '…' : '— (no honest links)'}`);
   if (OUT){

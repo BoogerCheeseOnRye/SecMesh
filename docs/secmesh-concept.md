@@ -228,6 +228,38 @@ node node-tests/secmesh-exp.mjs groupF   # single group (overload boundary)
 Interactive version: run `app/` with `PORT=8081 node serve.js`, open
 `/crosslab/physics_simulator.html`, enable *Security System* → *Security demo*,
 and drive Threat/Firewall/Defenders live.
+## Finite-key security (2026-09-30 — SHIPPED)
+
+The Novel-ideas sweep below (2026-09-29) proposed four directions for the E91 fabric. All four are
+now implemented and measured. The `S > 2` threshold verdict is **gone**; each link instead runs a
+stopping rule that certifies a number of secret bits at a stated failure probability ε:
+
+```
+ℓ = n_key·( H_min(S_LB) − h(QBER) ) − √(2·n_key·ln(1/ε_s))/ln2 − log₂(3/ε)
+```
+
+- **Finite-key gate** — `ℓ ≥ 1 ∧ key-agreement` ⇒ KEY, else ABORT. `S_LB` is a Hoeffding lower
+  confidence bound on CHSH (union-budget ε over the four cells); `H_min` is the Pironio
+  device-independent bound (a CHSH value `S` certifies ≥ `1 − h(p)` bits/event, `p=(1+√((S/2)²−1))/2`);
+  the √n term is the finite-block (AEP) cost and the last term the universal-hash (leftover-hash)
+  cost. ε splits as ε_s + ε_hash. Measured at 50,000 rounds / ε=1e-6: honest ℓ ≈ 3,100 bits.
+- **Side-channel-aware ε lanes (QBER)** — the aligned "side-channel" Eve disturbs exactly the
+  (0,0) key cell, which never feeds CHSH, so she parks S ≈ 2.83 and is Bell-blind. The QBER lane
+  charges `h(QBER)` to the budget, so she is both detected and priced: QBER ≈ 20% ⇒ ℓ = 0 ⇒ ABORT.
+- **Numerical oracle** — the measured CHSH-cell ±1 lists are resampled (non-IID-tolerant) and the
+  analytic bound re-run per draw; the (1−ε_n) pessimistic percentile is reported next to ℓ.
+  **Honest caveat**: resampling inherits any attacker bias already present in the block, so the
+  oracle is *optimistic* vs. the analytic bound (honest n=50k: 4,446 vs 3,149) and by itself does
+  **not** reject the aligned Eve (it still returns ~148 bits). It is a cross-check, not the
+  decision authority — the analytic lane is what closes her.
+- **Basis-correlation lane** — the used-basis QBER probe is the entropy watch that catches
+  basis-correlated / USD-visible attacks the CHSH test alone is blind to.
+
+The honest finite-size finding the gate exposes: below ~20k rounds even a faultless block cannot
+certify a usable key at ε=1e-6 (the AEP term dominates), which is exactly what a bare threshold
+silently hid. Full derivation, proofs and measurements: the whitepaper (`docs/secmesh-finite-key.pdf`
+source in `docs/secmesh-finite-key/`).
+
 ## Novel-ideas sweep (2026-09-29, seeded from research)
 
 Where the mesh could go next — all grounded in the existing CHSH/key-divergence suite:

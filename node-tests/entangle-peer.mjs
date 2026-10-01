@@ -88,7 +88,7 @@ const ctlSrv = createServer(sock => {
       links.set(m.id, { ...r, peer: m.peer, at: Date.now() });
       peers.set(m.id, m.peer);
       c.destroy();
-      sock.write(jsonFrame([JSON.stringify({ op: 'link', id: m.id, chsh: r.chsh, verdict: r.verdict, keyBits: r.keyBits, key: r.key, error: r.error }) ]));
+      sock.write(jsonFrame([JSON.stringify({ op: 'link', id: m.id, chsh: r.chsh, verdict: r.verdict, keyBits: r.keyBits, key: r.key, certBits: r.certBits, qber: r.qber, agreed: r.agreed, error: r.error }) ]));
       return;
     }
   });
@@ -115,7 +115,7 @@ async function bench(n, eve){
     }catch(e){ r = { id, error: String(e) }; }
     links.set(id, { ...r, peer: target, at: Date.now() });
     c.destroy();
-    out.push({ id, role: 'A', n, eve: peve, chsh: r.chsh, verdict: r.verdict, keyBits: r.keyBits, key: r.key, error: r.error });
+    out.push({ id, role: 'A', n, eve: peve, chsh: r.chsh, verdict: r.verdict, keyBits: r.keyBits, key: r.key, certBits: r.certBits, qber: r.qber, agreed: r.agreed, error: r.error });
   }
   return out;
 }
@@ -138,7 +138,8 @@ httpServe((req, res) => {
       uptimeMs: Date.now() - upSince,
       links: [...links.values()].map(l => ({
         link: l.id, role: l.role, peer: l.peer, n: l.n, eve: l.eve || 0,
-        chsh: l.chsh, verdict: l.verdict, keyBits: l.keyBits, key: l.key, error: l.error,
+        chsh: l.chsh, verdict: l.verdict, keyBits: l.keyBits, key: l.key,
+        certBits: l.certBits, qber: l.qber, agreed: l.agreed, error: l.error,
       })),
     }));
   } else { res.statusCode = 404; res.end('{}'); }

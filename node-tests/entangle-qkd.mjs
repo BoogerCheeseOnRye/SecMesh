@@ -54,11 +54,12 @@ export function outcomeFromJoint(bitA, a, b, eve, rng, mode = 'flip'){
   return { agree: bitB === bitA, bitB };
 }
 
-/* Compute CHSH statistic S over family-cross (settings 1/2) events. */
+/* Compute CHSH statistic S over family-cross (settings 1/2) events.
+ * Returns { S, cnts } so the finite-key gate gets the four per-cell counts
+ * (needed for the Hoeffding confidence bound). */
 export function chshS(items){
   const sum = [0, 0, 0, 0];      // E over cells (1,1)(1,2)(2,1)(2,2)
   const cnt = [0, 0, 0, 0];
-  let s = 0, t = 0;
   for (const it of items){
     const a = it.basesA, b = it.basesB;
     if (a >= 1 && b >= 1){
@@ -67,12 +68,26 @@ export function chshS(items){
       sum[ci] += e; cnt[ci]++;
     }
   }
+  let s = 0, t = 0;
   for (let c = 0; c < 4; c++){
     if (cnt[c] > 0) s += (sum[c] / cnt[c]) * (c === 3 ? -1 : 1);   // sign (1,1)+(1,2)+(2,1)−(2,2)
     else t++;
   }
-  if (t) return null;                              // not enough CHSH events
-  return Math.abs(s);
+  if (t) return { S: null, cnts: cnt };            // not enough CHSH events
+  return { S: Math.abs(s), cnts: cnt };
+}
+
+/* One E91 link's FINITE-KEY verdict: the raw asymptotic "S > 2" threshold is
+ * replaced by the measured-block stopping rule on the side that knows both keys
+ * (role A, after B's summary). B computes the shared cert bits + QBER lanes and
+ * reports them; A is the only side that can judge `agreed`. */
+export function linkCert(items, eps = 1e-6){
+  const { S, cnts } = chshS(items);
+  const sift = items.filter(it => it.basesA === KEY_ALIGN && it.basesB === KEY_ALIGN).length;
+  const QBER = keyQBER(items);
+  const finite = S == null ? null : finiteKeyBits({ S, sift, QBER, cnts, eps });
+  const oracle = numericalOracle(items);
+  return { S, cnts, sift, QBER, finite, oracle };
 }
 
 /* Sifted key bits: aligned (0,0) events, singlet anti-correlation ⇒ B flips. */
@@ -84,6 +99,129 @@ export function siftKeys(items, side){
     }
   }
   return bits;
+}
+
+/* ── finite-key security layer (replaces the raw "S > 2" threshold) ──────────
+
+ * The old verdict `S > 2 ? 'KEY' : 'ABORT'` is an ASYMPTOTIC test: with a short
+ * measured block, the sample CHSH statistic has finite error, so a threshold test
+ * cannot attach a probability to its decision. Everything below implements the
+ * roadmap's finite-key gate on the *measured block itself*:
+ *
+ *   ℓ = n_key · ( H_min(S_LB) − h(QBER) ) − √(2 n_key ln(1/ε_s))/ln 2 − log₂(3/ε)
+ *
+ * where ℓ is the number of provably-secret key bits extractable at security ε,
+ * S_LB is a Hoeffding LOWER confidence bound on Bell-CHSH from the test cells,
+ * H_min is the device-independent min-entropy bound of Pironio et al. (a CHSH
+ * value S certifies ≥ 1 − h(p) bits/event with p = (1+√((S/2)²−1))/2), QBER is
+ * the key-cell error rate (the information Eve/noise already leaked), the √n term
+ * is the asymptotic-equipartition penalty for finite blocks (Tomamichel–Renner),
+ * and the final term pays for universal hashing (leftover-hash lemma).
+ *
+ * $\epsilon$ = ε_s + ε_hash with the split below. This turns the fabric's decision
+ * into a STOPPING RULE with a real probability instead of a bare inequality, and
+ * it makes the aligned-"side-channel" Eve (the one that parks S near 2.83 while
+ * corrupting the key cell) visible through the QBER lane she was blind to before.
+ */
+
+export function binEntropy(p){
+  if (p <= 0 || p >= 1) return 0;
+  return -(p * Math.log2(p) + (1 - p) * Math.log2(1 - p));
+}
+
+/* Device-independent min-entropy (bits/event) certified by Bell-CHSH S ∈ [2, 2√2]:
+ * H ≥ 1 − h(p), p = (1 + √((S/2)² − 1)) / 2. At S=2√2 → 1 bit/event; at S=2 → 0. */
+export function minEntropyFromChsh(S){
+  if (S <= 2) return 0;
+  if (S >= 2 * Math.SQRT2) return 1;
+  const p = (1 + Math.sqrt((S / 2) ** 2 - 1)) / 2;
+  return Math.max(0, 1 - binEntropy(p));
+}
+
+/* Hoeffding LOWER confidence bound on the signed CHSH statistic from the observed
+ * cells. Each cell E_c is a mean of ±1 over cnt[c] draws, so
+ * P(|E_c − μ_c| ≥ t_c) ≤ 2·e^{−2·cnt[c]·t_c²}. Union-budgeting ε across the four
+ * cells gives t_c = √(ln(8/ε) / (2·cnt[c])) and S_LB = Ŝ − Σ t_c (all four cells
+ * contribute negatively — deliberately conservative). Missing/empty cell ⇒ 2. */
+export function chshLowerConfidence(S, cnts, eps){
+  if (S <= 2) return 2;
+  let err = 0;
+  for (let c = 0; c < 4; c++){
+    if (!cnts[c]) return 2;
+    err += Math.sqrt(Math.log(8 / eps) / (2 * cnts[c]));
+  }
+  return Math.max(2, S - err);
+}
+
+/* Key-cell error rate — the "basis-correlation lane". The aligned Eve disturbs
+ * exactly the (0,0) key cell, which never feeds the Bell test (S stays ≈ 2.83),
+ * but it flips `agree` to true there. h(QBER) is the leak Eve already holds, so
+ * it both *detects* her (roadmap: used-basis correlation probe) and *charges*
+ * the finite-key budget for her. Honest singlet key cells are always false ⇒ 0. */
+export function keyQBER(items){
+  let n = 0, bad = 0;
+  for (const it of items){
+    if (it.basesA === KEY_ALIGN && it.basesB === KEY_ALIGN){
+      n++;
+      if (it.agree) bad++;                                    // error: B's sifted bit ≠ A's
+    }
+  }
+  return n ? bad / n : 0;
+}
+
+/* Finite-key certification: extractable secret bits ℓ at total security ε. */
+export function finiteKeyBits({ S, sift, QBER, cnts, eps = 1e-6 }){
+  if (sift <= 0) return 0;
+  const epsS = eps / 3;                                        // smoothing budget
+  const SLB = chshLowerConfidence(S, cnts, epsS);              // S lower bound (1−ε_s)
+  const per = Math.max(0, minEntropyFromChsh(SLB) - binEntropy(QBER));
+  if (per <= 0) return 0;
+  const aep  = Math.sqrt(2 * sift * Math.log(1 / epsS)) / Math.LN2;   // finite-block penalty
+  const hash = Math.log2(3 / eps) + 3;                               // universal-hash cost
+  return Math.max(0, Math.floor(sift * per - aep - hash));
+}
+
+/* Numerical (bootstrap) secret-key oracle — the roadmap's second gate. Resample
+ * the measured CHSH-cell ±1 lists and the key-cell errors WITH replacement,
+ * re-run the same certification per draw, and report the (1−ε_n) pessimistic
+ * percentile. This is an empirical, non-IID-tolerant cross-check of the analytic
+ * bound (arXiv 2605.12984-style numerical finite-key). `rng` injectable for
+ * reproducibility; seeded default. */
+export function numericalOracle(items, { reps = 1000, eps = 1e-2, seed = 0x5eed } = {}){
+  const cells = [[], [], [], []], keyErr = [], keyTot = [];
+  for (const it of items){
+    if (it.basesA >= 1 && it.basesB >= 1){
+      cells[(it.basesA - 1) * 2 + (it.basesB - 1)].push(it.agree ? 1 : -1);
+    } else if (it.basesA === KEY_ALIGN && it.basesB === KEY_ALIGN){
+      keyErr.push(it.agree ? 1 : 0); keyTot.push(1);
+    }
+  }
+  const nKey = keyErr.length;
+  if (!nKey) return { bits: 0, rate: 0, nKey: 0, reps: 0, eps };
+  const sift = keyErr.length;
+  let state = (seed >>> 0);
+  const rng = () => { state = (state * 1103515245 + 12345) >>> 0; return state / 0x100000000; };
+  const lens = [];
+  for (let r = 0; r < reps; r++){
+    let Srep = 0; let empty = false;
+    for (let c = 0; c < 4; c++){
+      const p = cells[c]; if (!p.length){ empty = true; break; }
+      let sum = 0;
+      for (let i = 0; i < p.length; i++) sum += p[Math.floor(rng() * p.length)];
+      Srep += (sum / p.length) * (c === 3 ? -1 : 1);
+    }
+    if (empty) continue;
+    Srep = Math.abs(Srep);
+    let bad = 0;
+    for (let i = 0; i < keyErr.length; i++) bad += keyErr[Math.floor(rng() * keyErr.length)];
+    const Q = bad / sift;
+    const cnts = cells.map(p => p.length);
+    lens.push(finiteKeyBits({ S: Srep, sift, QBER: Q, cnts, eps }));
+  }
+  lens.sort((a, b) => a - b);
+  const idx = Math.max(0, Math.min(lens.length - 1, Math.floor(eps * lens.length)));
+  const bits = lens[idx] || 0;
+  return { bits, rate: sift ? bits / sift : 0, nKey: sift, reps: lens.length, eps };
 }
 
 /* Lightweight error correction + privacy amplification: parity blocks of 8,
@@ -108,12 +246,19 @@ export function conferenceKey(results){
   return createHash('sha256').update(honest.map(r => r.key).sort().join('|')).digest('hex');
 }
 export function gate(results){
-  const bad = results.filter(r => (r.verdict === 'KEY') !== (r.chsh > 2));
+  const now = results.filter(r => (r.verdict === 'KEY') !== (r.certBits > 0 && r.chsh != null));
   const eves = results.filter(r => r.eve > 0);
   const honest = results.filter(r => r.eve === 0);
-  const eveOk = eves.every(r => r.verdict === 'ABORT' && r.chsh < 2);
-  const honOk = honest.every(r => r.verdict === 'KEY' && r.chsh >= 2.5 && r.chsh <= 3.05 && r.key);
-  return { ok: bad.length === 0 && eveOk && honOk, bad, honOk, eveOk };
+  const eveOk = eves.every(r =>
+    r.verdict === 'ABORT'
+    && (r.chsh == null || r.chsh < 2)
+    && (r.certBits != null && r.certBits <= 0)
+    && (r.qber == null || r.qber > 0.05));
+  const honOk = honest.every(r =>
+    (r.verdict === 'KEY' || r.verdict === 'ABORT')
+    && ((r.verdict === 'KEY' && r.certBits > 0 && r.chsh >= 2.5 && r.chsh <= 3.05 && r.qber <= 0.05 && r.agreed !== false && r.key)
+        || (r.verdict === 'ABORT' && !(r.certBits > 0))));
+  return { ok: now.length === 0 && eveOk && honOk, bad: now, honOk, eveOk };
 }
 
 /* One E91 link, role-agnostic. `send(msg)` / `recv()` drive the wire. */
@@ -134,12 +279,17 @@ export async function runLink(role, opts, send, recv){
     const bitsB = items.map(it => it.bitB);
     const reveal = items.map(it => ({ pa: it.bitA, pb: it.bitB, a: it.basesA, b: it.basesB })); // sacrificed for the test
     await send({ op: 'outcomes', bitsB, reveal });
-    const s = chshS(items);
+    const cert = linkCert(items);
+    const s = cert.S;
     const keyB_A = siftKeys(items, 'A');
     const key = keyFromBits(deNoise(keyB_A));
     const sum = await recv();                                           // B's verdict
-    return { role: 'A', id, n, eve, chsh: s, verdict: s > 2 ? 'KEY' : 'ABORT', keyBits: keyB_A.length,
-             key, agreed: !!(sum && sum.agreed === key) };
+    const agreed = !!(sum && sum.agreed === key);
+    const finiteKey = cert.finite != null && cert.finite > 0;
+    const verdict = s == null || !finiteKey ? 'ABORT' : (agreed ? 'KEY' : 'ABORT');
+    return { role: 'A', id, n, eve, chsh: s, verdict, keyBits: keyB_A.length,
+             qber: cert.QBER, certBits: cert.finite, epss: 1e-6,
+             agreed, key, oracle: cert.oracle };
   }
   // role 'B'
   const q = await recv();                                               // qev
@@ -151,9 +301,12 @@ export async function runLink(role, opts, send, recv){
     bitA: ro.reveal[i].pa, bitB: pb, basesA: ra.bases[i], basesB: basesB[i],
     agree: pb === ro.reveal[i].pa,
   }));
-  const s = chshS(items);
+  const cert = linkCert(items);
+  const s = cert.S;
   const siftB = siftKeys(items, 'B');
   const key = keyFromBits(deNoise(siftB));
   await send({ op: 'summary', s, agreed: key });
-  return { role: 'B', id: q.id, n: q.n, eve: q.eve, chsh: s, verdict: s > 2 ? 'KEY' : 'ABORT', keyBits: siftB.length, key };
+  const finiteKey = cert.finite != null && cert.finite > 0;
+  return { role: 'B', id: q.id, n: q.n, eve: q.eve, chsh: s, verdict: finiteKey ? 'KEY' : 'ABORT',
+           keyBits: siftB.length, qber: cert.QBER, certBits: cert.finite, epss: 1e-6, key, oracle: cert.oracle };
 }

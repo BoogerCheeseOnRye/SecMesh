@@ -464,43 +464,56 @@ galactic:    { gravity: 0.8, darkEnergy: 0.3, curvature: 0.7, inflation: 0.1, al
       <i>admission layer</i>: who passes the front door. They don't compete, and the numbers above wouldn't move if you
       swapped the hash — the table is about the door, crypto about the safe inside.</div>
 
-    <h3>4d·2 · Roadmap — next (not yet shipped, as of 2026-09-29)</h3>
-    <p>These directions are <b>decided and documented, but not implemented yet</b> — listed here so the "what's next"
-      is public, and so nobody mistakes the roadmap for the measured figures above. Full rationale in
-      <code>docs/secmesh-concept.md</code> §Novel-ideas sweep.</p>
+    <h3>4d·2 · Roadmap — now shipped (2026-09-30)</h3>
+    <p>The finite-key layer below is <b>implemented and measured in the shipped fabric</b> — the raw
+      <code>S &gt; 2</code> threshold is gone, replaced by a per-link stopping rule that certifies a
+      number of secret bits at a stated failure probability ε. Rationale in
+      <code>docs/secmesh-concept.md</code> §Finite-key security; full derivation in the whitepaper.</p>
     <ul>
-      <li><b>Finite-key gate (replaces the raw CHSH threshold).</b> Today the fabric aborts when Bell-CHSH S drops
-        (Eve → S ≈ 0.6), and the watchdog watches the key-divergence margin. Next step is a per-instance
-        finite-size min-entropy / EUR-style bound computed on the <i>measured block</i> — a real stopping rule with
-        a probability, instead of a threshold.</li>
-      <li><b>Side-channel-aware ε lanes.</b> Adopt a finite-key security statement that tolerates source flaws and
-        bit/basis side-channel leakage up to ε_side ≈ 1e-3, and tighten our own parameter-estimation lanes
-        (bias/visibility leakage) — improving the tolerated-corruption bar without changing the topology.</li>
-      <li><b>Numerical security oracle.</b> Feed the measured correlations into a numerical finite-key framework
-        (valid against coherent, non-IID attacks) and gate the run on its secret-key-rate bound instead of a single
-        S threshold.</li>
-      <li><b>Basis-correlation lane.</b> Basis correlations widen the effective state dimension and make the system
-        visible to USD (unambiguous state discrimination) — exactly our injected "aligned Eve" family. Add a
-        used-basis correlation probe to the existing entropy watch to catch it earlier.</li>
+      <li><b>Finite-key gate (replaces the raw CHSH threshold). — SHIPPED.</b> Each link now certifies
+        <b>ℓ</b> bits via <b>ℓ = n_key·(H_min(S_LB) − h(QBER)) − √(2·n_key·ln(1/ε_s))/ln2 − log₂(3/ε)</b>,
+        where <b>S_LB</b> is a Hoeffding <i>lower</i> confidence bound on CHSH, <b>H_min</b> the
+        device-independent bound (Pironio), <b>h(QBER)</b> the key-cell error entropy, and the last two
+        terms the finite-block (AEP) and universal-hash costs. The verdict is a stopping rule with a real
+        probability: <b>KEY</b> requires ℓ ≥ 1 <i>and</i> both peers deriving the same key.</li>
+      <li><b>Side-channel-aware ε lanes. — SHIPPED (the QBER lane).</b> The finite-key statement charges
+        h(QBER) to the budget, so a side channel that corrupts the key cell without touching Bell
+        visibility is both detected and priced. Measured: the aligned Eve keeps S ≈ 2.83 but shows
+        QBER ≈ 20% → ℓ = 0 → <b>ABORT</b>.</li>
+      <li><b>Numerical security oracle. — SHIPPED (bootstrap cross-check).</b> The measured CHSH-cell
+        ±1 lists are resampled (non-IID-tolerant) and the analytic bound re-run per draw; the pessimistic
+        (1−ε_n) percentile is reported alongside ℓ as a sanity check.</li>
+      <li><b>Basis-correlation lane. — SHIPPED.</b> The used-basis QBER probe is the entropy watch that catches
+        basis-correlated / USD-visible attacks the CHSH test alone is blind to.</li>
     </ul>
+    <div class="tipbox"><b>What finite-key buys, measured (ε = 1e-6, one 50,000-round block).</b> An honest
+      link certifies <b>ℓ ≈ 3,100 bits</b>; the classical Eve (η = 0.4) certifies <b>0</b>; the aligned
+      "side-channel" Eve (Bell-blind, QBER ≈ 20%) certifies <b>0</b>; and a noise-parked Eve tuned to sit just
+      above the old accept line certifies <b>0</b>. Finite-size is the price of honesty: below ~20k rounds
+      even an honest block can't certify a usable key at ε = 1e-6, which is exactly what the old bare
+      threshold silently hid. <b>Note the bootstrap oracle alone is optimistic</b> — it resamples the observed
+      (possibly attacker-biased) block, so it is a cross-check, not the decision authority.</div>
+
 
     <h3 id="qkd">4g · Entanglement fabric — the quantum-key cluster</h3>
     <p>An E91 (Ekert) protocol <i>simulator</i> that can actually run on your phones as a cluster. Real photon entanglement
       can't travel over a wire, so — exactly as the physics engine is an honest approximation of matter — the <b>quantum
       channel is emulated</b>: the classical outcome distribution is sampled from the singlet joint distribution once both
       measurement settings are fixed, the only injection that breaks the Bell correlations is an eavesdropper's disturbance,
-      and the Bell-CHSH test decides the verdict. Each node genuinely generates/measures its share and holds half the state.</p>
+      and a <b>finite-key gate</b> (not a raw threshold) decides the verdict. Each node genuinely generates/measures its share and holds half the state.</p>
     <ul>
       <li><b>Topology</b>: complete-graph mesh — with <b>N peers</b> you get <b>n(n−1)/2 links</b>, each link one E91 session
         (initiator = lower-index peer, responder = higher-index). Every pair runs concurrently (<b>async</b>); a
         <b>conference key</b> is derived by hashing the honest link keys. Add a node and the mesh re-wires itself — nothing
         says "four" in the protocol.</li>
-      <li><b>Measurements</b>: honest links hold Bell-CHSH <b>S ≈ 2·√2 ≈ 2.83</b> (> 2, no eavesdropper) and derive a real
-        SHA-256 key; inject <code>--eve node-&lt;k&gt;</code> and the links touching that node collapse to <b>S ≈ 0.6 &lt; 2</b>
-        and <b>ABORT</b> — eavesdropping is detected, key refused. Gate: <code>node node-tests/qkd-selfcheck.mjs</code> (part of
-        <code>selfcheck.mjs</code>). <b>Measured 5-node proof</b> (<code>qkd-run.json</code>, 4000 rounds): all 10 links KEY —
-        S = 2.68–2.93 across the complete graph, 417–456 key bits per link, single conference key derived from the honest
-        keys only, gate all green (<code>ok</code>/<code>honOk</code>/<code>eveOk</code>).</li>
+      <li><b>Measurements</b>: honest links hold Bell-CHSH <b>S ≈ 2·√2 ≈ 2.83</b> and certify <b>ℓ ≈ 3,100 secret bits</b> at
+        ε = 1e-6 (50,000-round block); inject <code>--eve node-&lt;k&gt;</code> and the links touching that node collapse to
+        <b>S ≈ 0.6</b> and <b>ℓ = 0 → ABORT</b> — eavesdropping is detected, key refused. The gate is
+        <b>ℓ ≥ 1 ∧ key-agreement</b>, so it also catches attackers who hide behind a Bell value (see 4d·2). Gate:
+        <code>node node-tests/qkd-selfcheck.mjs</code> (part of <code>selfcheck.mjs</code>). <b>Measured 5-node proof</b>
+        (<code>qkd-run.json</code>, 4000 rounds): all 10 links KEY — S = 2.68–2.93 across the complete graph, 417–456 key bits
+        per link, single conference key derived from the honest keys only, gate all green
+        (<code>ok</code>/<code>honOk</code>/<code>eveOk</code>).</li>
     </ul>
     <pre># peers on your LAN (Termux, no adb needed) — one entangle-peer per phone:
 node node-tests/entangle-peer.mjs --name node-0 --entangle 7200 --control 7300 --status 7301   # run once on EACH phone
